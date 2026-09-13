@@ -1,0 +1,49 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+gunicorn==23.0.0
+
+# Database
+sqlalchemy==2.0.36
+alembic==1.14.0
+psycopg[binary]==3.2.3
+geoalchemy2==0.16.0
+
+# Caching / background jobs
+redis==5.2.1
+celery==5.4.0
+
+# Auth / security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.20
+
+# Validation / settings
+pydantic==2.10.4
+pydantic-settings==2.7.0
+email-validator==2.2.0
+
+# Rate limiting
+slowapi==0.1.9
+
+# HTTP client for provider integrations (payments/maps/delivery/KYC)
+httpx==0.28.1
+
+# AI provider SDK
+anthropic==0.42.0
+
+# Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
+boto3==1.35.90
+
+# PDF rendering for invoices/receipts
+weasyprint==63.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+httpx==0.28.1
+faker==33.1.0
+
+# Dev tooling
+ruff==0.8.4
+mypy==1.14.0

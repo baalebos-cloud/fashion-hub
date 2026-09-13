@@ -1,0 +1,29 @@
+# Production overrides: no source mounts, restart policies, resource
+# limits. Adjust CPU/memory limits to match your VPS plan (Contabo/
+# Hetzner/DigitalOcean/etc.).
+version: "3.9"
+services:
+  api:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+    environment:
+      APP_ENV: production
+      DEBUG: "false"
+
+  worker:
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  postgres:
+    restart: always
+
+  redis:
+    restart: always

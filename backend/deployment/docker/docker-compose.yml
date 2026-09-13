@@ -1,0 +1,7 @@
+# Deployment-level compose file. For local development, use
+# backend/docker-compose.yml directly. This file is intended to be adapted
+# per-target-VPS (Contabo/Hetzner/DigitalOcean/etc.) alongside the dev/prod
+# overrides in this same directory.
+version: "3.9"
+include:
+  - ../../docker-compose.yml

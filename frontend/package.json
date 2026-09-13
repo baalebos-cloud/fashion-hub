@@ -1,0 +1,10 @@
+{
+  "name": "fashion-hub-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Frontend pieces for Fashion Hub, starting with the global Seam AI assistant widget.",
+  "dependencies": {
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  }
+}

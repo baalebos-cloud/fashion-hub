@@ -1,0 +1,99 @@
+"""
+Aggregates every domain router under /api/v1. Grouped to mirror the module
+layout for readability; import order doesn't affect routing behavior.
+"""
+from fastapi import APIRouter
+
+from app.api.v1 import (
+    admin,
+    ai,
+    ai_navigation,
+    auth,
+    carts,
+    categories,
+    checkout,
+    customers,
+    dashboard,
+    delivery_partners,
+    delivery_requests,
+    delivery_tracking,
+    delivery_webhooks,
+    deliveries,
+    designers,
+    designs,
+    favorites,
+    geocoding,
+    invoices,
+    kyb,
+    kyc,
+    locations,
+    maps,
+    measurements,
+    messages,
+    notifications,
+    order_items,
+    order_timeline,
+    orders,
+    payment_consent,
+    payment_webhooks,
+    payments,
+    professionals,
+    ratings,
+    receipts,
+    refunds,
+    reviews,
+    search,
+    tailors,
+    users,
+    vendor_categories,
+    vendor_inventory,
+    vendor_products,
+    vendors,
+)
+
+api_router = APIRouter()
+
+api_router.include_router(auth.router)
+api_router.include_router(users.router)
+api_router.include_router(customers.router)
+api_router.include_router(professionals.router)
+api_router.include_router(tailors.router)
+api_router.include_router(designers.router)
+api_router.include_router(vendors.router)
+api_router.include_router(vendor_products.router)
+api_router.include_router(vendor_categories.router)
+api_router.include_router(vendor_inventory.router)
+api_router.include_router(carts.router)
+api_router.include_router(checkout.router)
+api_router.include_router(orders.router)
+api_router.include_router(order_items.router)
+api_router.include_router(order_timeline.router)
+api_router.include_router(payments.router)
+api_router.include_router(payment_webhooks.router)
+api_router.include_router(refunds.router)
+api_router.include_router(invoices.router)
+api_router.include_router(receipts.router)
+api_router.include_router(payment_consent.router)
+api_router.include_router(deliveries.router)
+api_router.include_router(delivery_partners.router)
+api_router.include_router(delivery_requests.router)
+api_router.include_router(delivery_tracking.router)
+api_router.include_router(delivery_webhooks.router)
+api_router.include_router(locations.router)
+api_router.include_router(maps.router)
+api_router.include_router(geocoding.router)
+api_router.include_router(measurements.router)
+api_router.include_router(designs.router)
+api_router.include_router(categories.router)
+api_router.include_router(reviews.router)
+api_router.include_router(ratings.router)
+api_router.include_router(notifications.router)
+api_router.include_router(messages.router)
+api_router.include_router(ai.router)
+api_router.include_router(ai_navigation.router)
+api_router.include_router(kyc.router)
+api_router.include_router(kyb.router)
+api_router.include_router(search.router)
+api_router.include_router(favorites.router)
+api_router.include_router(dashboard.router)
+api_router.include_router(admin.router)

@@ -1,0 +1,23 @@
+name: CD
+
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t fashion-hub-backend:${{ github.ref_name }} .
+
+      # Push to your own container registry (self-hosted registry, GHCR,
+      # Docker Hub, etc.) and SSH-deploy to the target VPS. Deliberately
+      # left unopinionated here since the project avoids prescribing any
+      # specific cloud/IaC provider -- adapt to your chosen registry/host.
+      - name: Placeholder for registry push + VPS deploy
+        run: |
+          echo "Add: docker push, then ssh into the VPS and run deployment/scripts/deploy.sh"

@@ -1,0 +1,472 @@
+/*
+  Seam — the Fashion Hub AI assistant widget.
+
+  Design language: a tailor's workroom, not a generic SaaS chat bubble.
+  - "Muslin" panel surface (the unbleached cotton used for garment drafts)
+  - "Brass" accent (pins, tape-measure hardware, button hardware)
+  - "Thread" accent (pin-cushion red) for the person's own messages
+  All tokens are namespaced under .seam-root so this file is safe to drop
+  into a host app without colliding with existing styles.
+*/
+
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap");
+
+.seam-root {
+  --seam-ink: #1c2230;
+  --seam-ink-soft: #565a66;
+  --seam-muslin: #ece7db;
+  --seam-paper: #faf9f5;
+  --seam-brass: #ab8a52;
+  --seam-brass-deep: #8d7040;
+  --seam-thread: #8a3a2b;
+  --seam-line: #d9d2c1;
+  --seam-focus: #6b7cff;
+
+  --seam-font-display: "Fraunces", Georgia, serif;
+  --seam-font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  font-family: var(--seam-font-body);
+}
+
+.seam-root * {
+  box-sizing: border-box;
+}
+
+/* ---------- Launcher ---------- */
+
+.seam-launcher {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 18px 12px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(28, 34, 48, 0.08);
+  background: var(--seam-ink);
+  color: var(--seam-paper);
+  box-shadow: 0 10px 30px rgba(28, 34, 48, 0.28);
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.seam-launcher:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 36px rgba(28, 34, 48, 0.34);
+}
+
+.seam-launcher:focus-visible {
+  outline: 2px solid var(--seam-focus);
+  outline-offset: 3px;
+}
+
+.seam-launcher-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--seam-brass);
+  display: grid;
+  place-items: center;
+  color: var(--seam-ink);
+  flex-shrink: 0;
+}
+
+.seam-launcher-label {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.seam-launcher.seam-open {
+  transform: scale(0.94);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ---------- Panel ---------- */
+
+.seam-panel {
+  position: absolute;
+  right: 24px;
+  bottom: 24px;
+  pointer-events: auto;
+  width: 380px;
+  max-width: calc(100vw - 32px);
+  height: min(620px, calc(100vh - 48px));
+  background: var(--seam-muslin);
+  border-radius: 20px;
+  border: 1px solid var(--seam-line);
+  box-shadow: 0 24px 60px rgba(28, 34, 48, 0.32);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transform-origin: bottom right;
+  transform: scale(0.9) translateY(12px);
+  opacity: 0;
+  transition: transform 220ms cubic-bezier(0.2, 0.7, 0.3, 1), opacity 180ms ease;
+}
+
+.seam-panel.seam-visible {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seam-panel,
+  .seam-launcher,
+  .seam-message {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .seam-panel {
+    right: 12px;
+    left: 12px;
+    bottom: 12px;
+    width: auto;
+    height: min(80vh, 640px);
+  }
+}
+
+/* ---------- Header ---------- */
+
+.seam-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 16px 14px 18px;
+  background: var(--seam-ink);
+  color: var(--seam-paper);
+  flex-shrink: 0;
+}
+
+.seam-header-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--seam-brass);
+  color: var(--seam-ink);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+
+.seam-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.seam-header-name {
+  font-family: var(--seam-font-display);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.seam-header-subtitle {
+  font-size: 12px;
+  color: rgba(250, 249, 245, 0.68);
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seam-icon-button {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: rgba(250, 249, 245, 0.75);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.seam-icon-button:hover {
+  background: rgba(250, 249, 245, 0.12);
+  color: var(--seam-paper);
+}
+
+.seam-icon-button:focus-visible {
+  outline: 2px solid var(--seam-brass);
+  outline-offset: 2px;
+}
+
+/* ---------- Thread ---------- */
+
+.seam-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.seam-thread::-webkit-scrollbar {
+  width: 8px;
+}
+.seam-thread::-webkit-scrollbar-thumb {
+  background: var(--seam-line);
+  border-radius: 999px;
+}
+
+.seam-empty {
+  margin: auto 0;
+  text-align: left;
+  padding: 4px 4px 0;
+}
+
+.seam-empty-title {
+  font-family: var(--seam-font-display);
+  font-size: 19px;
+  color: var(--seam-ink);
+  margin-bottom: 6px;
+}
+
+.seam-empty-body {
+  font-size: 13.5px;
+  color: var(--seam-ink-soft);
+  line-height: 1.5;
+  max-width: 30ch;
+}
+
+.seam-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.seam-chip {
+  border: 1px solid var(--seam-line);
+  background: var(--seam-paper);
+  color: var(--seam-ink);
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 7px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.seam-chip:hover {
+  border-color: var(--seam-brass);
+  background: #fff;
+}
+
+.seam-chip:focus-visible {
+  outline: 2px solid var(--seam-focus);
+  outline-offset: 2px;
+}
+
+.seam-message {
+  display: flex;
+  animation: seam-rise 160ms ease;
+}
+
+@keyframes seam-rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.seam-message.seam-from-user {
+  justify-content: flex-end;
+}
+
+.seam-bubble {
+  max-width: 82%;
+  padding: 9px 13px;
+  border-radius: 14px;
+  font-size: 13.5px;
+  line-height: 1.48;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.seam-message.seam-from-assistant .seam-bubble {
+  background: var(--seam-paper);
+  border: 1px solid var(--seam-line);
+  color: var(--seam-ink);
+  border-bottom-left-radius: 4px;
+}
+
+.seam-message.seam-from-user .seam-bubble {
+  background: var(--seam-thread);
+  color: var(--seam-paper);
+  border-bottom-right-radius: 4px;
+}
+
+.seam-typing {
+  display: inline-flex;
+  gap: 4px;
+  padding: 2px 0;
+}
+
+.seam-typing span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--seam-ink-soft);
+  animation: seam-bounce 1.1s infinite ease-in-out;
+}
+
+.seam-typing span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.seam-typing span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes seam-bounce {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
+.seam-error {
+  font-size: 12.5px;
+  color: var(--seam-thread);
+  background: #fbeceA;
+  border: 1px solid #eac9c2;
+  padding: 8px 11px;
+  border-radius: 10px;
+}
+
+/* ---------- Composer ---------- */
+
+.seam-composer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--seam-line);
+  background: var(--seam-muslin);
+  padding: 10px 10px 12px;
+}
+
+.seam-composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  background: var(--seam-paper);
+  border: 1px solid var(--seam-line);
+  border-radius: 14px;
+  padding: 6px 6px 6px 12px;
+  transition: border-color 140ms ease;
+}
+
+.seam-composer-row:focus-within {
+  border-color: var(--seam-brass);
+}
+
+.seam-composer-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: none;
+  font-family: var(--seam-font-body);
+  font-size: 13.5px;
+  line-height: 1.4;
+  color: var(--seam-ink);
+  max-height: 96px;
+  padding: 6px 0;
+}
+
+.seam-composer-input:focus {
+  outline: none;
+}
+
+.seam-composer-input::placeholder {
+  color: #92897a;
+}
+
+.seam-send-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: none;
+  background: var(--seam-brass);
+  color: var(--seam-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 140ms ease, opacity 140ms ease, transform 100ms ease;
+}
+
+.seam-send-button:hover:not(:disabled) {
+  background: var(--seam-brass-deep);
+}
+
+.seam-send-button:active:not(:disabled) {
+  transform: scale(0.94);
+}
+
+.seam-send-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.seam-send-button:focus-visible {
+  outline: 2px solid var(--seam-focus);
+  outline-offset: 2px;
+}
+
+.seam-footnote {
+  font-size: 10.5px;
+  color: var(--seam-ink-soft);
+  text-align: center;
+  margin-top: 8px;
+}
+
+/* ---------- Inline "Ask Seam" trigger (used elsewhere in the app) ---------- */
+
+.seam-inline-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--seam-brass-deep);
+  font-family: var(--seam-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+
+.seam-inline-trigger:hover {
+  border-bottom-color: var(--seam-brass-deep);
+}
+
+.seam-inline-trigger:focus-visible {
+  outline: 2px solid var(--seam-focus);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
