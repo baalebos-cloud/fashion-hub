@@ -1,0 +1,33 @@
+import { useEffect, useState } from "react";
+import { useOrders } from "@/hooks/use-orders";
+import { invoicesApi } from "@/api/invoices.api";
+import { InvoiceCard } from "@/components/invoices/InvoiceCard";
+import { EmptyState } from "@/components/ui/empty-state";
+import { customerRoutes } from "@/config/routes.config";
+import type { Invoice } from "@/types/invoice";
+
+export default function Invoices() {
+  const { orders } = useOrders();
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+
+  useEffect(() => {
+    Promise.all(orders.map((order) => invoicesApi.getByOrderId(order.id).catch(() => null))).then((results) =>
+      setInvoices(results.filter((invoice): invoice is Invoice => invoice !== null))
+    );
+  }, [orders]);
+
+  return (
+    <div>
+      <h1 className="mb-6 font-display text-xl text-ink">Invoices</h1>
+      {invoices.length === 0 ? (
+        <EmptyState title="No invoices yet" description="Invoices appear here once an order is paid." />
+      ) : (
+        <div className="flex flex-col gap-3">
+          {invoices.map((invoice) => (
+            <InvoiceCard key={invoice.id} invoice={invoice} detailsPath={customerRoutes.invoiceDetails(invoice.id)} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

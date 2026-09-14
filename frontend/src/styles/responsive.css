@@ -1,0 +1,18 @@
+/*
+  Breakpoint reference (matches Tailwind defaults — kept here only for
+  components that read raw CSS rather than Tailwind classes, e.g.
+  map/canvas-based components that need JS-side breakpoint checks via
+  hooks/use-responsive.ts).
+
+  sm: 640px   Small phones / large phones landscape
+  md: 768px   Tablets
+  lg: 1024px  Small laptops — sidebar becomes visible (see AppLayout.tsx)
+  xl: 1280px  Desktops
+  2xl: 1536px Large desktops
+*/
+
+@media (max-width: 1023px) {
+  .app-sidebar {
+    display: none;
+  }
+}
