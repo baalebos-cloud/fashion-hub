@@ -1,3 +1,6 @@
+from datetime import datetime
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 High-level payment record tied 1:1 (usually) to an order. `payment_transactions`
 stores the raw provider events (which can be many-to-one, e.g. retries) so
@@ -5,8 +8,6 @@ this table always reflects the current authoritative status while the
 transaction log preserves full provider history for reconciliation/audit.
 """
 import uuid
-from datetime import datetime
-from sqlalchemy import DateTime
 from sqlalchemy import Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -24,5 +25,4 @@ class Payment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="NGN")
     status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
-    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
+    paid_at: Mapped[datetime | None] = mapped_column(nullable=True)

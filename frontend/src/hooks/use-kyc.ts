@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { kycApi } from "@/api/kyc.api";
-import type { KYCStatus } from "@/types/kyc";
+import type { KYCStatus, SubmitKYCPayload } from "@/types/kyc";
 
 export function useKYC() {
   const [status, setStatus] = useState<KYCStatus | null>(null);
@@ -10,11 +10,12 @@ export function useKYC() {
     kycApi
       .getStatus()
       .then(setStatus)
+      .catch(() => setStatus(null)) // "no submission yet" surfaces as a 404 -- not an error state to show
       .finally(() => setIsLoading(false));
   }, []);
 
-  async function submit(idType: string, documentStorageKeys: string[]) {
-    const result = await kycApi.submit(idType, documentStorageKeys);
+  async function submit(payload: SubmitKYCPayload) {
+    const result = await kycApi.submit(payload);
     setStatus(result);
     return result;
   }

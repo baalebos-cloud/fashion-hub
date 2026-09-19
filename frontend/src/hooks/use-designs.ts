@@ -10,7 +10,7 @@ export function useDesigns(professionalId?: string) {
     setIsLoading(true);
     designsApi
       .list({ professionalId })
-      .then((response) => setDesigns(response.items))
+      .then(setDesigns)
       .finally(() => setIsLoading(false));
   }, [professionalId]);
 

@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Uploaded supporting documents for KYC/KYB (ID photos, business certificates).
 Stored privately via the storage integration -- URLs here are pre-signed/

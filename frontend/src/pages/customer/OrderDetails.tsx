@@ -1,7 +1,6 @@
 import { useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
-import { OrderItems } from "@/components/orders/OrderItems";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { MarkReceivedButton } from "@/components/orders/MarkReceivedButton";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
@@ -31,7 +30,7 @@ export default function OrderDetails() {
 
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
-      <MarkReceivedButton order={order} onConfirm={markReceived} />
+      <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Timeline</h2>

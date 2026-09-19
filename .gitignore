@@ -3,3 +3,15 @@ backend/.env
 **/__pycache__/
 .DS_Store
 *.pyc
+
+# Safe production extensions bypass
+.env
+.env.local
+.env.production
+.venv/
+venv/
+dist/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/

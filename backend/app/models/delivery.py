@@ -1,7 +1,10 @@
-"""Delivery state tracker linked to a delivery request and order."""
-import uuid
 from datetime import datetime
-from sqlalchemy import Numeric, String, DateTime
+from sqlalchemy.orm import Mapped
+from typing import Any
+"""An accepted/assigned delivery, linking an order to the delivery partner
+fulfilling it and to the (possibly external) provider tracking reference."""
+import uuid
+from sqlalchemy import Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,8 +23,8 @@ class Delivery(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     status: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
     delivery_fee: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
-    estimated_arrival_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    estimated_arrival_at: Mapped[datetime | None] = mapped_column(nullable=True)
     proof_of_delivery_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    picked_up_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    picked_up_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(nullable=True)

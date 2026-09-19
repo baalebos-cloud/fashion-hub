@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Shared professional profile fields for both tailors and designers.
 `tailor.py` / `designer.py` extend this with a 1:1 link so tailor- and

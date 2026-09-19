@@ -8,7 +8,7 @@ export const usersApi = {
     return response.data;
   },
 
-  async updateProfile(payload: Partial<Pick<User, "full_name" | "timezone">>): Promise<User> {
+  async updateProfile(payload: Partial<Pick<User, "full_name" | "timezone" | "profile_photo_url" | "whatsapp_number">>): Promise<User> {
     const response = await apiClient.patch<User>(endpoints.users.me, payload);
     return response.data;
   },

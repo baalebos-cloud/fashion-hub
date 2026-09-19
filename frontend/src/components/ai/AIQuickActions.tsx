@@ -7,7 +7,7 @@ import type { UserRole } from "@/types/auth";
  * new page/route ships, update both so the assistant is never suggested
  * a question about a screen the person's role can't actually reach.
  */
-const QUICK_PROMPTS: Record<UserRole, string[]> = {
+const QUICK_PROMPTS: Record<string, any> = {
   customer: ["Where can I track my order?", "How do I find a tailor near me?", "Where is my invoice?"],
   tailor: ["How do I accept an order?", "Where do I buy materials from a vendor?", "How does verification work?"],
   designer: ["How do I upload my portfolio?", "Where do I manage incoming orders?"],
@@ -21,7 +21,7 @@ export function AIQuickActions({ role, onSelect }: { role: UserRole; onSelect: (
 
   return (
     <div className="mt-4 flex flex-wrap gap-2">
-      {prompts.map((prompt) => (
+      {prompts.map((prompt: any) => (
         <button
           key={prompt}
           type="button"

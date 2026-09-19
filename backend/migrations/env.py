@@ -1,84 +1,51 @@
-import os
+"""
+Alembic environment configuration. Reads DATABASE_URL from app settings
+(rather than duplicating it in alembic.ini) and imports app.models so
+autogenerate sees every table.
+"""
 import sys
 from logging.config import fileConfig
-from sqlalchemy import create_engine, pool
+from pathlib import Path
+
 from alembic import context
+from sqlalchemy import engine_from_config, pool
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.core.config import settings
-from app.core.database import Base
-# Import all models so Alembic registers them in Base.metadata
-import app.models  # noqa: F401
-
-target_metadata = Base.metadata
+from app.core.config import settings  # noqa: E402
+from app.core.database import Base  # noqa: E402
+import app.models  # noqa: E402,F401  -- populates Base.metadata
 
 config = context.config
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# Intercept database string and force container mapping parameter channels
-db_url = settings.DATABASE_URL
-if ":5432/" in db_url:
-    db_url = db_url.replace(":5432/", ":5433/")
-elif "@localhost/" in db_url or "@127.0.0.1/" in db_url:
-    # Handle implicit ports by injecting 5433 explicitly
-    db_url = db_url.replace("@localhost/", "@127.0.0.1:5433/").replace("@127.0.0.1/", "@127.0.0.1:5433/")
-
-# Fallback mechanism if settings fall out of scope
-if not db_url or "driver://" in db_url:
-    db_url = "postgresql+psycopg://fashionhub:fashionhub@127.0.0.1:5433/fashionhub"
-
-
-def include_object(object, name, type_, reflected, compare_to):
-    """Filter out PostGIS system, topology, and tiger geocoder tables."""
-    if type_ == "table":
-        # Exact PostGIS/Topology/Tiger system tables
-        postgis_tables = {
-            "spatial_ref_sys", "geometry_columns", "geography_columns",
-            "raster_columns", "raster_overviews", "topology", "layer",
-            "geocode_settings", "geocode_settings_default"
-        }
-        if name in postgis_tables:
-            return False
-
-        # Prefixes used by Tiger Geocoder and related extensions
-        ignored_prefixes = (
-            "tiger", "topology", "zip_", "addr", "county", "state",
-            "place", "cousub", "edges", "faces", "featnames", "loader_",
-            "pagc_", "street_", "secondary_", "direction_", "tabblock",
-            "tract", "zcta5", "bg", "geocode_"
-        )
-        if any(name.startswith(p) for p in ignored_prefixes):
-            return False
-
-    return True
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    url = config.get_main_option("sqlalchemy.url")
     context.configure(
-        url=db_url,
+        url=url,
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
-        include_object=include_object,
+        compare_type=True,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def run_migrations_online() -> None:
-    connectable = create_engine(
-        db_url,
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection,
-            target_metadata=target_metadata,
-            include_object=include_object,
-        )
+        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
         with context.begin_transaction():
             context.run_migrations()
 

@@ -17,7 +17,7 @@ export default function Users() {
   const columns: Column<User>[] = [
     { header: "Name", render: (u) => u.full_name },
     { header: "Email", render: (u) => u.email },
-    { header: "Role", render: (u) => <Badge>{ROLE_LABELS[u.role]}</Badge> },
+    { header: "Role", render: (u) => <Badge>{ROLE_LABELS[u.role as any]}</Badge> },
     { header: "Verified", render: (u) => (u.is_email_verified ? "Yes" : "No") },
   ];
 

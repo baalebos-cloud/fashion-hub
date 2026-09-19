@@ -23,6 +23,23 @@ EVENT_TITLES = {
     "verification.approved": "Your verification was approved",
     "verification.rejected": "Your verification needs attention",
     "delivery.exception": "There's an issue with your delivery",
+    "referral.qualified": "You earned a referral commission",
+}
+
+# WhatsApp requires pre-approved message templates (see
+# integrations/notifications/whatsapp.py) -- this maps our internal event
+# names to the template name registered with the provider. Only
+# vendor_order events trigger WhatsApp, per the product requirement that
+# "each vendor, tailor/fashion designer should be notified for each other
+# on their WhatsApp line" -- customer-order notifications stay in-app/email
+# to avoid messaging customers on a channel they didn't opt into for this.
+WHATSAPP_TEMPLATES = {
+    "order.confirmed": "vendor_order_confirmed",
+    "order.processing": "vendor_order_processing",
+    "order.ready_for_pickup": "vendor_order_ready_for_pickup",
+    "order.picked_up": "vendor_order_picked_up",
+    "order.delivered": "vendor_order_delivered",
+    "order.received": "vendor_order_received",
 }
 
 
@@ -33,6 +50,7 @@ class NotificationService:
     def notify_order_status_changed(self, *, order_id: str, new_status: str):
         from app.models.order import Order
         from app.models.notification import Notification
+        from app.models.user import User
 
         order = self.db.get(Order, order_id)
         if not order:
@@ -51,6 +69,42 @@ class NotificationService:
                     body=f"Order {order.order_number} is now {new_status.replace('_', ' ')}.",
                 )
             )
+        self.db.commit()
+
+        # WhatsApp fan-out: vendor <-> tailor/designer only (see
+        # WHATSAPP_TEMPLATES above). whatsapp_number is deliberately never
+        # exposed in any API response (see schemas/professional.py,
+        # schemas/vendor.py) -- it's only ever read here, server-side, to
+        # dispatch the message itself.
+        if order.order_type == "vendor_order" and event_type in WHATSAPP_TEMPLATES:
+            template = WHATSAPP_TEMPLATES[event_type]
+            for recipient_id in {order.buyer_user_id, order.seller_user_id}:
+                recipient = self.db.get(User, recipient_id)
+                if recipient and recipient.whatsapp_number:
+                    from app.workers.whatsapp_tasks import send_whatsapp_task
+                    send_whatsapp_task.delay(
+                        to_phone=recipient.whatsapp_number,
+                        template_name=template,
+                        template_params=[order.order_number, new_status.replace("_", " ")],
+                    )
+
+    def notify_referral_qualified(self, *, referral_id: str):
+        from app.models.referral import Referral
+        from app.models.notification import Notification
+
+        referral = self.db.get(Referral, referral_id)
+        if not referral:
+            return
+
+        self.db.add(
+            Notification(
+                recipient_user_id=referral.referrer_user_id,
+                channel="in_app",
+                event_type="referral.qualified",
+                title=EVENT_TITLES["referral.qualified"],
+                body=f"Your referral just completed their first order -- you earned {referral.commission_amount} {referral.commission_currency}.",
+            )
+        )
         self.db.commit()
 
     def notify_delivery_tracking_stale(self, *, delivery_id: str):

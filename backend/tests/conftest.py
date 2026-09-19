@@ -19,7 +19,7 @@ from app.core.security import hash_password
 from app.models.user import User
 
 TEST_DATABASE_URL = os.environ.get(
-    "TEST_DATABASE_URL", "postgresql+psycopg://fashionhub:fashionhub@localhost:5432/fashionhub_test"
+    "TEST_DATABASE_URL", "postgresql+psycopg://fashionhub:fashionhub@localhost:5435/fashionhub_test"
 )
 
 

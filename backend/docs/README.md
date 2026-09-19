@@ -22,7 +22,12 @@ designers, material vendors, and delivery partners.
 | [delivery-tracking.md](./delivery-tracking.md) | GPS tracking, staleness detection |
 | [maps-and-gps.md](./maps-and-gps.md) | Geocoding, PostGIS, distance |
 | [kyc-kyb.md](./kyc-kyb.md) | Identity/business verification |
-| [measurements.md](./measurements.md) | Measurement profiles |
+| [measurements.md](./measurements.md) | Measurement profiles + per-design requirements |
+| [weather.md](./weather.md) | Delivery-destination weather forecasts |
+| [referrals.md](./referrals.md) | Referral signup attribution + commission |
+| [commission.md](./commission.md) | Platform's 15% commission, kept invisible to customers |
+| [nin-verification.md](./nin-verification.md) | Compulsory NIN identity verification |
+| [whatsapp-notifications.md](./whatsapp-notifications.md) | Vendor <-> tailor/designer WhatsApp order updates |
 | [reviews.md](./reviews.md) | Review/rating rules |
 | [notifications.md](./notifications.md) | Multi-channel notification dispatch |
 | [messaging.md](./messaging.md) | Customer/professional conversations |

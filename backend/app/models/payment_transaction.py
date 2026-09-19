@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from sqlalchemy import JSON
 """
 Raw log of every payment-provider event received (webhook or verify-call),
 including duplicates. `provider_event_id` has a unique constraint so the
@@ -22,4 +25,4 @@ class PaymentTransaction(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     event_type: Mapped[str] = mapped_column(String(64), nullable=False)  # charge.success, charge.failed, ...
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     raw_payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
-    processed: Mapped[bool] = mapped_column(nullable=False, default=False)
+    processed: Mapped[bool] = mapped_column(JSON, nullable=False, default=False)

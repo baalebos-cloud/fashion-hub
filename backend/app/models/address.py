@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """User-saved delivery addresses (a labeled pointer to a Location, e.g.
 'Home', 'Office'), decoupled so one Location can't accidentally be edited by
 two unrelated users."""

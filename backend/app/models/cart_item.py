@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Individual line item inside a cart."""
 import uuid
 from sqlalchemy import Integer, Numeric

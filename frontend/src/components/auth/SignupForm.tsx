@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { validateSignUp } from "@/lib/validation/auth";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -15,6 +15,12 @@ const SIGNUP_ROLES: UserRole[] = ["customer", "tailor", "designer", "vendor", "d
 export function SignupForm() {
   const { signUp } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  // Someone arriving via a shared referral link (see
+  // components/referrals/ReferralCodeCard.tsx) lands on /signup?ref=CODE.
+  // Captured silently and sent along with signup -- see
+  // backend/docs/referrals.md for what happens with it from here.
+  const referralCode = searchParams.get("ref") ?? undefined;
 
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -35,7 +41,7 @@ export function SignupForm() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await signUp({ email, password, full_name: fullName, role });
+      await signUp({ email, password, full_name: fullName, role, referral_code: referralCode });
       navigate(authRoutes.login, { state: { justSignedUp: true } });
     } catch (err) {
       setFormError(getDisplayErrorMessage(err, "Could not create your account."));
@@ -47,6 +53,11 @@ export function SignupForm() {
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       <h1 className="font-display text-xl text-ink">Create your account</h1>
+      {referralCode && (
+        <p className="rounded-lg bg-muslin px-3 py-2 text-xs text-ink-soft">
+          Signing up with referral code <span className="font-medium text-ink">{referralCode}</span>
+        </p>
+      )}
 
       <div>
         <label htmlFor="fullName" className="mb-1.5 block text-sm font-medium text-ink">Full name</label>

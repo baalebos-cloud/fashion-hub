@@ -12,8 +12,8 @@ export interface MapLocationPickerProps {
 /** Placeholder map surface with a "use my location" affordance until a
  * real map SDK marker/drag interaction is wired in (see hooks/use-map.ts). */
 export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
-  const { isReady } = useMap();
-  const { locate, isLocating, error } = useGeolocation();
+  const { isReady, error: mapError } = useMap();
+  const { locate, isLocating, error: geolocationError } = useGeolocation();
   const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
 
   async function handleUseCurrentLocation() {
@@ -33,14 +33,15 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex h-56 items-center justify-center rounded-card border border-line bg-muslin text-sm text-ink-soft">
-        {isReady ? "Tap the map to drop a pin (map rendering pending SDK wiring)" : "Loading map…"}
+      <div className="flex h-56 flex-col items-center justify-center gap-1 rounded-card border border-line bg-muslin p-4 text-center text-sm text-ink-soft">
+        {mapError && <span className="text-thread">{mapError}</span>}
+        {!mapError && (isReady ? "Tap the map to drop a pin (map rendering pending SDK wiring)" : "Loading map…")}
       </div>
       <Button type="button" variant="secondary" onClick={handleUseCurrentLocation} isLoading={isLocating} className="self-start">
         Use my current location
       </Button>
       {resolvedAddress && <p className="text-sm text-ink-soft">{resolvedAddress}</p>}
-      {error && <p className="text-sm text-thread">{error}</p>}
+      {geolocationError && <p className="text-sm text-thread">{geolocationError}</p>}
     </div>
   );
 }

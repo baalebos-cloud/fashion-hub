@@ -34,6 +34,7 @@ def sign_up(payload: SignUpRequest, db: Session = Depends(get_db)):
         password=payload.password,
         full_name=payload.full_name,
         role=payload.role,
+        referral_code=payload.referral_code,
     )
     return user
 

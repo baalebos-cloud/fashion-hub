@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Payment receipt issued to the payer once a payment clears (distinct from
 the invoice, which itemizes goods/services; the receipt confirms payment)."""
 import uuid

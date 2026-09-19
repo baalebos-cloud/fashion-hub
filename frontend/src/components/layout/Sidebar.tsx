@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils/cn";
 import { customerRoutes, professionalRoutes, vendorRoutes, deliveryRoutes, adminRoutes } from "@/config/routes.config";
 import type { UserRole } from "@/types/auth";
 
-interface NavItem {
+export interface NavItem {
   label: string;
   path: string;
 }
@@ -14,7 +14,7 @@ interface NavItem {
  * `AppLayout` picks the right list based on the signed-in user's role, so
  * a tailor never sees "Add Product" and a customer never sees "KYB".
  */
-const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
+const NAV_BY_ROLE: Record<string, any> = {
   customer: [
     { label: "Overview", path: customerRoutes.dashboard },
     { label: "Find Tailor", path: customerRoutes.findProfessionals },
@@ -46,6 +46,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Payments", path: professionalRoutes.payments },
     { label: "Invoices", path: professionalRoutes.invoices },
     { label: "Reviews", path: professionalRoutes.reviews },
+    { label: "Referrals", path: professionalRoutes.referrals },
     { label: "KYC/KYB", path: professionalRoutes.verification },
     { label: "Shop Location", path: professionalRoutes.location },
     { label: "Messages", path: professionalRoutes.messages },
@@ -64,6 +65,7 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
     { label: "Payments", path: vendorRoutes.payments },
     { label: "Invoices", path: vendorRoutes.invoices },
     { label: "KYB", path: vendorRoutes.verification },
+    { label: "Referrals", path: vendorRoutes.referrals },
     { label: "Profile", path: vendorRoutes.profile },
     { label: "Notifications", path: vendorRoutes.notifications },
     { label: "Settings", path: vendorRoutes.settings },
@@ -108,7 +110,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   return (
     <nav className="app-sidebar hidden lg:flex lg:w-[264px] lg:flex-shrink-0 lg:flex-col border-r border-line bg-paper">
       <div className="flex flex-col gap-0.5 overflow-y-auto p-3">
-        {items.map((item) => (
+        {items.map((item: any) => (
           <NavLink
             key={item.label}
             to={item.path}

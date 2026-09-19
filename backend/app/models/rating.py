@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Numeric rating attached to a review (kept separate to allow multi-axis
 ratings later, e.g. quality/communication/timeliness, without migrating
 Review)."""

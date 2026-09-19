@@ -16,6 +16,7 @@ import TrackDelivery from "@/pages/vendor/TrackDelivery";
 import Invoices from "@/pages/vendor/Invoices";
 import Payments from "@/pages/vendor/Payments";
 import Verification from "@/pages/vendor/Verification";
+import Referrals from "@/pages/vendor/Referrals";
 import Profile from "@/pages/vendor/Profile";
 import Notifications from "@/pages/vendor/Notifications";
 import Settings from "@/pages/vendor/Settings";
@@ -41,6 +42,7 @@ export const vendorRouteObjects: RouteObject[] = [
   { path: "invoices", element: withLayout(Invoices) },
   { path: "payments", element: withLayout(Payments) },
   { path: "verification", element: withLayout(Verification) },
+  { path: "referrals", element: withLayout(Referrals) },
   { path: "profile", element: withLayout(Profile) },
   { path: "notifications", element: withLayout(Notifications) },
   { path: "settings", element: withLayout(Settings) },

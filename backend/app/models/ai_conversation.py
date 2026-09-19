@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """AI assistant conversation thread, scoped to a single user (the assistant
 never mixes context across users -- see ai_service.py)."""
 import uuid

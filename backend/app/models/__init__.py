@@ -50,6 +50,8 @@ from app.models.kyb_verification import KYBVerification
 from app.models.verification_document import VerificationDocument
 from app.models.favorite import Favorite
 from app.models.audit_log import AuditLog
+from app.models.referral import Referral
+from app.models.payout import Payout
 
 __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
@@ -60,5 +62,5 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog",
+    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout",
 ]

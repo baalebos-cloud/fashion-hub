@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Append-only audit trail of every status transition an order goes through.
 Never updated or deleted -- this is what powers the customer-facing order

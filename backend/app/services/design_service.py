@@ -8,7 +8,16 @@ class DesignService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_design(self, *, professional_id, title: str, description: str | None, base_price: float, category_id=None):
+    def create_design(
+        self,
+        *,
+        professional_id,
+        title: str,
+        description: str | None,
+        base_price: float,
+        category_id=None,
+        required_measurement_fields: list[str] | None = None,
+    ):
         from app.models.design import Design
 
         design = Design(
@@ -17,6 +26,7 @@ class DesignService:
             description=description,
             base_price=base_price,
             category_id=category_id,
+            required_measurement_fields=required_measurement_fields,
         )
         self.db.add(design)
         self.db.commit()

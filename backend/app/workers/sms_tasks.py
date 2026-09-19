@@ -11,3 +11,5 @@ def send_sms_task(self, phone_number: str, message: str):
         send_sms(to_phone=phone_number, message=message)
     except ExternalProviderError as exc:
         raise self.retry(exc=exc, countdown=30)
+
+

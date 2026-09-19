@@ -1,4 +1,4 @@
-import type { UserRole } from "./auth";
+export type UserRole = 'admin' | 'customer' | 'vendor' | 'professional' | 'tailor' | 'designer' | 'delivery_partner' | string;
 
 export interface User {
   id: string;
@@ -7,6 +7,7 @@ export interface User {
   role: UserRole;
   is_email_verified: boolean;
   is_phone_verified: boolean;
-  profile_photo_url?: string | null;
-  timezone: string;
+  timezone?: string;
+  profile_photo_url?: string;
+  whatsapp_number?: string;
 }

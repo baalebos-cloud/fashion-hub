@@ -1,7 +1,8 @@
+from datetime import datetime
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Refund requests and their processing lifecycle."""
 import uuid
-from datetime import datetime
-from sqlalchemy import DateTime
 from sqlalchemy import Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
@@ -20,5 +21,4 @@ class Refund(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="requested", index=True)
     provider_refund_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    processed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
+    processed_at: Mapped[datetime | None] = mapped_column(nullable=True)

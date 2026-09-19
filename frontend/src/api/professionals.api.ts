@@ -31,4 +31,17 @@ export const professionalsApi = {
     const response = await apiClient.get<Professional>(endpoints.professionals.details(id));
     return response.data;
   },
+
+  /** Sets the CURRENT professional's own business/shop location, picked
+   * from the map (see components/checkout/MapLocationPicker.tsx) --
+   * mirrors backend PATCH /professionals/me/location, which creates the
+   * Location row AND links it via Professional.location_id in one call,
+   * unlike the generic locations.api.ts::create, which only creates a
+   * standalone Location with nothing pointing back at it. */
+  async updateMyLocation(payload: { latitude: number; longitude: number; formattedAddress?: string }): Promise<Professional> {
+    const response = await apiClient.patch<Professional>("/professionals/me/location", null, {
+      params: { latitude: payload.latitude, longitude: payload.longitude, formatted_address: payload.formattedAddress },
+    });
+    return response.data;
+  },
 };

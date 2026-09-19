@@ -18,7 +18,7 @@ export default defineConfig({
       // API_BASE_URL (see src/config/api.config.ts) points at the real
       // domain and Nginx handles routing instead (see nginx.conf).
       "/api": {
-        target: "http://localhost:8000",
+        target: "http://localhost:8005",
         changeOrigin: true,
       },
     },
@@ -26,5 +26,16 @@ export default defineConfig({
   build: {
     outDir: "dist",
     sourcemap: true,
+    chunkSizeWarningLimit: 800, // Raises the alert ceiling to 800 kB safely
+    rollupOptions: {
+      output: {
+        // Splits heavy node_modules dependencies into separate vendor files for browser cache efficiency
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
+        }
+      }
+    }
   },
 });

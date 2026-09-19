@@ -21,6 +21,13 @@ def notify_delivery_tracking_stale_task(delivery_id: str):
         NotificationService(db).notify_delivery_tracking_stale(delivery_id=delivery_id)
 
 
+@celery_app.task(name="app.workers.notification_tasks.notify_referral_qualified_task")
+def notify_referral_qualified_task(referral_id: str):
+    with session_scope() as db:
+        from app.services.notification_service import NotificationService
+        NotificationService(db).notify_referral_qualified(referral_id=referral_id)
+
+
 @celery_app.task(name="app.workers.notification_tasks.send_scheduled_reminders_task")
 def send_scheduled_reminders_task():
     with session_scope() as db:

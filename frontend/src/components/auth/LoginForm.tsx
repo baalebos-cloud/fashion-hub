@@ -31,7 +31,7 @@ export function LoginForm() {
     setIsSubmitting(true);
     try {
       await logIn({ email, password });
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? (user ? ROLE_HOME_PATH[user.role] : "/");
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? (user ? ROLE_HOME_PATH[user.role as any] : "/");
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setFormError(getDisplayErrorMessage(err, "Incorrect email or password."));

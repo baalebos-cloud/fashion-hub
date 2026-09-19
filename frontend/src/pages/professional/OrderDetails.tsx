@@ -29,11 +29,11 @@ export default function OrderDetails() {
 
       <OrderActions
         order={order}
-        onAccept={accept}
-        onStartProduction={startProduction}
-        onMarkReady={markReady}
-        onShip={ship}
-        onMarkReceived={markReceived}
+        onAccept={async () => { await accept(); }}
+        onStartProduction={async () => { await startProduction(); }}
+        onMarkReady={async () => { await markReady(); }}
+        onShip={async () => { await ship(); }}
+        onMarkReceived={async () => { await markReceived(); }}
       />
 
       <OrderItems items={[]} currency={order.currency} />

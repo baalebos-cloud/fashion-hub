@@ -13,20 +13,31 @@ let loadPromise: Promise<void> | null = null;
 export function loadMapSdk(): Promise<void> {
   if (loadPromise) return loadPromise;
 
+  if (!mapConfig.publicKey) {
+    // Fail fast with a clear message rather than loading a Google/Mapbox
+    // script with an empty key — that fails silently in the browser
+    // console with a cryptic provider-side error instead of telling
+    // whoever's debugging that VITE_MAPS_PUBLIC_KEY is unset.
+    loadPromise = Promise.reject(
+      new Error("VITE_MAPS_PUBLIC_KEY is not set — see .env.example for how to get one.")
+    );
+    return loadPromise;
+  }
+
   loadPromise = new Promise((resolve, reject) => {
     if (mapConfig.provider === "google_maps") {
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${mapConfig.publicKey}&libraries=places`;
       script.async = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Google Maps SDK."));
+      script.onerror = () => reject(new Error("Failed to load Google Maps SDK — check that VITE_MAPS_PUBLIC_KEY is valid and the Maps JavaScript API is enabled."));
       document.head.appendChild(script);
     } else {
       const script = document.createElement("script");
       script.src = "https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js";
       script.async = true;
       script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Mapbox GL SDK."));
+      script.onerror = () => reject(new Error("Failed to load Mapbox GL SDK — check that VITE_MAPS_PUBLIC_KEY is a valid Mapbox token."));
       document.head.appendChild(script);
     }
   });

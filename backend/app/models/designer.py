@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Fashion designer-specific extension of Professional (style focus, collections)."""
 import uuid
 from sqlalchemy import ARRAY, String

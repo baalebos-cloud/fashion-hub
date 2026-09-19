@@ -1,13 +1,10 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
-import type { KYCStatus } from "@/types/kyc";
+import type { KYCStatus, SubmitKYCPayload } from "@/types/kyc";
 
 export const kycApi = {
-  async submit(idType: string, documentStorageKeys: string[]): Promise<KYCStatus> {
-    const response = await apiClient.post<KYCStatus>(endpoints.kyc.submit, {
-      id_type: idType,
-      document_storage_keys: documentStorageKeys,
-    });
+  async submit(payload: SubmitKYCPayload): Promise<KYCStatus> {
+    const response = await apiClient.post<KYCStatus>(endpoints.kyc.submit, payload);
     return response.data;
   },
 

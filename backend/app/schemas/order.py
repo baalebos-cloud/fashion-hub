@@ -30,6 +30,8 @@ class OrderResponse(BaseModel):
     order_number: str
     order_type: str
     status: str
+    buyer_user_id: uuid.UUID
+    seller_user_id: uuid.UUID
     subtotal: float
     delivery_fee: float
     tax_amount: float

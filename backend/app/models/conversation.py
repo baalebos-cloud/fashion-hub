@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """A messaging thread between a customer and a tailor/designer about a
 specific order (or general inquiry)."""
 import uuid

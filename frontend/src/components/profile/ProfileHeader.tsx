@@ -12,7 +12,7 @@ export function ProfileHeader({ user, isVerified }: { user: User; isVerified?: b
           <h1 className="font-display text-xl text-ink">{user.full_name}</h1>
           {isVerified && <VerificationBadge />}
         </div>
-        <p className="text-sm text-ink-soft">{ROLE_LABELS[user.role]}</p>
+        <p className="text-sm text-ink-soft">{ROLE_LABELS[user.role as any]}</p>
       </div>
     </div>
   );

@@ -1,14 +1,17 @@
 import { useTracking } from "@/hooks/use-tracking";
+import { useOrderWeather } from "@/hooks/use-weather";
 import { TrackingMap } from "./TrackingMap";
 import { TrackingTimeline } from "./TrackingTimeline";
 import { DeliveryStatus } from "./DeliveryStatus";
 import { EstimatedDelivery } from "./EstimatedDelivery";
+import { WeatherForecastCard } from "@/components/weather/WeatherForecastCard";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import type { Order } from "@/types/order";
 
 export function TrackingPage({ order }: { order: Order }) {
   const isActive = !["delivered", "received", "completed", "cancelled"].includes(order.status);
   const { tracking } = useTracking(order.id, isActive);
+  const { weather, isLoading: isWeatherLoading, error: weatherError } = useOrderWeather(order.id, isActive);
 
   if (!tracking) return <LoadingScreen label="Fetching the latest tracking update…" />;
 
@@ -19,6 +22,7 @@ export function TrackingPage({ order }: { order: Order }) {
         <DeliveryStatus status={tracking.status} />
         {tracking.tracking?.eta_minutes != null && <EstimatedDelivery etaMinutes={tracking.tracking.eta_minutes} />}
       </div>
+      <WeatherForecastCard weather={weather} isLoading={isWeatherLoading} error={weatherError} />
       <TrackingTimeline orderId={order.id} />
     </div>
   );

@@ -7,7 +7,6 @@ import {
   deliveryRoutes,
   adminRoutes,
 } from "@/config/routes.config";
-import type { UserRole } from "@/types/auth";
 
 /**
  * IMPORTANT — the boundary this component exists to enforce:
@@ -29,7 +28,7 @@ import type { UserRole } from "@/types/auth";
  *     a conversation ID) from assistant text; only to static, role-level
  *     destinations (a page, not a record).
  */
-const NAMED_DESTINATIONS: Record<UserRole, Record<string, string>> = {
+const NAMED_DESTINATIONS: Record<string, any> = {
   customer: {
     orders: customerRoutes.orders,
     "find a tailor": customerRoutes.findProfessionals,
@@ -80,7 +79,7 @@ export function AINavigationGuide({ destinationKey }: AINavigationGuideProps) {
   const { user } = useAuth();
   if (!user || !destinationKey) return null;
 
-  const path = NAMED_DESTINATIONS[user.role]?.[destinationKey.toLowerCase()];
+  const path = NAMED_DESTINATIONS[user.role as any]?.[destinationKey.toLowerCase()];
   if (!path) return null;
 
   return (

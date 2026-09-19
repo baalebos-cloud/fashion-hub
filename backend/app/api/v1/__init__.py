@@ -40,6 +40,7 @@ from app.api.v1 import (
     professionals,
     ratings,
     receipts,
+    referrals,
     refunds,
     reviews,
     search,
@@ -49,6 +50,7 @@ from app.api.v1 import (
     vendor_inventory,
     vendor_products,
     vendors,
+    weather,
 )
 
 api_router = APIRouter()
@@ -97,3 +99,5 @@ api_router.include_router(search.router)
 api_router.include_router(favorites.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(admin.router)
+api_router.include_router(weather.router)
+api_router.include_router(referrals.router)

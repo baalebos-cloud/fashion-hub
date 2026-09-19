@@ -24,8 +24,11 @@ def _send_via_smtp(to_address: str, subject: str, html_body: str) -> None:
     message.attach(MIMEText(html_body, "html"))
 
     try:
-        with smtplib.SMTP("localhost", 587) as server:  # Configure real SMTP host via env in production.
-            server.starttls()
+        with smtplib.SMTP(settings.EMAIL_HOST, settings.EMAIL_PORT) as server:
+            if settings.EMAIL_USE_TLS:
+                server.starttls()
+            if settings.EMAIL_USERNAME and settings.EMAIL_PASSWORD:
+                server.login(settings.EMAIL_USERNAME, settings.EMAIL_PASSWORD)
             server.send_message(message)
     except Exception as exc:  # noqa: BLE001
         raise ExternalProviderError(f"SMTP send failed: {exc}") from exc

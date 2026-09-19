@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Tailor-specific extension of Professional (garment categories, pricing model)."""
 import uuid
 from sqlalchemy import ARRAY, String

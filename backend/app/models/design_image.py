@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Portfolio/design gallery images."""
 import uuid
 from sqlalchemy import Integer, String

@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Products sold by vendors (fabrics, accessories, notions)."""
 import uuid
 from sqlalchemy import Boolean, Numeric, String, Text

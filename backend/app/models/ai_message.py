@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from sqlalchemy import JSON
 """Individual turn within an AI conversation."""
 import uuid
 from sqlalchemy import String, Text

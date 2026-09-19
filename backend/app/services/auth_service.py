@@ -1,3 +1,5 @@
+from datetime import datetime
+from datetime import timedelta
 """
 Authentication business logic: signup, login, email verification,
 password reset, refresh-token rotation.
@@ -6,13 +8,11 @@ Kept independent of FastAPI (no Request/Response objects) so it's fully
 unit-testable with a plain SQLAlchemy Session.
 """
 import hashlib
-from datetime import datetime, timedelta, timezone  # Added timezone-aware tracking utilities
 from typing import Optional
 
 from jose import JWTError
 from sqlalchemy.orm import Session
 
-from app.core.config import settings  # Imported settings for token expiry metrics
 from app.core.constants import UserRole
 from app.core.exceptions import ConflictError, UnauthorizedError, ValidationAppError
 from app.core.security import (
@@ -33,7 +33,7 @@ class AuthService:
         self.db = db
         self.users = UserRepository(db)
 
-    def sign_up(self, *, email: str, phone_number: Optional[str], password: str, full_name: str, role: str) -> User:
+    def sign_up(self, *, email: str, phone_number: Optional[str], password: str, full_name: str, role: str, referral_code: Optional[str] = None) -> User:
         if role not in {r.value for r in UserRole}:
             raise ValidationAppError(f"Invalid role '{role}'.")
 
@@ -53,6 +53,17 @@ class AuthService:
         self.db.commit()
         self.db.refresh(user)
 
+        if referral_code:
+            # A bad/unknown code should never block account creation --
+            # swallow validation errors from an unrecognized code rather
+            # than surfacing them, since the account itself is already
+            # committed above.
+            from app.services.referral_service import ReferralService
+            try:
+                ReferralService(self.db).record_signup(referral_code=referral_code, new_user=user)
+            except (ValidationAppError, ConflictError):
+                pass
+
         # Fire-and-forget: actual sending happens in a background worker
         # (see workers/email_tasks.py) so signup stays fast.
         from app.workers.email_tasks import send_verification_email_task
@@ -71,15 +82,12 @@ class AuthService:
         access_token = create_access_token(str(user.id), user.role)
         refresh_token = create_refresh_token(str(user.id))
 
-        # Dynamic expiry window creation derived from settings config metrics
-        expiry_date = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
-
         session = RefreshSession(
             user_id=user.id,
             refresh_token_hash=self._hash_token(refresh_token),
             user_agent=user_agent,
             ip_address=ip_address,
-            expires_at=expiry_date,  # Fixed: Populated instead of passing None
+            expires_at=datetime.utcnow() + timedelta(days=7),  # set from JWT exp in a full implementation
         )
         self.db.add(session)
         self.db.commit()
@@ -145,11 +153,6 @@ class AuthService:
         if not user:
             raise ValidationAppError("User not found.")
         user.hashed_password = hash_password(new_password)
-
-        user = self.users.get_by_id(payload["sub"])
-        if not user:
-            raise ValidationAppError("User not found.")
-        user.hashed_password = hash_password(new_password)
         self.db.commit()
         # Revoke all existing sessions on password change.
         self.db.query(RefreshSession).filter(RefreshSession.user_id == user.id).update({"revoked": True})
@@ -158,4 +161,3 @@ class AuthService:
     @staticmethod
     def _hash_token(token: str) -> str:
         return hashlib.sha256(token.encode()).hexdigest()
-

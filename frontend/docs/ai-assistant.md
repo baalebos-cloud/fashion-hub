@@ -2,19 +2,46 @@
 
 ## Mounted once, globally
 
-`components/ai/AIAssistant.tsx` is the only piece `App.tsx` imports; it
-renders `AIHelpButton` + `AIChatWindow` through a React portal into
-`document.body`, alongside the router rather than inside it. This is what
-makes the assistant available on every authenticated screen rather than
-confined to one page — closing the panel on an order page and reopening it
-from Settings continues the exact same conversation, because the state
-lives in the global `ai.store.ts`, not component state.
+`App.tsx`'s `GlobalAssistant` (not exported — an internal piece of the app
+shell) decides which of three things renders, based on auth state and the
+current path:
+
+| State | Renders |
+|---|---|
+| Session still resolving (`isInitializing`) | Nothing — avoids a flash of "sign in" right before the real assistant appears for an already-logged-in person |
+| Authenticated | `components/ai/AIAssistant.tsx` — the real, backend-backed chat |
+| Not authenticated, on an auth page (`/login`, `/signup`, etc.) | Nothing — prompting sign-in there is redundant |
+| Not authenticated, anywhere else | `components/ai/AIPublicTeaser.tsx` — a look-alike button that links straight to `/login` |
+
+The teaser exists, not the real chat, on public pages for a structural
+reason, not a design preference: the backend's
+`POST /ai/navigation/messages` requires `get_current_user` (see
+`backend/app/api/v1/ai_navigation.py`) — there's no anonymous-conversation
+endpoint. Opening a real chat panel pre-login would let someone type a
+message and then fail on send, which is worse than not offering it. The
+teaser is honest about that instead.
+
+`AIAssistant.tsx` itself renders `AIHelpButton` + `AIChatWindow` through a
+React portal into `document.body`, alongside the router rather than inside
+it. This is what makes the (real) assistant available on every
+authenticated screen rather than confined to one page — closing the panel
+on an order page and reopening it from Settings continues the exact same
+conversation, because the state lives in the global `ai.store.ts`, not
+component state.
+
+**Implementation note**: `GlobalAssistant` is mounted as a sibling of
+`<RouterProvider>`, not inside it, so it can't use React Router's
+`useLocation()` hook (that only works for descendants of the router). It
+instead subscribes directly to the `router` instance's own `.subscribe()`
+API to know the current path — see the comment in `App.tsx` if you're
+adding similar router-aware-but-outside-the-tree components.
 
 ## Component breakdown
 
 | File | Role |
 |---|---|
 | `AIAssistant.tsx` | Mount point; renders the two pieces below via portal |
+| `AIPublicTeaser.tsx` | Pre-login stand-in that links to `/login` instead of opening chat |
 | `AIHelpButton.tsx` | The floating "Ask Seam" launcher |
 | `AIChatWindow.tsx` | The expandable panel: header, thread, composer |
 | `AIMessage.tsx` | A single chat bubble |

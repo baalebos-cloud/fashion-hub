@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from sqlalchemy import JSON
 """
 Append-only, tamper-evident log of security-sensitive and business-critical
 actions (logins, role changes, payment events, verification decisions,

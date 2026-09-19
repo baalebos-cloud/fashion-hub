@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from sqlalchemy import JSON
 """Append-only log of every tracking/status ping for a delivery -- powers
 the "delivery GPS stopped updating" alerting and historical route replay."""
 import uuid

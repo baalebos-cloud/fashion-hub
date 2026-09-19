@@ -1,6 +1,8 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """A design/service offered by a tailor or designer that customers can order."""
 import uuid
-from sqlalchemy import Boolean, Numeric, String, Text
+from sqlalchemy import ARRAY, Boolean, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,3 +22,11 @@ class Design(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     currency: Mapped[str] = mapped_column(String(8), default="NGN", nullable=False)
     estimated_turnaround_days: Mapped[int | None] = mapped_column(nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    # Field names the tailor/designer needs for THIS design (e.g.
+    # ["chest", "waist", "sleeve_length"]) -- see measurement_service.py.
+    # Null/empty means the customer's own default full measurement profile
+    # is used as-is; the customer can always add/override individual
+    # fields regardless of what's listed here (see docs/measurement-
+    # requirements.md -- "or client filled it themselves").
+    required_measurement_fields: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)

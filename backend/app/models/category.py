@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Design/service categories used by tailors & designers (e.g. Native Wear,
 Suits, Bridal). Distinct from vendor_category.py, which classifies materials."""
 import uuid

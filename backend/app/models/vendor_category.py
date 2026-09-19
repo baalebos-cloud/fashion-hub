@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Vendor product categories (fabrics, buttons, zippers, threads, etc.)."""
 import uuid
 from sqlalchemy import String

@@ -12,7 +12,7 @@ import type { User } from "@/types/user";
 interface UserState {
   isSaving: boolean;
   error: string | null;
-  updateProfile: (payload: Partial<Pick<User, "full_name" | "timezone">>) => Promise<User>;
+  updateProfile: (payload: Partial<Pick<User, "full_name" | "timezone" | "profile_photo_url" | "whatsapp_number">>) => Promise<User>;
 }
 
 export const useUserStore = create<UserState>((set) => ({

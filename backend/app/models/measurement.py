@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Individual body measurement values within a measurement profile."""
 import uuid
 from sqlalchemy import Numeric, String

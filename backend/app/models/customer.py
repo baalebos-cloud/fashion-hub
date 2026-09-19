@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Customer profile: 1:1 extension of User for shoppers ordering clothing."""
 import uuid
 from sqlalchemy import String

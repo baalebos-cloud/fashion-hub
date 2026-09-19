@@ -139,6 +139,20 @@ class NotificationChannel(str, Enum):
     EMAIL = "email"
     SMS = "sms"
     PUSH = "push"
+    WHATSAPP = "whatsapp"
+
+
+class ReferralStatus(str, Enum):
+    """
+    PENDING: referred person signed up with a referral code, hasn't paid
+             for anything yet.
+    QUALIFIED: referred person's first order was paid -- commission is
+               owed to the referrer.
+    PAID: commission has been paid out to the referrer.
+    """
+    PENDING = "pending"
+    QUALIFIED = "qualified"
+    PAID = "paid"
 
 
 class ConsentType(str, Enum):

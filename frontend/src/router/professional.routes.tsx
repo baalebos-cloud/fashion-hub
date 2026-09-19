@@ -23,6 +23,7 @@ import TrackDelivery from "@/pages/professional/TrackDelivery";
 import Invoices from "@/pages/professional/Invoices";
 import Payments from "@/pages/professional/Payments";
 import Reviews from "@/pages/professional/Reviews";
+import Referrals from "@/pages/professional/Referrals";
 import Verification from "@/pages/professional/Verification";
 import Location from "@/pages/professional/Location";
 import Messages from "@/pages/professional/Messages";
@@ -60,6 +61,7 @@ export const professionalRouteObjects: RouteObject[] = [
   { path: "invoices", element: withLayout(Invoices) },
   { path: "payments", element: withLayout(Payments) },
   { path: "reviews", element: withLayout(Reviews) },
+  { path: "referrals", element: withLayout(Referrals) },
   { path: "verification", element: withLayout(Verification) },
   { path: "location", element: withLayout(Location) },
   { path: "messages", element: withLayout(Messages) },

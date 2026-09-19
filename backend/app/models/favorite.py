@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """User's saved/favorited professionals, designs, or vendor products."""
 import uuid
 from sqlalchemy import String

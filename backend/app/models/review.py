@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Customer -> Tailor/Designer review, and Tailor/Designer -> Vendor review.
 `reviewer_user_id`/`reviewee_user_id` + `order_id` make reviews auditable

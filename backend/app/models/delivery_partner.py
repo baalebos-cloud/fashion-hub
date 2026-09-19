@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Delivery partner (rider/courier) profile."""
 import uuid
 from sqlalchemy import Boolean, Numeric, String

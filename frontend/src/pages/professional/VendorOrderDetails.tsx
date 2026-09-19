@@ -24,7 +24,7 @@ export default function VendorOrderDetails() {
         <OrderStatusBadge status={order.status as CustomerOrderStatus} />
       </div>
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
-      <MarkReceivedButton order={order} onConfirm={markReceived} />
+      <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
       <OrderTimeline entries={timeline} />
     </div>
   );

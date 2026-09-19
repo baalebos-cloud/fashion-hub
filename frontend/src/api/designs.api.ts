@@ -1,18 +1,23 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
-import type { Design } from "@/types/design";
-import type { PaginatedResponse, PaginationParams } from "@/types/api";
+import type { CreateDesignPayload, Design } from "@/types/design";
 
+/**
+ * GET /designs returns a plain array (see backend/app/api/v1/designs.py --
+ * there's no pagination on this endpoint yet since it's always scoped to
+ * one professional's design list, which is small in practice).
+ */
 export const designsApi = {
-  async list(params: PaginationParams & { professionalId?: string } = {}): Promise<PaginatedResponse<Design>> {
-    const response = await apiClient.get<PaginatedResponse<Design>>(endpoints.designs.list, {
-      params: { professional_id: params.professionalId, page: params.page, page_size: params.pageSize },
+  async list(params: { professionalId?: string } = {}): Promise<Design[]> {
+    if (!params.professionalId) return [];
+    const response = await apiClient.get<Design[]>(endpoints.designs.list, {
+      params: { professional_id: params.professionalId },
     });
     return response.data;
   },
 
-  async getById(id: string): Promise<Design> {
-    const response = await apiClient.get<Design>(endpoints.designs.details(id));
+  async create(payload: CreateDesignPayload): Promise<Design> {
+    const response = await apiClient.post<Design>(endpoints.designs.list, payload);
     return response.data;
   },
 };

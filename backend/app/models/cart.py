@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 A tailor/designer's shopping cart for purchasing vendor materials.
 One active cart per (professional, vendor) pair is typical, but the model

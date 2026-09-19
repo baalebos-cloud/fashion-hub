@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from sqlalchemy import JSON
 """Record of any concrete action the AI assistant suggested/performed
 (navigation link, FAQ shown, etc.) -- kept for auditing what the assistant
 told users, especially for reviewing wrong-navigation incidents."""

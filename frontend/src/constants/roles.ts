@@ -9,7 +9,7 @@ export const ROLES: Record<string, UserRole> = {
   ADMIN: "admin",
 };
 
-export const ROLE_LABELS: Record<UserRole, string> = {
+export const ROLE_LABELS: Record<string, any> = {
   customer: "Customer",
   tailor: "Tailor",
   designer: "Fashion Designer",
@@ -19,7 +19,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 /** Where each role lands immediately after login — see router/index.tsx. */
-export const ROLE_HOME_PATH: Record<UserRole, string> = {
+export const ROLE_HOME_PATH: Record<string, any> = {
   customer: "/app/customer",
   tailor: "/app/professional",
   designer: "/app/professional",

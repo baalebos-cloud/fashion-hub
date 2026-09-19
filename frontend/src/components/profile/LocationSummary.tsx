@@ -1,7 +1,9 @@
 import { formatAddressLine } from "@/lib/formatters/address";
 import type { GeoLocation } from "@/types/location";
 
-export function LocationSummary({ location }: { location: GeoLocation | null }) {
+type LocationSummaryData = Pick<GeoLocation, "formatted_address" | "city" | "state_region" | "country">;
+
+export function LocationSummary({ location }: { location: LocationSummaryData | null }) {
   if (!location) return <p className="text-sm text-ink-soft">No location set yet.</p>;
 
   return (

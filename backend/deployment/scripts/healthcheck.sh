@@ -3,7 +3,7 @@
 # the readiness endpoint (checks DB + Redis, not just process liveness).
 set -euo pipefail
 
-APP_URL="${APP_URL:-http://localhost:8000}"
+APP_URL="${APP_URL:-http://localhost:8005}"
 
 response=$(curl -s -o /dev/null -w "%{http_code}" "${APP_URL}/health/ready")
 

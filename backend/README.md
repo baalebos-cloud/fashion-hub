@@ -29,8 +29,8 @@ docker compose exec api python scripts/seed_database.py
 docker compose exec api python scripts/create_test_users.py
 ```
 
-API docs: http://localhost:8000/docs
-Health check: http://localhost:8000/health/ready
+API docs: http://localhost:8005/docs
+Health check: http://localhost:8005/health/ready
 
 ## Project layout
 

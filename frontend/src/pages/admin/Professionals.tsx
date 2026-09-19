@@ -12,10 +12,10 @@ export default function Professionals() {
   if (professionals.length === 0) return <EmptyState title="No professionals to show" />;
 
   const columns: Column<Professional>[] = [
-    { header: "Studio", render: (p) => p.business_name ?? "—" },
-    { header: "Type", render: (p) => p.professional_type },
-    { header: "Verified", render: (p) => (p.is_verified ? <VerificationBadge /> : "—") },
-    { header: "", render: (p) => <Link to={adminRoutes.kyc} className="text-brass-deep hover:underline">Review</Link> },
+    { header: "Studio", render: (p: any) => p.business_name ?? "—" },
+    { header: "Type", render: (p: any) => p.professional_type },
+    { header: "Verified", render: (p: any) => (p.is_verified ? <VerificationBadge /> : "—") },
+    { header: "", render: () => <Link to={adminRoutes.kyc} className="text-brass-deep hover:underline">Review</Link> },
   ];
 
   return (

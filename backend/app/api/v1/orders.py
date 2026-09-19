@@ -158,6 +158,60 @@ def get_order_tracking(order_id: uuid.UUID, current_user: User = Depends(get_cur
     return {"order_id": str(order_id), "status": order.status, "tracking": None, "note": "tracking_service not yet wired"}
 
 
+@router.get("/{order_id}/weather")
+def get_order_delivery_weather(order_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """
+    GET /api/v1/orders/{order_id}/weather
+
+    Weather at THIS order's delivery destination -- visible to the
+    customer (so they know to expect a delayed/rain-affected delivery)
+    and the assigned delivery partner (so they know what they're heading
+    into). Resolves the order's delivery Address -> Location for
+    coordinates, and folds in the live ETA (if a delivery is already in
+    progress) so the forecast is for the actual expected arrival time
+    rather than just right now.
+    """
+    from app.models.address import Address
+    from app.models.location import Location
+    from app.models.delivery import Delivery
+    from app.models.delivery_tracking import DeliveryTracking
+    from app.core.timezone import utcnow
+    from datetime import timedelta
+    from app.services.weather_service import WeatherService
+    from app.schemas.weather import WeatherResponse
+
+    order = OrderRepository(db).get_by_id(order_id)
+    if not order:
+        raise NotFoundError("Order not found.")
+    _assert_can_view_order(order, current_user)
+
+    if not order.delivery_address_id:
+        raise NotFoundError("This order has no delivery address on file yet.")
+
+    address = db.get(Address, order.delivery_address_id)
+    if not address:
+        raise NotFoundError("Delivery address not found.")
+    location = db.get(Location, address.location_id)
+    if not location:
+        raise NotFoundError("Delivery location not found.")
+
+    # If a delivery is already under way, aim the forecast at the current
+    # ETA rather than "now" -- a storm that clears in twenty minutes
+    # shouldn't show as "rain" if the courier is still forty minutes out.
+    target_time = utcnow()
+    delivery = db.query(Delivery).filter(Delivery.order_id == order.id).first()
+    if delivery:
+        tracking = db.query(DeliveryTracking).filter(DeliveryTracking.delivery_id == delivery.id).first()
+        if tracking and tracking.eta_minutes:
+            target_time = utcnow() + timedelta(minutes=tracking.eta_minutes)
+
+    service = WeatherService()
+    snapshot = service.get_forecast_for_delivery(
+        latitude=float(location.latitude), longitude=float(location.longitude), eta_iso=target_time.isoformat()
+    )
+    return WeatherResponse(**snapshot.__dict__, rain_expected=service.is_rain_expected(snapshot))
+
+
 @router.post("/{order_id}/received", response_model=OrderResponse)
 def mark_received(
     order_id: uuid.UUID,

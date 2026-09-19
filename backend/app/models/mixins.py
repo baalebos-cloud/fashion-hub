@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Reusable model mixins so every table gets consistent, server-generated
 timestamps and UUID primary keys without repeating boilerplate.

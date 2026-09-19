@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Verified material/fabric vendor business profile."""
 import uuid
 from sqlalchemy import Boolean, Numeric, String, Text

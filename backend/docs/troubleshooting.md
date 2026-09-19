@@ -17,7 +17,7 @@ then re-run `alembic upgrade head`.
 Postgres isn't reachable at `DATABASE_URL`. If running via Docker Compose,
 confirm the `postgres` service is healthy: `docker compose ps`. If running
 the API outside Docker against a Dockerized Postgres, make sure
-`DATABASE_URL` points at `localhost:5432`, not the internal service name
+`DATABASE_URL` points at `localhost:5435`, not the internal service name
 `postgres`.
 
 ## Webhook returns 402/PaymentError "signature verification failed"

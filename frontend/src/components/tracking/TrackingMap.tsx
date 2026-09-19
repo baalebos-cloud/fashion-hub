@@ -9,17 +9,18 @@ import type { TrackingSnapshot } from "@/types/tracking";
  * position itself.
  */
 export function TrackingMap({ tracking }: { tracking: TrackingSnapshot | null }) {
-  const { isReady } = useMap();
+  const { isReady, error } = useMap();
 
   return (
-    <div className="flex h-64 items-center justify-center rounded-card border border-line bg-muslin text-sm text-ink-soft">
-      {!isReady && "Loading map…"}
-      {isReady && tracking?.current_latitude != null && (
+    <div className="flex h-64 flex-col items-center justify-center gap-1 rounded-card border border-line bg-muslin p-4 text-center text-sm text-ink-soft">
+      {error && <span className="text-thread">{error}</span>}
+      {!error && !isReady && "Loading map…"}
+      {!error && isReady && tracking?.current_latitude != null && (
         <span>
           Live position: {tracking.current_latitude.toFixed(4)}, {tracking.current_longitude?.toFixed(4)}
         </span>
       )}
-      {isReady && tracking?.current_latitude == null && "Waiting for the first location update…"}
+      {!error && isReady && tracking?.current_latitude == null && "Waiting for the first location update…"}
     </div>
   );
 }

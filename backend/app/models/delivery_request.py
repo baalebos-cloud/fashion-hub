@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 A request to fulfill delivery for an order, created once an order reaches
 READY_FOR_DELIVERY / READY_FOR_PICKUP. Separated from `Delivery` so a

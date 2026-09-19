@@ -1,3 +1,6 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
+from datetime import datetime
 """
 Customer clothing order AND vendor material order share this table via
 `order_type` discriminator ('customer_order' | 'vendor_order') because both
@@ -6,8 +9,7 @@ invoice, delivery link. Keeping them in one table simplifies invoicing and
 audit queries; order_service enforces which status enum applies per type.
 """
 import uuid
-from datetime import datetime  # Added for type hints
-from sqlalchemy import Numeric, String, DateTime  # Added DateTime core type
+from sqlalchemy import Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -37,18 +39,17 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     measurement_profile_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
 
     # Server-controlled lifecycle timestamps. Never populated from client input.
-    ordered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    paid_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    accepted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    production_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    ready_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    shipped_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    out_for_delivery_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    delivered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    ordered_at: Mapped[datetime] = mapped_column(nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    accepted_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    production_started_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    ready_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    shipped_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    out_for_delivery_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    delivered_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    received_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     # Idempotency guard for duplicate order submission from flaky clients.
     idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True, index=True)
-

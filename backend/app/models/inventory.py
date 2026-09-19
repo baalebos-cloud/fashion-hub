@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Stock tracking per product variant. Row-level locking (SELECT ... FOR UPDATE)
 is used in inventory_service when decrementing stock during checkout to

@@ -124,6 +124,26 @@ class PaymentService:
             # webhook/callback handler responds quickly to the provider.
             from app.workers.invoice_tasks import generate_invoice_for_order_task
             generate_invoice_for_order_task.delay(order_id=str(order.id))
+
+            # Platform commission + seller payout (see docs/commission.md)
+            # -- computed here, once, at the same moment the order becomes
+            # authoritatively paid. Never derived from anything the client
+            # sent; always from the order's own server-side total_amount.
+            from app.services.payout_service import PayoutService
+            PayoutService(self.db).create_for_order(order)
+
+            # Referral commission qualification: only ever the FIRST
+            # successful order for a given referred user counts (see
+            # referral_service.py::qualify_if_applicable) -- safe to call
+            # unconditionally on every paid order; it's a no-op past the
+            # first one.
+            from app.services.referral_service import ReferralService
+            ReferralService(self.db).qualify_if_applicable(
+                referred_user_id=order.buyer_user_id,
+                qualifying_order_id=order.id,
+                order_total=float(order.total_amount),
+                currency=order.currency,
+            )
         elif status == "failed":
             payment.status = "failed"
             self.db.commit()

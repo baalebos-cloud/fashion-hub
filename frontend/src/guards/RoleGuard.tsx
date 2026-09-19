@@ -21,7 +21,7 @@ export function RoleGuard({ allowedRoles }: { allowedRoles: UserRole[] }) {
   if (!user) return null; // AuthGuard (which always wraps this) already handles the unauthenticated case
 
   if (!allowedRoles.includes(user.role)) {
-    return <Navigate to={ROLE_HOME_PATH[user.role]} replace />;
+    return <Navigate to={ROLE_HOME_PATH[user.role as any]} replace />;
   }
 
   return <Outlet />;

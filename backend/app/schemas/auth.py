@@ -10,6 +10,7 @@ class SignUpRequest(BaseModel):
     password: str = Field(..., min_length=8, max_length=128)
     full_name: str = Field(..., min_length=2, max_length=255)
     role: str = Field(..., description="customer | tailor | designer | vendor | delivery_partner")
+    referral_code: Optional[str] = Field(None, max_length=16, description="Another user's referral code, if they were referred")
 
     @field_validator("password")
     @classmethod

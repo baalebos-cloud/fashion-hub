@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Line items belonging to an order (design/service for customer orders,
 product variants for vendor orders)."""
 import uuid

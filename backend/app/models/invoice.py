@@ -1,11 +1,13 @@
+from datetime import datetime
+from sqlalchemy.orm import Mapped
+from typing import Any
 """
 Generated automatically after successful payment (see workers/invoice_tasks.py).
 Contains a full line-item snapshot so historical invoices remain accurate
 even if product prices change later.
 """
 import uuid
-from datetime import datetime
-from sqlalchemy import Numeric, String, DateTime
+from sqlalchemy import Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -34,6 +36,5 @@ class Invoice(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     payment_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
     pdf_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
-    payment_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    due_date: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
+    order_date: Mapped[datetime | None] = mapped_column(nullable=True)
+    payment_date: Mapped[datetime | None] = mapped_column(nullable=True)

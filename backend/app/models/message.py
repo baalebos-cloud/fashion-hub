@@ -1,3 +1,5 @@
+from sqlalchemy.orm import Mapped
+from typing import Any
 """Individual chat message within a conversation."""
 import uuid
 from sqlalchemy import Boolean, Text
