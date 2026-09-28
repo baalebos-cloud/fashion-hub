@@ -31,12 +31,13 @@ RUN pip install -r requirements.txt
 
 COPY . .
 
-RUN useradd --create-home appuser
-USER appuser
 
-EXPOSE 8000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD curl -f http://localhost:8005/health/live || exit 1
 
-CMD ["gunicorn", "app.main:app", "-k", "uvicorn.workers.UvicornWorker", "-w", "4", "-b", "0.0.0.0:8005"]
+
+# Dynamic port configuration matching Render's runtime env
+EXPOSE 10000
+
+# Start app binding dynamically to Render's system port
+CMD ["sh", "-c", "gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:$PORT"]
