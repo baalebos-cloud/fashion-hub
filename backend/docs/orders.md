@@ -3,6 +3,7 @@
 ## Endpoint reference (customer orders)
 
 ```
+POST /api/v1/orders                          create a catalog order (customer only)
 GET  /api/v1/orders                          list orders for the current user
 GET  /api/v1/orders/{order_id}                get one order
 
@@ -60,11 +61,16 @@ another tailor's order gets a 403 (`ForbiddenError`), covering the
 
 ## Idempotent order creation
 
-`OrderService.create_customer_order` accepts an optional
-`idempotency_key`. If the same key is submitted twice (e.g. the client
-retried after losing connectivity mid-checkout), the existing order is
-returned instead of creating a duplicate — see
-`orders.idempotency_key` (unique) in [database.md](./database.md).
+`OrderService.create_customer_order` requires an `idempotency_key`, a seller
+account ID, published design IDs/quantities, an owned delivery address and an
+owned measurement profile. Catalog prices and item names are resolved server-side;
+client-supplied price/name fields are rejected. Orders, items, fulfillment
+snapshots and the initial timeline entry commit together.
+
+Retries with the same buyer/key/canonical intent return the saved order, even
+if a catalog price changes. Changed intent or a different buyer receives 409.
+See the [catalog checkout contract and rollout](../../docs/catalog-checkout.md)
+for the request shape, limits, migration and remaining live-order blockers.
 
 ## Cancellation
 
