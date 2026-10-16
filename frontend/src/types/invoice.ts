@@ -9,6 +9,7 @@ export interface Invoice {
   id: string;
   invoice_number: string;
   order_id: string;
+  line_items_snapshot: InvoiceLineItem[];
   subtotal: number;
   delivery_fee: number;
   tax_amount: number;

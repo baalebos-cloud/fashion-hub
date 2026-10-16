@@ -32,12 +32,29 @@ def upgrade():
     op.execute('UPDATE locations SET formatted_address=address_line, state_region=state, latitude=ST_Y(geom::geometry), longitude=ST_X(geom::geometry)')
     op.alter_column('locations', 'address_line', existing_type=sa.String(512), nullable=True)
     op.alter_column('locations', 'state', existing_type=sa.String(128), nullable=True)
+    # The historical schema never created the Address model's table.
+    op.create_table(
+        'addresses',
+        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column('user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('location_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('locations.id'), nullable=False),
+        sa.Column('label', sa.String(64), nullable=True),
+        sa.Column('recipient_name', sa.String(255), nullable=True),
+        sa.Column('recipient_phone', sa.String(32), nullable=True),
+        sa.Column('is_default', sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+    )
+    op.create_index('ix_addresses_user_id', 'addresses', ['user_id'])
 
 
 def downgrade():
     connection = op.get_bind()
     if connection.execute(sa.text("SELECT 1 FROM orders WHERE pricing_source IS NOT NULL LIMIT 1")).first():
         raise RuntimeError('Catalog order snapshots exist; archive and explicitly migrate them before downgrading.')
+    if connection.execute(sa.text('SELECT 1 FROM addresses LIMIT 1')).first():
+        raise RuntimeError('Saved addresses exist; archive and explicitly migrate them before downgrading.')
+    op.drop_table('addresses')
     op.execute("UPDATE locations SET address_line=COALESCE(address_line,formatted_address,''), state=COALESCE(state,state_region,'')")
     op.alter_column('locations', 'address_line', existing_type=sa.String(512), nullable=False)
     op.alter_column('locations', 'state', existing_type=sa.String(128), nullable=False)

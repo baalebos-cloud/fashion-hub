@@ -43,7 +43,7 @@ export const useOrderStore = create<OrderState>((set) => ({
   },
 
   fetchById: async (id) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, currentOrder: null, timeline: [] });
     try {
       const currentOrder = await ordersApi.getById(id);
       set({ currentOrder });
@@ -55,8 +55,12 @@ export const useOrderStore = create<OrderState>((set) => ({
   },
 
   fetchTimeline: async (id) => {
-    const timeline = await ordersApi.getTimeline(id);
-    set({ timeline });
+    try {
+      const timeline = await ordersApi.getTimeline(id);
+      set({ timeline });
+    } catch (err) {
+      set({ error: err instanceof Error ? err.message : "Could not load the order timeline." });
+    }
   },
 
   accept: async (id) => set({ currentOrder: await ordersApi.accept(id) }),

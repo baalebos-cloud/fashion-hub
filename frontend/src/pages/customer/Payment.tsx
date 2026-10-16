@@ -10,9 +10,10 @@ import { useState } from "react";
 
 export default function Payment() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { order, isLoading } = useOrder(orderId);
+  const { order, isLoading, error } = useOrder(orderId);
   const [hasConsented, setHasConsented] = useState(false);
 
+  if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !order) return <LoadingScreen label="Loading order…" />;
 
   const callbackUrl = `${window.location.origin}${customerRoutes.paymentSuccess}`;

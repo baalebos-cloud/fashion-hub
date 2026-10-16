@@ -1,12 +1,13 @@
 import uuid
+from decimal import Decimal
 from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class CreateDesignRequest(BaseModel):
-    title: str = Field(..., max_length=255)
+    title: str = Field(..., min_length=1, max_length=255)
     description: Optional[str] = None
-    base_price: float = Field(..., gt=0)
+    base_price: Decimal = Field(..., gt=0, max_digits=12, decimal_places=2)
     category_id: Optional[uuid.UUID] = None
     # e.g. ["chest", "waist", "sleeve_length"] -- the tailor/designer's own
     # required fields for this specific design. Left null/empty, the

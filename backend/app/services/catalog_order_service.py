@@ -76,12 +76,14 @@ class CatalogOrderService:
         if not location or not all([address.recipient_name, address.recipient_phone, location.formatted_address,
                                     location.city, location.state_region, location.country]):
             raise ValidationAppError('Save a complete delivery address before ordering.')
+        if location.country != 'NG':
+            raise ConflictError('Catalog checkout currently supports Nigerian delivery addresses only.')
         profile = (self.db.query(MeasurementProfile).join(Customer, Customer.id == MeasurementProfile.customer_id)
                    .filter(MeasurementProfile.id == request.measurement_profile_id, Customer.user_id == customer.id).first())
         if not profile:
             raise NotFoundError('Measurement profile not found.')
         fields = self.db.query(Measurement).filter(Measurement.measurement_profile_id == profile.id).order_by(Measurement.field_name).all()
-        if not fields or any(f.value <= 0 or f.unit not in {'cm', 'in'} for f in fields):
+        if not fields or any(not Decimal(str(f.value)).is_finite() or f.value <= 0 or f.unit not in {'cm', 'in'} for f in fields):
             raise ValidationAppError('Save valid measurements before ordering.')
         designs = (self.db.query(Design).filter(Design.id.in_(list(quantities))).order_by(Design.id)
                    .with_for_update(read=True).all())

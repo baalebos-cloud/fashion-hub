@@ -179,3 +179,61 @@ def test_http_catalog_order_payment_and_invoice_with_ownership(db, context, make
             assert client.get('/api/v1/invoices/by-order/' + order['id']).status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+def test_same_key_cannot_be_replayed_by_another_buyer(db, context, make_user):
+    OrderService(db).create_customer_order(**context)
+    request = {**context, 'customer': make_user()}
+    with pytest.raises(ConflictError):
+        OrderService(db).create_customer_order(**request)
+
+
+def test_concurrent_duplicate_checkout_and_payment_initialization(engine):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from sqlalchemy.orm import Session
+    with Session(engine) as session:
+        users = [User(email=f'{uuid.uuid4()}@example.com', hashed_password='not-used', full_name='Concurrent test', role=role) for role in ['customer', 'tailor']]
+        session.add_all(users)
+        session.commit()
+        request = catalog_request(session, users[0], users[1])
+        buyer_id = users[0].id
+        # Primitive IDs may cross threads; ORM instances never do.
+        request.pop('customer')
+        request['professional_user_id'] = users[1].id
+    barrier = Barrier(2)
+
+    def create():
+        with Session(engine) as session:
+            customer = session.get(User, buyer_id)
+            barrier.wait(timeout=10)
+            return OrderService(session).create_customer_order(customer=customer, **request).id
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(create) for _ in range(2)]
+        order_ids = [future.result(timeout=20) for future in futures]
+    assert order_ids[0] == order_ids[1]
+    provider = MagicMock()
+    provider.initialize_payment.return_value = InitializePaymentResult('parallel-' + uuid.uuid4().hex, 'https://checkout.paystack.com/parallel', {})
+    barrier = Barrier(2)
+
+    def initialize():
+        with Session(engine) as session:
+            barrier.wait(timeout=10)
+            return PaymentService(session).initialize_payment_for_order(order_id=order_ids[0], buyer_user_id=buyer_id,
+                        customer_email='test@example.com', callback_url='http://localhost:5173/payment/success')
+
+    with patch('app.services.payment_service.get_payment_provider', return_value=provider), ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(initialize) for _ in range(2)]
+        results = [future.result(timeout=20) for future in futures]
+    assert results[0] == results[1]
+    provider.initialize_payment.assert_called_once()
+    with Session(engine) as session:
+        assert session.query(OrderItem).filter_by(order_id=order_ids[0]).count() == 1
+        assert session.query(Payment).filter_by(order_id=order_ids[0]).count() == 1
+        # Keep the shared test database clean for other recovery scenarios.
+        session.query(Payment).filter_by(order_id=order_ids[0]).delete()
+        session.query(OrderTimelineEntry).filter_by(order_id=order_ids[0]).delete()
+        session.query(OrderItem).filter_by(order_id=order_ids[0]).delete()
+        session.query(Order).filter_by(id=order_ids[0]).delete()
+        session.commit()

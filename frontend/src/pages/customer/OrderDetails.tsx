@@ -10,8 +10,9 @@ import type { CustomerOrderStatus } from "@/types/order";
 
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
-  const { order, timeline, isLoading, markReceived } = useOrder(orderId);
+  const { order, timeline, isLoading, error, markReceived } = useOrder(orderId);
 
+  if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !order) return <LoadingScreen label="Loading order…" />;
 
   return (
