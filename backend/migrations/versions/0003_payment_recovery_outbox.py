@@ -50,7 +50,9 @@ def upgrade():
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
         sa.CheckConstraint("attempts >= 0", name="ck_payment_outbox_attempts"),
     )
-    op.create_index("ix_payment_outbox_available_at", "payment_outbox", ["available_at"])
+    op.create_index("ix_payment_outbox_payment_id", "payment_outbox", ["payment_id"])
+    op.create_index("ix_payment_outbox_pending", "payment_outbox", ["available_at", "id"],
+                    postgresql_where=sa.text("processed_at IS NULL"))
 
 
 def downgrade():

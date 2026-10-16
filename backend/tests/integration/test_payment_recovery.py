@@ -315,3 +315,23 @@ def test_reconciler_repairs_legacy_payment_after_another_reference_fails(engine,
         assert db.get(Order, legacy_order_id).status == "paid"
         assert count(db, Payout, order_id=legacy_order_id) == 1
         assert count(db, PaymentOutbox, payment_id=legacy_id) == 1
+
+
+def test_lost_commit_acknowledgement_is_safe_to_retry(db, provider):
+    payment_id, order_id, _ = seed(db)
+    payment = db.get(Payment, payment_id)
+    configure(provider, payment)
+    commit = db.commit
+
+    def commit_then_lose_response():
+        commit()
+        raise RuntimeError("lost commit acknowledgement")
+
+    with patch.object(db, "commit", side_effect=commit_then_lose_response), pytest.raises(RuntimeError):
+        webhook(PaymentService(db), payment)
+    assert db.get(Payment, payment_id).status == "successful"
+    provider.verify_payment.side_effect = RuntimeError("Provider unavailable during retry")
+    assert webhook(PaymentService(db), payment) is None
+    assert count(db, Payout, order_id=order_id) == 1
+    assert count(db, PaymentOutbox, payment_id=payment_id) == 1
+    assert count(db, OrderTimelineEntry, order_id=order_id, to_status="paid") == 1

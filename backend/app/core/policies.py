@@ -19,3 +19,15 @@ def validate_payment_identity(*, expected_reference, reference, expected_amount,
         valid = False
     if not valid:
         raise ValueError("Payment amount does not match")
+
+
+def money_to_minor_units(amount) -> int:
+    """Exact two-decimal provider units; never truncate a binary float."""
+    try:
+        value = Decimal(str(amount))
+        scaled = value * 100
+        if not value.is_finite() or value <= 0 or scaled != scaled.to_integral_value():
+            raise ValueError("Expected a positive two-decimal monetary amount")
+        return int(scaled)
+    except (InvalidOperation, TypeError) as exc:
+        raise ValueError("Invalid monetary amount") from exc

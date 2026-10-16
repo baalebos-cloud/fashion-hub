@@ -5,7 +5,7 @@ from decimal import Decimal
 from pydantic import ValidationError
 
 from app.core.config import Settings
-from app.core.policies import PUBLIC_SIGNUP_ROLES, validate_payment_identity
+from app.core.policies import PUBLIC_SIGNUP_ROLES, validate_payment_identity, money_to_minor_units
 
 
 class SettlementPolicyTests(unittest.TestCase):
@@ -28,6 +28,15 @@ class SettlementPolicyTests(unittest.TestCase):
         for overrides in [dict(currency="USD"), dict(currency=""), dict(reference="another"), dict(reference=None)]:
             with self.subTest(overrides=overrides), self.assertRaises(ValueError):
                 self.validate(**overrides)
+
+    def test_minor_units_do_not_truncate_binary_float_amounts(self):
+        for amount, expected in [(0.29, 29), (1.15, 115), (100.01, 10001), (Decimal("999999.99"), 99999999)]:
+            self.assertEqual(money_to_minor_units(amount), expected)
+
+    def test_minor_units_reject_invalid_or_fractional_subunits(self):
+        for amount in ["NaN", "Infinity", "-1", "0", "1.001", None]:
+            with self.subTest(amount=amount), self.assertRaises(ValueError):
+                money_to_minor_units(amount)
 
     def test_public_roles_exclude_privileged_and_unknown_roles(self):
         self.assertNotIn("admin", PUBLIC_SIGNUP_ROLES)
