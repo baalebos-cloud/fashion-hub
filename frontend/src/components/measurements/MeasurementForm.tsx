@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import { useState, useId } from "react";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { MeasurementGuide } from "./MeasurementGuide";
@@ -18,6 +19,8 @@ export interface MeasurementFormProps {
 }
 
 export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProps) {
+  const fieldId = useId();
+  const [error, setError] = useState<string | null>(null);
   const { createProfile } = useMeasurements();
   const fieldNames = requiredFields && requiredFields.length > 0 ? requiredFields : STANDARD_MEASUREMENT_FIELDS;
   const [values, setValues] = useState<Record<string, string>>({});
@@ -26,6 +29,7 @@ export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProp
 
   async function handleSave(label: string) {
     setIsSaving(true);
+    setError(null);
     try {
       const fields: MeasurementField[] = fieldNames.filter((name) => values[name]).map((name) => ({
         field_name: name,
@@ -34,6 +38,8 @@ export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProp
       }));
       await createProfile(label, undefined, fields);
       onSaved?.();
+    } catch (err) {
+      setError(getDisplayErrorMessage(err));
     } finally {
       setIsSaving(false);
     }
@@ -45,7 +51,7 @@ export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProp
         <h2 className="text-sm font-medium text-ink-soft">
           {requiredFields && requiredFields.length > 0 ? "Measurements needed for this design" : "Enter measurements"}
         </h2>
-        <Select value={unit} onChange={(e) => setUnit(e.target.value)} className="w-24">
+        <Select aria-label="Measurement unit" value={unit} onChange={(e) => setUnit(e.target.value)} className="w-24">
           <option value="cm">cm</option>
           <option value="in">in</option>
         </Select>
@@ -54,9 +60,10 @@ export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProp
       <div className="grid grid-cols-2 gap-3">
         {fieldNames.map((name) => (
           <div key={name}>
-            <label className="mb-1 block text-xs capitalize text-ink-soft">{name.replace(/_/g, " ")}</label>
+            <label htmlFor={`${fieldId}-${name}`} className="mb-1 block text-xs capitalize text-ink-soft">{name.replace(/_/g, " ")}</label>
             <Input
-              type="number"
+              id={`${fieldId}-${name}`}
+              type="number" min="0.01" max="9999.99" step="0.01"
               value={values[name] ?? ""}
               onChange={(e) => setValues((prev) => ({ ...prev, [name]: e.target.value }))}
             />
@@ -64,6 +71,7 @@ export function MeasurementForm({ onSaved, requiredFields }: MeasurementFormProp
         ))}
       </div>
 
+      {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       <MeasurementGuide />
       <SaveMeasurementProfile onSave={handleSave} isSaving={isSaving} />
     </div>

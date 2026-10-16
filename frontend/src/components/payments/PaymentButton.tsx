@@ -6,7 +6,7 @@ export function PaymentButton({ orderId, callbackUrl, disabled }: { orderId: str
 
   return (
     <div>
-      <Button onClick={() => payAndRedirect(orderId, callbackUrl)} isLoading={isInitializing} disabled={disabled} className="w-full">
+      <Button onClick={() => { void payAndRedirect(orderId, callbackUrl).catch(() => { /* Store displays the error below. */ }); }} isLoading={isInitializing} disabled={disabled} className="w-full">
         Pay now
       </Button>
       {error && <p className="mt-2 text-sm text-thread">{error}</p>}

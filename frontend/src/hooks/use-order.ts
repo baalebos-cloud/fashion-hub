@@ -16,7 +16,7 @@ export function useOrder(orderId: string | undefined) {
   }, [orderId]);
 
   return {
-    order: store.currentOrder,
+    order: store.currentOrder?.id === orderId ? store.currentOrder : null,
     timeline: store.timeline,
     isLoading: store.isLoading,
     error: store.error,

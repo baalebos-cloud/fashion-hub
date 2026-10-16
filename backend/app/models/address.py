@@ -4,7 +4,7 @@ from typing import Any
 'Home', 'Office'), decoupled so one Location can't accidentally be edited by
 two unrelated users."""
 import uuid
-from sqlalchemy import Boolean, String
+from sqlalchemy import Boolean, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -15,8 +15,8 @@ from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 class Address(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "addresses"
 
-    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True)
+    location_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("locations.id"), nullable=False)
     label: Mapped[str | None] = mapped_column(String(64), nullable=True)  # Home, Office, ...
     recipient_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     recipient_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)

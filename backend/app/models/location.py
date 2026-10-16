@@ -19,8 +19,8 @@ from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 class Location(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "locations"
 
-    latitude: Mapped[float] = mapped_column(Numeric(10, 7), nullable=False)
-    longitude: Mapped[float] = mapped_column(Numeric(10, 7), nullable=False)
+    latitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
+    longitude: Mapped[float | None] = mapped_column(Numeric(10, 7), nullable=True)
     # Generated/populated alongside lat/lon for ST_DWithin / KNN queries.
     geom: Mapped[Any] = mapped_column(Geography(geometry_type="POINT", srid=4326), nullable=True)
 

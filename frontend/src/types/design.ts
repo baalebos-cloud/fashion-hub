@@ -1,4 +1,6 @@
 export interface Design {
+  professional_id: string;
+  currency: string;
   id: string;
   title: string;
   description?: string | null;

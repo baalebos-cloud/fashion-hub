@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel
 
@@ -21,6 +22,6 @@ class PaymentResponse(BaseModel):
     amount: float
     currency: str
     status: str
-    paid_at: Optional[str] = None
+    paid_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

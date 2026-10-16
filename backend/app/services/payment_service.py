@@ -5,6 +5,7 @@ unrelated pending writes. It never publishes a Celery task while settling funds.
 """
 import hashlib
 from typing import Optional
+from urllib.parse import urlsplit
 
 from sqlalchemy.orm import Session
 
@@ -41,19 +42,36 @@ class PaymentService:
             raise NotFoundError("Order not found.")
         if str(order.buyer_user_id) != str(buyer_user_id):
             raise ForbiddenError("Only the buyer may initialize this payment.")
+        order = self.orders.get_by_id_for_update(order_id)
         if order.status not in {"pending", "checkout", "payment_pending"} or order.total_amount <= 0:
             raise ConflictError("Order is not payable.")
-        if self.db.query(Payment).filter(Payment.order_id == order.id).first():
+        from app.services.catalog_order_service import assert_catalog_order_payable
+        assert_catalog_order_payable(order)
+        try:
+            callback = urlsplit(callback_url)
+            origin = f"{callback.scheme}://{callback.netloc}"
+            allowed = {value.rstrip('/') for value in settings.CORS_ALLOWED_ORIGINS}
+            if callback.scheme not in {'http', 'https'} or callback.username or callback.password or origin not in allowed or len(callback_url) > 2048:
+                raise ValueError('Untrusted callback origin')
+        except ValueError as exc:
+            from app.core.exceptions import ValidationAppError
+            raise ValidationAppError('Payment callback must use a configured application origin.') from exc
+        existing = self.db.query(Payment).filter(Payment.order_id == order.id).first()
+        if existing:
+            if existing.status in {'initialized', 'pending'} and existing.authorization_url:
+                return {'authorization_url': existing.authorization_url, 'provider_reference': existing.provider_reference}
             raise ConflictError("This order already has a payment. Verify the existing reference.")
         result = self.provider.initialize_payment(
             order_id=str(order.id), amount=float(order.total_amount), currency=order.currency,
             customer_email=customer_email, callback_url=callback_url,
         )
+        if not result.authorization_url or len(result.authorization_url) > 2048 or urlsplit(result.authorization_url).scheme != 'https':
+            raise PaymentError('Provider did not return a secure authorization URL.')
         try:
             self.db.add(Payment(
                 order_id=order.id, provider=settings.PAYMENT_PROVIDER,
                 provider_reference=result.provider_reference, amount=order.total_amount,
-                currency=order.currency, status="initialized",
+                currency=order.currency, status="initialized", authorization_url=result.authorization_url,
             ))
             self.db.commit()
         except Exception:

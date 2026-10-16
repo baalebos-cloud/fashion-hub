@@ -25,8 +25,8 @@ class LocationService:
         """Truncates precision to ~2 decimal places (~1.1km) for public
         listing pages (e.g. 'tailors near you' before an order exists)."""
         return {
-            "latitude": round(float(location.latitude), 2),
-            "longitude": round(float(location.longitude), 2),
+            "latitude": round(float(location.latitude), 2) if location.latitude is not None else None,
+            "longitude": round(float(location.longitude), 2) if location.longitude is not None else None,
             "city": location.city,
             "state_region": location.state_region,
             "country": location.country,

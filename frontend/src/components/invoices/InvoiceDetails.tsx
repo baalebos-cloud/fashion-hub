@@ -12,6 +12,7 @@ export function InvoiceDetails({ invoice }: { invoice: Invoice }) {
         <InvoiceStatus status={invoice.payment_status} />
       </div>
 
+      <ul className="divide-y divide-line">{invoice.line_items_snapshot.map((item, index) => <li key={index} className="flex justify-between py-2 text-sm"><span>{item.name} × {item.quantity}</span><span>{formatCurrency(item.line_total, invoice.currency)}</span></li>)}</ul>
       <div className="rounded-card border border-line p-4 text-sm">
         <div className="flex justify-between py-1"><span className="text-ink-soft">Subtotal</span><span>{formatCurrency(invoice.subtotal, invoice.currency)}</span></div>
         <div className="flex justify-between py-1"><span className="text-ink-soft">Delivery fee</span><span>{formatCurrency(invoice.delivery_fee, invoice.currency)}</span></div>

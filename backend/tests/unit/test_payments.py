@@ -9,6 +9,7 @@ import pytest
 from app.core.constants import UserRole
 from app.models.payment import Payment
 from app.services.order_service import OrderService
+from tests.catalog_helpers import catalog_request
 from app.services.payment_service import PaymentService
 from app.integrations.payments.base import VerifyPaymentResult
 
@@ -17,14 +18,7 @@ def _make_order_and_payment(db, make_user):
     customer = make_user(role=UserRole.CUSTOMER.value)
     tailor = make_user(role=UserRole.TAILOR.value)
     order_service = OrderService(db)
-    order = order_service.create_customer_order(
-        customer=customer,
-        professional_user_id=tailor.id,
-        order_items=[{"unit_price": 200.0, "quantity": 1}],
-        delivery_address_id=None,
-        measurement_profile_id=None,
-        idempotency_key=None,
-    )
+    order = order_service.create_customer_order(**catalog_request(db, customer, tailor, price='200.00'))
     payment = Payment(
         order_id=order.id,
         provider="paystack",

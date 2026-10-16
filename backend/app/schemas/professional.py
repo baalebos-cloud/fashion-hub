@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 class ProfessionalResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID
     professional_type: str
     business_name: Optional[str] = None
     bio: Optional[str] = None
