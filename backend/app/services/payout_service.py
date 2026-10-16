@@ -12,6 +12,8 @@ invisible to the customer by construction: there is no code path from a
 customer-facing endpoint into this table, not a permission check that
 could be misconfigured.
 """
+from decimal import Decimal, ROUND_HALF_UP
+
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -23,15 +25,15 @@ class PayoutService:
     def __init__(self, db: Session):
         self.db = db
 
-    def create_for_order(self, order: Order) -> Payout:
+    def create_for_order(self, order: Order, *, commit: bool = True) -> Payout:
         existing = self.db.query(Payout).filter(Payout.order_id == order.id).first()
         if existing:
             return existing  # idempotent, same reasoning as payment webhook de-dup
 
-        gross = float(order.total_amount)
-        rate = settings.PLATFORM_COMMISSION_RATE
-        commission = round(gross * rate, 2)
-        net = round(gross - commission, 2)
+        gross = Decimal(str(order.total_amount))
+        rate = Decimal(str(settings.PLATFORM_COMMISSION_RATE))
+        commission = (gross * rate).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        net = gross - commission
 
         payout = Payout(
             order_id=order.id,
@@ -44,8 +46,11 @@ class PayoutService:
             status="pending",
         )
         self.db.add(payout)
-        self.db.commit()
-        self.db.refresh(payout)
+        if commit:
+            self.db.commit()
+            self.db.refresh(payout)
+        else:
+            self.db.flush()
         return payout
 
     def list_for_seller(self, seller_user_id, *, offset: int = 0, limit: int = 20) -> list[Payout]:

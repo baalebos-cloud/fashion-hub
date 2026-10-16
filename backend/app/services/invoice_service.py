@@ -17,14 +17,19 @@ class InvoiceService:
     def __init__(self, db: Session):
         self.db = db
 
-    def generate_for_order(self, order_id: str):
+    def generate_for_order(self, order_id: str, *, commit: bool = True):
         from app.models.invoice import Invoice
         from app.models.order import Order
         from app.models.order_item import OrderItem
 
-        order = self.db.get(Order, order_id)
+        order = (self.db.query(Order).filter(Order.id == order_id)
+                 .with_for_update().populate_existing().first())
         if not order:
             raise NotFoundError("Order not found.")
+
+        existing = self.db.query(Invoice).filter(Invoice.order_id == order.id).first()
+        if existing:
+            return existing
 
         items = self.db.query(OrderItem).filter(OrderItem.order_id == order.id).all()
         line_items_snapshot = [
@@ -54,11 +59,13 @@ class InvoiceService:
             payment_date=order.paid_at or utcnow(),
         )
         self.db.add(invoice)
-        self.db.commit()
-        self.db.refresh(invoice)
-
-        from app.workers.invoice_tasks import render_invoice_pdf_task
-        render_invoice_pdf_task.delay(invoice_id=str(invoice.id))
+        if commit:
+            self.db.commit()
+            self.db.refresh(invoice)
+        else:
+            self.db.flush()
+        # PDF rendering is not implemented yet. The durable invoice record
+        # is useful independently; do not enqueue a guaranteed failing task.
 
         return invoice
 

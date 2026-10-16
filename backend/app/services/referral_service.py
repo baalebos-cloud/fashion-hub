@@ -18,6 +18,7 @@ than eating into what professionals/vendors net.
 """
 import secrets
 import string
+from decimal import Decimal, ROUND_HALF_UP
 
 from sqlalchemy.orm import Session
 
@@ -77,31 +78,38 @@ class ReferralService:
         self.db.refresh(referral)
         return referral
 
-    def qualify_if_applicable(self, *, referred_user_id, qualifying_order_id, order_total: float, currency: str) -> None:
+    def qualify_if_applicable(self, *, referred_user_id, qualifying_order_id, order_total, currency: str, commit: bool = True):
         """
         Called once, right after an order's payment is confirmed (see
         payment_service.py). Idempotent: does nothing if this user has no
         pending referral, or if it's already been qualified by an earlier
         order (i.e. only the FIRST successful order counts).
         """
-        referral = self.referrals.get_by_referred_user(referred_user_id)
-        if not referral or referral.status != ReferralStatus.PENDING.value:
-            return
+        referral = (self.db.query(Referral)
+                    .filter(Referral.referred_user_id == referred_user_id)
+                    .with_for_update().populate_existing().first())
+        if not referral:
+            return None
+        if referral.status != ReferralStatus.PENDING.value:
+            return referral if str(referral.qualifying_order_id) == str(qualifying_order_id) else None
 
         from app.core.config import settings
 
-        platform_commission = order_total * settings.PLATFORM_COMMISSION_RATE
-        commission = platform_commission * settings.REFERRAL_COMMISSION_SHARE
+        platform_commission = (Decimal(str(order_total)) * Decimal(str(settings.PLATFORM_COMMISSION_RATE))).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        commission = platform_commission * Decimal(str(settings.REFERRAL_COMMISSION_SHARE))
 
         referral.status = ReferralStatus.QUALIFIED.value
         referral.qualifying_order_id = qualifying_order_id
         referral.qualified_at = utcnow()
-        referral.commission_amount = round(commission, 2)
+        referral.commission_amount = commission.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
         referral.commission_currency = currency
-        self.db.commit()
-
-        from app.workers.notification_tasks import notify_referral_qualified_task
-        notify_referral_qualified_task.delay(referral_id=str(referral.id))
+        if commit:
+            self.db.commit()
+            from app.workers.notification_tasks import notify_referral_qualified_task
+            notify_referral_qualified_task.delay(referral_id=str(referral.id))
+        else:
+            self.db.flush()
+        return referral
 
     def mark_paid(self, referral_id, *, actor: User) -> Referral:
         if actor.role != "admin":

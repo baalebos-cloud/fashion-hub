@@ -12,17 +12,38 @@ from app.workers.celery_app import celery_app
 
 @celery_app.task(name="app.workers.payment_tasks.reconcile_pending_payments_task")
 def reconcile_pending_payments_task():
+    from sqlalchemy import exists, or_
+    from app.core.database import SessionLocal
+    from app.core.logging import get_logger
+    from app.core.timezone import utcnow
     from app.models.payment import Payment
+    from app.models.payment_outbox import PaymentOutbox
     from app.services.payment_service import PaymentService
 
-    with session_scope() as db:
-        pending = db.query(Payment).filter(Payment.status.in_(["initialized", "pending"])).limit(200).all()
-        service = PaymentService(db)
-        for payment in pending:
+    logger = get_logger(__name__)
+    # Include successful legacy payments with no durable work record so a
+    # previous partial commit can be completed after upgrading.
+    with SessionLocal() as db:
+        missing_work = ~exists().where(PaymentOutbox.payment_id == Payment.id)
+        references = [row[0] for row in db.query(Payment.provider_reference).filter(or_(
+            Payment.status.in_(["initialized", "pending"]),
+            (Payment.status == "successful") & missing_work,
+        )).order_by(Payment.last_reconciled_at.asc().nulls_first(), Payment.created_at, Payment.id).limit(200)]
+    for reference in references:
+        # One failed provider or database transaction cannot poison the next.
+        with SessionLocal() as db:
             try:
-                service.verify_and_confirm(payment.provider_reference)
-            except Exception:  # noqa: BLE001 - keep reconciling other payments even if one fails
-                continue
+                PaymentService(db).verify_and_confirm(reference)
+            except Exception as exc:
+                db.rollback()
+                logger.warning("payment_reconciliation_failed", extra={
+                    "provider_reference": reference, "error_type": type(exc).__name__,
+                })
+            finally:
+                db.query(Payment).filter(Payment.provider_reference == reference).update(
+                    {"last_reconciled_at": utcnow()}, synchronize_session=False,
+                )
+                db.commit()
 
 
 @celery_app.task(name="app.workers.payment_tasks.process_refund_task", bind=True, max_retries=3)
