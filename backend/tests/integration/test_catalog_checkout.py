@@ -243,3 +243,25 @@ def test_concurrent_duplicate_checkout_and_payment_initialization(engine):
         session.query(OrderItem).filter_by(order_id=order_ids[0]).delete()
         session.query(Order).filter_by(id=order_ids[0]).delete()
         session.commit()
+
+
+def test_lost_order_commit_acknowledgement_returns_the_committed_order_on_retry(db, context):
+    commit = db.commit
+
+    def commit_then_lose_response():
+        commit()
+        raise RuntimeError('lost order response')
+
+    with patch.object(db, 'commit', side_effect=commit_then_lose_response), pytest.raises(RuntimeError, match='lost order response'):
+        OrderService(db).create_customer_order(**context)
+    replay = OrderService(db).create_customer_order(**context)
+    assert db.query(Order).filter_by(idempotency_key=context['idempotency_key']).count() == 1
+    assert db.query(OrderItem).filter_by(order_id=replay.id).count() == 1
+
+
+def test_unsupported_delivery_market_is_rejected(db, context):
+    address = db.get(Address, context['delivery_address_id'])
+    db.get(Location, address.location_id).country = 'US'
+    db.commit()
+    with pytest.raises(ConflictError, match='Nigerian'):
+        OrderService(db).create_customer_order(**context)

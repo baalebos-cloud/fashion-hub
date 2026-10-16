@@ -130,3 +130,46 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
+
+
+def test_orphan_line_items_abort_without_removing_records(migration_database):
+    engine, config = migration_database
+    migrate(engine, config, '0003')
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO order_items (id,order_id,reference_type,name_snapshot,unit_price,quantity,line_total) VALUES (:id,:order,'design','Legacy orphan',10,1,10)"),
+                     {'id': uuid.uuid4(), 'order': uuid.uuid4()})
+    with pytest.raises(RuntimeError, match='Orphan order items'):
+        migrate(engine, config, 'head')
+    with engine.connect() as conn:
+        assert conn.execute(text('SELECT count(*) FROM order_items')).scalar_one() == 1
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0003'
+
+
+@pytest.mark.parametrize('saved_record', ['order', 'address'])
+def test_downgrade_preserves_new_checkout_records(migration_database, saved_record):
+    from sqlalchemy.orm import Session
+    from app.models.address import Address
+    from app.models.location import Location
+    from app.models.user import User
+    engine, config = migration_database
+    migrate(engine, config, 'head')
+    if saved_record == 'order':
+        with engine.begin() as conn:
+            payment_id = insert_payment(conn)
+            conn.execute(text("UPDATE orders SET pricing_source='catalog_v1' WHERE id=(SELECT order_id FROM payments WHERE id=:id)"), {'id': payment_id})
+    else:
+        with Session(engine) as db:
+            user = User(email='address@example.com', hashed_password='not-used', full_name='Test', role='customer')
+            location = Location(location_type='customer_address', formatted_address='10 Test Street', city='Lagos', country='NG')
+            db.add_all([user, location])
+            db.flush()
+            db.add(Address(user_id=user.id, location_id=location.id))
+            db.commit()
+    with pytest.raises(RuntimeError, match='exist'):
+        with engine.begin() as conn:
+            config.attributes['connection'] = conn
+            command.downgrade(config, '0003')
+    with engine.connect() as conn:
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0004'
+        table = 'orders' if saved_record == 'order' else 'addresses'
+        assert conn.execute(text(f'SELECT count(*) FROM {table}')).scalar_one() == 1
