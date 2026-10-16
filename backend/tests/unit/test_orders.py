@@ -40,6 +40,15 @@ def test_tailor_cannot_mark_order_received(db, make_user):
     order = service.transition(order_id=order.id, target_status=CustomerOrderStatus.SHIPPED, actor=tailor)
 
     delivery_partner = make_user(role=UserRole.DELIVERY_PARTNER.value)
+    from app.models.delivery import Delivery
+    from app.models.delivery_partner import DeliveryPartner
+    import uuid
+    profile = DeliveryPartner(user_id=delivery_partner.id)
+    db.add(profile)
+    db.flush()
+    db.add(Delivery(delivery_request_id=uuid.uuid4(), order_id=order.id,
+                    delivery_partner_id=profile.id, status="assigned"))
+    db.commit()
     order = service.transition(order_id=order.id, target_status=CustomerOrderStatus.OUT_FOR_DELIVERY, actor=delivery_partner)
     order = service.transition(order_id=order.id, target_status=CustomerOrderStatus.DELIVERED, actor=delivery_partner)
 
@@ -114,3 +123,22 @@ def test_duplicate_order_submission_is_idempotent(db, make_user):
         idempotency_key=key,
     )
     assert order1.id == order2.id
+
+
+
+def test_customer_cannot_cancel_another_customers_order(db, make_user):
+    from app.core.exceptions import ForbiddenError
+    customer = make_user()
+    other = make_user()
+    tailor = make_user(role=UserRole.TAILOR.value)
+    order = _create_pending_order(db, customer=customer, tailor=tailor)
+    with pytest.raises(ForbiddenError):
+        OrderService(db).cancel(order_id=order.id, actor=other)
+
+
+def test_customer_cannot_mark_pending_order_paid(db, make_user):
+    customer = make_user()
+    tailor = make_user(role=UserRole.TAILOR.value)
+    order = _create_pending_order(db, customer=customer, tailor=tailor)
+    with pytest.raises(ForbiddenError):
+        OrderService(db).transition(order_id=order.id, target_status=CustomerOrderStatus.PAID, actor=customer)

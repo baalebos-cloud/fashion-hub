@@ -47,7 +47,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "8005:8000"
+      - "8005:8005"
     command: >
       sh -c "alembic upgrade head &&
              gunicorn app.main:app -k uvicorn.workers.UvicornWorker -w 4 -b 0.0.0.0:8005"

@@ -1,45 +1,54 @@
-"""
-Database engine, session factory, and declarative base.
-"""
-import os
-import re
-from sqlalchemy import create_engine
+"""Database sessions and bounded PostgreSQL connection pooling."""
+from typing import Generator
+from contextlib import contextmanager
+
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
 from app.core.config import settings
 
-# 1. Capture the raw string value safely
-raw_url = str(settings.DATABASE_URL or os.getenv("DATABASE_URL", ""))
-
-# 2. Programmatic Sanitization Pass
-# Strip out any literal accidental matching string quotes (' or ") injected by dashboard panels
-clean_url = raw_url.strip("'\"")
-
-# 3. Secure Syntax Recovery Step
-# If Render's variable manager mangled the port formatting down to a trailing colon (://supabase.com:/)
-# this regex safely restores the missing default PostgreSQL connection port token instantly.
-if "aws-0-" in clean_url and (":/" in clean_url or clean_url.endswith(".com") or "://supabase.com" in clean_url):
-    if not re.search(r":\d+", clean_url.split("@")[-1]):
-        clean_url = clean_url.replace("@aws-0-us-east-1.://supabase.com/", "@aws-0-us-east-1.://supabase.com:6543/")
-        clean_url = clean_url.replace("@db.dbeasvpnxqwbqfiqebad.supabase.co/", "@db.dbeasvpnxqwbqfiqebad.supabase.co:5432/")
-
-# Initialize the global engine instance with the sanitized database route
 engine = create_engine(
-    clean_url,
+    settings.DATABASE_URL,
     pool_size=settings.DATABASE_POOL_SIZE,
     max_overflow=settings.DATABASE_MAX_OVERFLOW,
+    pool_timeout=10,
+    pool_recycle=1800,
     echo=settings.DATABASE_ECHO,
     pool_pre_ping=True,
-    future=True,
+    connect_args={"connect_timeout": 5},
 )
+SessionLocal = sessionmaker(bind=engine, autoflush=False)
 
-SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, future=True)
 
 class Base(DeclarativeBase):
     pass
 
+
 def get_db() -> Generator[Session, None, None]:
-    db = SessionLocal()
+    with SessionLocal() as db:
+        try:
+            yield db
+        except Exception:
+            db.rollback()
+            raise
+
+
+def check_database_health() -> bool:
     try:
-        yield db
-    finally:
-        db.close()
+        with engine.connect() as connection:
+            connection.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+@contextmanager
+def session_scope() -> Generator[Session, None, None]:
+    """Transaction boundary for background jobs, including rollback on failure."""
+    with SessionLocal() as db:
+        try:
+            yield db
+            db.commit()
+        except Exception:
+            db.rollback()
+            raise

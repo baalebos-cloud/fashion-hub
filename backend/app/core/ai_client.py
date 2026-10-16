@@ -1,6 +1,6 @@
 import httpx
 from app.core.config import settings
-from app.core.exceptions import ExternalAPIError
+from app.core.exceptions import ExternalProviderError
 
 class N8nAIClient:
     def __init__(self):
@@ -30,9 +30,9 @@ class N8nAIClient:
                 return str(data)
                 
             except httpx.HTTPStatusError as e:
-                raise ExternalAPIError(f"n8n Gateway communication error: {e.response.text}")
+                raise ExternalProviderError("AI gateway returned an error.") from e
             except Exception as e:
-                raise ExternalAPIError(f"Failed to route message through n8n gateway: {str(e)}")
+                raise ExternalProviderError("AI gateway request failed.") from e
 
 # Instantiate global service singleton
 ai_client = N8nAIClient()

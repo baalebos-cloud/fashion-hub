@@ -1,78 +1,64 @@
-import type { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from "axios";
+import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
 import { toApiError } from "./errors";
 
-/** Attaches the current access token to every outgoing request, if present. */
 export function attachRequestInterceptors(client: AxiosInstance): void {
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
-    if (token) {
-      config.headers.set("Authorization", `Bearer ${token}`);
-    }
+    if (token) config.headers.set("Authorization", `Bearer ${token}`);
     return config;
   });
 }
 
-/**
- * On a 401, attempts exactly one silent refresh-and-retry before giving up
- * and clearing the session. `isRefreshing`/`pendingQueue` collapse
- * concurrent 401s (e.g. five parallel requests firing at once) into a
- * single refresh call rather than hammering /auth/refresh five times.
+/** Collapse concurrent 401s into one refresh. The refresh transport deliberately
+ * has no response interceptor: a rejected refresh must settle, not await itself.
  */
-let isRefreshing = false;
-let pendingQueue: Array<(token: string | null) => void> = [];
-
-function resolveQueue(token: string | null) {
-  pendingQueue.forEach((resolve) => resolve(token));
-  pendingQueue = [];
-}
-
 export function attachResponseInterceptors(client: AxiosInstance): void {
+  const refreshClient = axios.create({
+    baseURL: client.defaults.baseURL,
+    timeout: client.defaults.timeout,
+    withCredentials: client.defaults.withCredentials,
+  });
+  let refreshPromise: Promise<string> | null = null;
+
   client.interceptors.response.use(
     (response) => response,
     async (error: AxiosError) => {
-      const originalRequest = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
-
-      if (error.response?.status !== 401 || !originalRequest || originalRequest._retry) {
+      const request = error.config as (InternalAxiosRequestConfig & { _retry?: boolean }) | undefined;
+      const isAuthRequest = /\/auth\/(login|signup|refresh|logout|forgot-password|reset-password|verify-email)(?:[/?]|$)/.test(request?.url ?? "");
+      if (error.response?.status !== 401 || !request || request._retry || isAuthRequest) {
         return Promise.reject(toApiError(error));
       }
-
       const refreshToken = getRefreshToken();
       if (!refreshToken) {
         clearTokens();
         return Promise.reject(toApiError(error));
       }
-
-      if (isRefreshing) {
-        // A refresh is already in flight — wait for it instead of firing
-        // another one, then retry this request with whatever token results.
-        return new Promise((resolve, reject) => {
-          pendingQueue.push((token) => {
-            if (!token) return reject(toApiError(error));
-            originalRequest._retry = true;
-            originalRequest.headers.set("Authorization", `Bearer ${token}`);
-            resolve(client(originalRequest));
-          });
+      request._retry = true;
+      if (!refreshPromise) {
+        refreshPromise = refreshClient.post<{ access_token: string }>("/auth/refresh", {
+          refresh_token: refreshToken,
+        }).then(({ data }) => {
+          if (typeof data.access_token !== "string" || !data.access_token) {
+            throw new Error("Invalid refresh response");
+          }
+          if (getRefreshToken() !== refreshToken) throw new Error("Session changed during refresh");
+          setTokens({ accessToken: data.access_token, refreshToken });
+          return data.access_token;
+        }).catch((refreshError: unknown) => {
+          if (getRefreshToken() === refreshToken) clearTokens();
+          throw refreshError;
+        }).finally(() => {
+          refreshPromise = null;
         });
       }
-
-      isRefreshing = true;
       try {
-        const response = await client.post("/auth/refresh", { refresh_token: refreshToken });
-        const newAccessToken = response.data.access_token as string;
-        setTokens({ accessToken: newAccessToken, refreshToken });
-        resolveQueue(newAccessToken);
-
-        originalRequest._retry = true;
-        originalRequest.headers.set("Authorization", `Bearer ${newAccessToken}`);
-        return client(originalRequest);
-      } catch (refreshError) {
-        clearTokens();
-        resolveQueue(null);
+        const token = await refreshPromise;
+        request.headers.set("Authorization", `Bearer ${token}`);
+        return client(request);
+      } catch {
         return Promise.reject(toApiError(error));
-      } finally {
-        isRefreshing = false;
       }
-    }
+    },
   );
 }

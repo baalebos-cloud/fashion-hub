@@ -14,6 +14,8 @@ from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core.constants import UserRole
+from app.core.policies import PUBLIC_SIGNUP_ROLES
+from app.core.config import settings
 from app.core.exceptions import ConflictError, UnauthorizedError, ValidationAppError
 from app.core.security import (
     create_access_token,
@@ -34,9 +36,10 @@ class AuthService:
         self.users = UserRepository(db)
 
     def sign_up(self, *, email: str, phone_number: Optional[str], password: str, full_name: str, role: str, referral_code: Optional[str] = None) -> User:
-        if role not in {r.value for r in UserRole}:
+        if role not in PUBLIC_SIGNUP_ROLES:
             raise ValidationAppError(f"Invalid role '{role}'.")
 
+        email = email.lower().strip()
         if self.users.get_by_email(email):
             raise ConflictError("An account with this email already exists.")
         if phone_number and self.users.get_by_phone(phone_number):
@@ -87,7 +90,7 @@ class AuthService:
             refresh_token_hash=self._hash_token(refresh_token),
             user_agent=user_agent,
             ip_address=ip_address,
-            expires_at=datetime.utcnow() + timedelta(days=7),  # set from JWT exp in a full implementation
+            expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         )
         self.db.add(session)
         self.db.commit()
@@ -108,6 +111,8 @@ class AuthService:
         )
         if not session:
             raise UnauthorizedError("Refresh token has been revoked or does not exist.")
+        if session.expires_at <= datetime.utcnow() or str(session.user_id) != payload.get("sub"):
+            raise UnauthorizedError("Invalid or expired refresh session.")
 
         user = self.users.get_by_id(payload["sub"])
         if not user or not user.is_active:

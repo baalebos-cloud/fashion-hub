@@ -10,6 +10,8 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.schemas.auth import (
     ForgotPasswordRequest,
     LogInRequest,
@@ -26,7 +28,8 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 
 @router.post("/signup", response_model=UserResponse, status_code=201)
-def sign_up(payload: SignUpRequest, db: Session = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def sign_up(payload: SignUpRequest, request: Request, db: Session = Depends(get_db)):
     service = AuthService(db)
     user = service.sign_up(
         email=payload.email,
@@ -40,6 +43,7 @@ def sign_up(payload: SignUpRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(settings.RATE_LIMIT_AUTH)
 def log_in(payload: LogInRequest, request: Request, db: Session = Depends(get_db)):
     service = AuthService(db)
     result = service.log_in(
@@ -73,14 +77,16 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
 
 
 @router.post("/forgot-password", status_code=202)
-def forgot_password(payload: ForgotPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     service = AuthService(db)
     service.request_password_reset(payload.email)
     return {"message": "If an account with that email exists, a reset link has been sent."}
 
 
 @router.post("/reset-password", status_code=204)
-def reset_password(payload: ResetPasswordRequest, db: Session = Depends(get_db)):
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def reset_password(payload: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
     service = AuthService(db)
     service.reset_password(token=payload.token, new_password=payload.new_password)
     return None

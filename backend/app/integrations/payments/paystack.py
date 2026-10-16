@@ -75,8 +75,11 @@ class PaystackProvider(PaymentProvider):
         )
 
     def verify_webhook_signature(self, *, payload: bytes, signature_header: str) -> bool:
+        # Paystack signs with the account secret key. Missing keys fail closed.
+        if not self.secret_key or not signature_header:
+            return False
         computed = hmac.new(
-            key=(settings.PAYMENT_WEBHOOK_SECRET or "").encode(), msg=payload, digestmod=hashlib.sha512
+            key=self.secret_key.encode(), msg=payload, digestmod=hashlib.sha512
         ).hexdigest()
         return hmac.compare_digest(computed, signature_header or "")
 

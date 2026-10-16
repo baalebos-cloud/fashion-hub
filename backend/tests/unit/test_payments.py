@@ -10,6 +10,7 @@ from app.core.constants import UserRole
 from app.models.payment import Payment
 from app.services.order_service import OrderService
 from app.services.payment_service import PaymentService
+from app.integrations.payments.base import VerifyPaymentResult
 
 
 def _make_order_and_payment(db, make_user):
@@ -45,6 +46,10 @@ def test_duplicate_webhook_is_processed_only_once(mock_get_provider, db, make_us
     mock_get_provider.return_value = provider
 
     order, payment = _make_order_and_payment(db, make_user)
+    provider.verify_payment.return_value = VerifyPaymentResult(
+        provider_reference=payment.provider_reference, status="successful",
+        amount=float(payment.amount), currency=payment.currency, paid_at=None, raw_response={},
+    )
     service = PaymentService(db)
 
     kwargs = dict(

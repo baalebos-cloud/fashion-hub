@@ -5,6 +5,7 @@ via slowapi (keyed off client IP or authenticated user).
 """
 import time
 import uuid
+import re
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -24,7 +25,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
     """
 
     async def dispatch(self, request: Request, call_next):
-        request_id = request.headers.get(REQUEST_ID_HEADER, str(uuid.uuid4()))
+        supplied_id = request.headers.get(REQUEST_ID_HEADER, "")
+        request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,64}", supplied_id) else str(uuid.uuid4())
         request.state.request_id = request_id
         start = time.monotonic()
 
@@ -32,6 +34,8 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
         duration_ms = round((time.monotonic() - start) * 1000, 2)
         response.headers[REQUEST_ID_HEADER] = request_id
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
         logger.info(
             "http_request",
             extra={

@@ -19,6 +19,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, NotFoundError, PaymentError
+from app.core.exceptions import ForbiddenError
+from app.core.policies import validate_payment_identity
 from app.core.redis import acquire_idempotency_lock
 from app.core.timezone import utcnow
 from app.integrations.payments import get_payment_provider
@@ -35,10 +37,14 @@ class PaymentService:
         self.order_service = OrderService(db)
         self.provider = get_payment_provider()
 
-    def initialize_payment_for_order(self, *, order_id, customer_email: str, callback_url: str) -> dict:
+    def initialize_payment_for_order(self, *, order_id, customer_email: str, callback_url: str, buyer_user_id) -> dict:
         order = self.orders.get_by_id(order_id)
         if not order:
             raise NotFoundError("Order not found.")
+        if str(order.buyer_user_id) != str(buyer_user_id):
+            raise ForbiddenError("Only the buyer may initialize this payment.")
+        if order.status not in {"pending", "checkout"} or order.total_amount <= 0:
+            raise ConflictError("Order is not payable.")
 
         result = self.provider.initialize_payment(
             order_id=str(order.id),
@@ -61,18 +67,32 @@ class PaymentService:
 
         return {"authorization_url": result.authorization_url, "provider_reference": result.provider_reference}
 
-    def verify_and_confirm(self, provider_reference: str) -> Payment:
+    def verify_and_confirm(self, provider_reference: str, *, buyer_user_id=None) -> Payment:
         """Called from the payment-callback endpoint (customer redirected
         back into the app) as a belt-and-suspenders check in addition to the
         webhook -- handles the 'webhook arrives late' edge case by letting
         the client-facing callback trigger the same verified confirmation."""
         payment = self._get_payment_by_reference(provider_reference)
+        if buyer_user_id is not None:
+            order = self.orders.get_by_id(payment.order_id)
+            if not order or str(order.buyer_user_id) != str(buyer_user_id):
+                raise ForbiddenError("Only the buyer may verify this payment.")
         verification = self.provider.verify_payment(provider_reference)
+        self._validate_verification(payment, verification)
         return self._apply_verified_result(payment, verification.status, verification.amount, verification.paid_at)
 
     def process_webhook(self, *, payload: bytes, signature_header: str, provider_event_id: str, event_type: str, provider_reference: str, amount: float) -> Optional[Payment]:
         if not self.provider.verify_webhook_signature(payload=payload, signature_header=signature_header):
             raise PaymentError("Webhook signature verification failed.")
+
+        payment = self._get_payment_by_reference(provider_reference)
+        # A signed delivery is a notification; settlement identity and status
+        # are independently checked against the provider before accepting funds.
+        verification = self.provider.verify_payment(provider_reference)
+        self._validate_verification(payment, verification)
+        if event_type in ("charge.success", "payment.successful") and verification.status != "successful":
+            raise PaymentError("Provider has not confirmed successful settlement.")
+        amount = verification.amount
 
         # Layer 1: fast Redis lock to short-circuit obvious duplicates
         # arriving within the same TTL window.
@@ -99,10 +119,9 @@ class PaymentService:
             self.db.rollback()
             return None  # Duplicate event already recorded; nothing to do.
 
-        if event_type in ("charge.success", "payment.successful"):
-            payment = self._apply_verified_result(payment, "successful", amount, paid_at=None)
-        elif event_type in ("charge.failed", "payment.failed"):
-            payment = self._apply_verified_result(payment, "failed", amount, paid_at=None)
+        payment = self._apply_verified_result(
+            payment, verification.status, amount, verification.paid_at
+        )
 
         transaction.processed = True
         self.db.commit()
@@ -155,3 +174,14 @@ class PaymentService:
         if not payment:
             raise NotFoundError("Payment not found for the given reference.")
         return payment
+
+    @staticmethod
+    def _validate_verification(payment, verification) -> None:
+        try:
+            validate_payment_identity(
+                expected_reference=payment.provider_reference, reference=verification.provider_reference,
+                expected_amount=payment.amount, amount=verification.amount,
+                expected_currency=payment.currency, currency=verification.currency,
+            )
+        except ValueError as exc:
+            raise PaymentError(str(exc)) from exc
