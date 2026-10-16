@@ -1,3 +1,4 @@
+import type { UserRole } from "@/types/auth";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import {
@@ -28,7 +29,7 @@ import {
  *     a conversation ID) from assistant text; only to static, role-level
  *     destinations (a page, not a record).
  */
-const NAMED_DESTINATIONS: Record<string, any> = {
+const NAMED_DESTINATIONS: Record<UserRole, Record<string, string>> = {
   customer: {
     orders: customerRoutes.orders,
     "find a tailor": customerRoutes.findProfessionals,
@@ -79,7 +80,7 @@ export function AINavigationGuide({ destinationKey }: AINavigationGuideProps) {
   const { user } = useAuth();
   if (!user || !destinationKey) return null;
 
-  const path = NAMED_DESTINATIONS[user.role as any]?.[destinationKey.toLowerCase()];
+  const path = NAMED_DESTINATIONS[user.role]?.[destinationKey.toLowerCase()];
   if (!path) return null;
 
   return (

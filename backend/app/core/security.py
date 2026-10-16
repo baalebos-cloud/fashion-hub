@@ -14,7 +14,9 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Prehash new passwords so bcrypt's 72-byte limit cannot truncate them.
+# Keep the legacy scheme available to verify existing account hashes.
+pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="auto")
 
 
 def hash_password(plain_password: str) -> str:

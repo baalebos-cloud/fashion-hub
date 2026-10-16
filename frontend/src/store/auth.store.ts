@@ -12,7 +12,7 @@ interface AuthState {
   error: string | null;
 
   initialize: () => Promise<void>;
-  logIn: (payload: LogInPayload) => Promise<void>;
+  logIn: (payload: LogInPayload) => Promise<User>;
   signUp: (payload: SignUpPayload) => Promise<void>;
   logOut: () => Promise<void>;
 }
@@ -41,7 +41,9 @@ export const useAuthStore = create<AuthState>((set) => ({
       const tokens = await authApi.logIn(payload);
       setTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
       const user = await restoreSession();
-      set({ user, isAuthenticated: user !== null });
+      if (!user) throw new Error("Could not restore your session. Please try signing in again.");
+      set({ user, isAuthenticated: true });
+      return user;
     } catch (err) {
       set({ error: err instanceof Error ? err.message : "Login failed." });
       throw err;
