@@ -19,6 +19,7 @@ from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_status import OrderStatusDefinition
 from app.models.order_timeline import OrderTimelineEntry
+from app.models.payment_outbox import PaymentOutbox
 from app.models.payment import Payment
 from app.models.payment_transaction import PaymentTransaction
 from app.models.refund import Refund
@@ -57,7 +58,7 @@ __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
     "Vendor", "VendorCategory", "VendorProduct", "ProductVariant", "Inventory",
     "Cart", "CartItem", "Order", "OrderItem", "OrderStatusDefinition", "OrderTimelineEntry",
-    "Payment", "PaymentTransaction", "Refund", "Invoice", "Receipt", "PaymentConsent",
+    "Payment", "PaymentOutbox", "PaymentTransaction", "Refund", "Invoice", "Receipt", "PaymentConsent",
     "DeliveryPartner", "DeliveryRequest", "Delivery", "DeliveryTracking", "TrackingEvent",
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",

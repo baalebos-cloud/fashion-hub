@@ -165,30 +165,35 @@ class OrderService:
 
         return order
 
-    def mark_paid_from_webhook(self, order_id) -> Order:
+    def mark_paid_from_webhook(self, order_id, *, commit: bool = True) -> Order:
         """Called only from payment_service after server-side payment
         verification succeeds -- never from a client request directly."""
         order = self.orders.get_by_id_for_update(order_id)
         if not order:
             raise NotFoundError("Order not found.")
-        if order.status != CustomerOrderStatus.PENDING.value:
+        payable_states = {"pending"} if order.order_type == "customer_order" else {"checkout", "payment_pending"}
+        if order.status not in payable_states:
             # Idempotent no-op: webhook arrived twice, or arrived after the
             # order was already marked paid by a prior delivery of the event.
             return order
 
+        from_status = order.status
         order.status = CustomerOrderStatus.PAID.value
         order.paid_at = utcnow()
         self.db.add(
             OrderTimelineEntry(
                 order_id=order.id,
-                from_status=CustomerOrderStatus.PENDING.value,
+                from_status=from_status,
                 to_status=CustomerOrderStatus.PAID.value,
                 actor_user_id=None,
                 note="Payment confirmed via provider webhook.",
             )
         )
-        self.db.commit()
-        self.db.refresh(order)
+        if commit:
+            self.db.commit()
+            self.db.refresh(order)
+        else:
+            self.db.flush()
         return order
 
     def cancel(self, *, order_id, actor: User, reason: Optional[str] = None) -> Order:

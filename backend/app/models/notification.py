@@ -4,7 +4,7 @@ from typing import Any
 from sqlalchemy import JSON
 """In-app + dispatched (email/SMS/push) notification log."""
 import uuid
-from sqlalchemy import Boolean, String, Text
+from sqlalchemy import Boolean, DateTime, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,4 +22,4 @@ class Notification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
     metadata_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     is_read: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    sent_at: Mapped[datetime | None] = mapped_column(JSON, nullable=True)
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(), nullable=True)

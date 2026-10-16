@@ -8,7 +8,7 @@ this table always reflects the current authoritative status while the
 transaction log preserves full provider history for reconciliation/audit.
 """
 import uuid
-from sqlalchemy import Numeric, String
+from sqlalchemy import DateTime, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,3 +26,5 @@ class Payment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="NGN")
     status: Mapped[str] = mapped_column(String(16), nullable=False, index=True)
     paid_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

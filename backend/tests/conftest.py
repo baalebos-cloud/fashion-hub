@@ -12,6 +12,9 @@ import uuid
 import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+from alembic import command
+from alembic.config import Config
+from pathlib import Path
 
 from app.core.constants import UserRole
 from app.core.database import Base
@@ -26,7 +29,11 @@ TEST_DATABASE_URL = os.environ.get(
 @pytest.fixture(scope="session")
 def engine():
     engine = create_engine(TEST_DATABASE_URL)
-    Base.metadata.create_all(engine)
+    config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
+    config.set_main_option("script_location", str(Path(__file__).resolve().parents[1] / "migrations"))
+    with engine.begin() as connection:
+        config.attributes["connection"] = connection
+        command.upgrade(config, "head")
     yield engine
     Base.metadata.drop_all(engine)
 
@@ -35,7 +42,7 @@ def engine():
 def db(engine):
     connection = engine.connect()
     transaction = connection.begin()
-    SessionLocal = sessionmaker(bind=connection)
+    SessionLocal = sessionmaker(bind=connection, join_transaction_mode="create_savepoint")
     session = SessionLocal()
     yield session
     session.close()

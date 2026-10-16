@@ -1,33 +1,31 @@
-"""
-Payment business logic. Two hard rules enforced throughout this file:
+"""Provider verification outside locks; settlement and durable work in one commit.
 
-1. NEVER trust a client-reported "payment successful" state. The order is
-   only marked PAID after `verify_payment` (a server-to-server call to the
-   provider) or a signature-verified webhook confirms success.
-
-2. Webhook/verification processing is IDEMPOTENT. The same event delivered
-   twice (a very common provider behavior) must not double-credit a wallet,
-   double-generate an invoice, or fire duplicate notifications. This is
-   enforced at two layers:
-     - Redis SETNX lock for fast in-flight de-duplication.
-     - A unique DB constraint on payment_transactions.provider_event_id as
-       the durable backstop, since Redis locks can expire/be lost.
+This service owns its Session's transaction boundary. Callers must not attach
+unrelated pending writes. It never publishes a Celery task while settling funds.
 """
+import hashlib
 from typing import Optional
 
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.exceptions import ConflictError, NotFoundError, PaymentError
-from app.core.exceptions import ForbiddenError
+from app.core.config import settings
+from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, PaymentError
 from app.core.policies import validate_payment_identity
-from app.core.redis import acquire_idempotency_lock
 from app.core.timezone import utcnow
 from app.integrations.payments import get_payment_provider
+from app.models.audit_log import AuditLog
 from app.models.payment import Payment
+from app.models.payment_outbox import PaymentOutbox
 from app.models.payment_transaction import PaymentTransaction
 from app.repositories.order_repository import OrderRepository
 from app.services.order_service import OrderService
+from app.services.payout_service import PayoutService
+from app.services.referral_service import ReferralService
+
+PAID_CUSTOMER_STATES = {"paid", "accepted", "in_production", "ready_for_delivery", "shipped",
+                        "out_for_delivery", "delivered", "received", "completed"}
+PAID_VENDOR_STATES = {"paid", "confirmed", "processing", "ready_for_pickup", "picked_up",
+                     "in_transit", "delivered", "received", "completed"}
 
 
 class PaymentService:
@@ -43,131 +41,140 @@ class PaymentService:
             raise NotFoundError("Order not found.")
         if str(order.buyer_user_id) != str(buyer_user_id):
             raise ForbiddenError("Only the buyer may initialize this payment.")
-        if order.status not in {"pending", "checkout"} or order.total_amount <= 0:
+        if order.status not in {"pending", "checkout", "payment_pending"} or order.total_amount <= 0:
             raise ConflictError("Order is not payable.")
-
+        if self.db.query(Payment).filter(Payment.order_id == order.id).first():
+            raise ConflictError("This order already has a payment. Verify the existing reference.")
         result = self.provider.initialize_payment(
-            order_id=str(order.id),
-            amount=float(order.total_amount),
-            currency=order.currency,
-            customer_email=customer_email,
-            callback_url=callback_url,
+            order_id=str(order.id), amount=float(order.total_amount), currency=order.currency,
+            customer_email=customer_email, callback_url=callback_url,
         )
-
-        payment = Payment(
-            order_id=order.id,
-            provider=self.provider.__class__.__name__.replace("Provider", "").lower(),
-            provider_reference=result.provider_reference,
-            amount=order.total_amount,
-            currency=order.currency,
-            status="initialized",
-        )
-        self.db.add(payment)
-        self.db.commit()
-
+        try:
+            self.db.add(Payment(
+                order_id=order.id, provider=settings.PAYMENT_PROVIDER,
+                provider_reference=result.provider_reference, amount=order.total_amount,
+                currency=order.currency, status="initialized",
+            ))
+            self.db.commit()
+        except Exception:
+            self.db.rollback()
+            raise
         return {"authorization_url": result.authorization_url, "provider_reference": result.provider_reference}
 
     def verify_and_confirm(self, provider_reference: str, *, buyer_user_id=None) -> Payment:
-        """Called from the payment-callback endpoint (customer redirected
-        back into the app) as a belt-and-suspenders check in addition to the
-        webhook -- handles the 'webhook arrives late' edge case by letting
-        the client-facing callback trigger the same verified confirmation."""
         payment = self._get_payment_by_reference(provider_reference)
         if buyer_user_id is not None:
             order = self.orders.get_by_id(payment.order_id)
             if not order or str(order.buyer_user_id) != str(buyer_user_id):
                 raise ForbiddenError("Only the buyer may verify this payment.")
+        self._assert_provider(payment)
         verification = self.provider.verify_payment(provider_reference)
         self._validate_verification(payment, verification)
-        return self._apply_verified_result(payment, verification.status, verification.amount, verification.paid_at)
+        event_id = "verify:" + hashlib.sha256(
+            f"{payment.provider}:{provider_reference}:{verification.status}".encode()
+        ).hexdigest()
+        settled = self._settle(provider_reference, verification, event_id, "payment.verified", buyer_user_id)
+        return settled if settled is not None else self._get_payment_by_reference(provider_reference)
 
-    def process_webhook(self, *, payload: bytes, signature_header: str, provider_event_id: str, event_type: str, provider_reference: str, amount: float) -> Optional[Payment]:
+    def process_webhook(self, *, payload: bytes, signature_header: str, provider_event_id: str,
+                        event_type: str, provider_reference: str, amount) -> Optional[Payment]:
         if not self.provider.verify_webhook_signature(payload=payload, signature_header=signature_header):
             raise PaymentError("Webhook signature verification failed.")
-
+        if not provider_event_id or len(provider_event_id) > 128:
+            raise PaymentError("Invalid provider event ID.")
+        if event_type not in {"charge.success", "charge.failed", "payment.successful", "payment.failed"}:
+            raise PaymentError("Unsupported payment event.")
         payment = self._get_payment_by_reference(provider_reference)
-        # A signed delivery is a notification; settlement identity and status
-        # are independently checked against the provider before accepting funds.
+        self._assert_provider(payment)
+        previous = self._event(provider_event_id, payment)
+        if previous and previous.processed:
+            self.db.commit()  # completed events are immutable; no provider dependency on retries
+            return None
         verification = self.provider.verify_payment(provider_reference)
         self._validate_verification(payment, verification)
-        if event_type in ("charge.success", "payment.successful") and verification.status != "successful":
+        if event_type in {"charge.success", "payment.successful"} and verification.status != "successful":
             raise PaymentError("Provider has not confirmed successful settlement.")
-        amount = verification.amount
+        # Event amounts are never used to credit funds; only the provider's
+        # independently verified amount/currency/reference can do that.
+        return self._settle(provider_reference, verification, provider_event_id, event_type)
 
-        # Layer 1: fast Redis lock to short-circuit obvious duplicates
-        # arriving within the same TTL window.
-        if not acquire_idempotency_lock(f"payment_webhook:{provider_event_id}", ttl_seconds=3600):
-            return None  # Already processed (or currently being processed) this event.
-
-        payment = self._get_payment_by_reference(provider_reference)
-
-        # Layer 2: durable DB-level de-duplication via unique constraint,
-        # in case the Redis lock was lost/expired or this is a cold restart.
-        transaction = PaymentTransaction(
-            payment_id=payment.id,
-            provider=payment.provider,
-            provider_event_id=provider_event_id,
-            event_type=event_type,
-            amount=amount,
-            raw_payload={"note": "raw provider payload stored verbatim in production"},
-            processed=False,
-        )
+    def _settle(self, reference, verification, event_id, event_type, buyer_user_id=None):
         try:
-            self.db.add(transaction)
+            payment = (self.db.query(Payment).filter(Payment.provider_reference == reference)
+                       .with_for_update().populate_existing().first())
+            if not payment:
+                raise NotFoundError("Payment not found.")
+            self._assert_provider(payment)
+            self._validate_verification(payment, verification)
+            transaction = self._event(event_id, payment)
+            if transaction and transaction.processed:
+                self.db.commit()
+                return None
+            order = self.orders.get_by_id_for_update(payment.order_id)
+            if not order:
+                raise NotFoundError("Order not found.")
+            if buyer_user_id is not None and str(order.buyer_user_id) != str(buyer_user_id):
+                raise ForbiddenError("Only the buyer may verify this payment.")
+            if not transaction:
+                transaction = PaymentTransaction(payment_id=payment.id, provider=payment.provider,
+                                                 provider_event_id=event_id, event_type=event_type)
+                self.db.add(transaction)
+            transaction.amount = verification.amount
+            # Store reconciliation facts, not raw customer/provider identity data.
+            transaction.raw_payload = {"verified_status": verification.status,
+                                       "currency": verification.currency, "reference": reference}
+            transaction.processed = False
+            self._apply_verified_result(payment, order, verification)
+            transaction.processed = True
             self.db.commit()
-        except IntegrityError:
-            self.db.rollback()
-            return None  # Duplicate event already recorded; nothing to do.
-
-        payment = self._apply_verified_result(
-            payment, verification.status, amount, verification.paid_at
-        )
-
-        transaction.processed = True
-        self.db.commit()
-        return payment
-
-    def _apply_verified_result(self, payment: Payment, status: str, amount: float, paid_at) -> Payment:
-        if payment.status == "successful":
-            # Idempotent: already confirmed by an earlier event/verification.
             return payment
+        except Exception:
+            self.db.rollback()
+            raise
 
-        if status == "successful":
-            payment.status = "successful"
-            payment.paid_at = utcnow()
-            self.db.commit()
+    def _apply_verified_result(self, payment, order, verification):
+        if payment.status == "reversed":
+            return  # a late delivery cannot undo an already recorded reversal
+        if verification.status != "successful":
+            if payment.status != "successful":
+                payment.status = verification.status
+            return
+        payment.status = "successful"
+        payment.paid_at = payment.paid_at or utcnow()
+        prior_work = self.db.query(PaymentOutbox).filter(PaymentOutbox.payment_id == payment.id).first()
+        if prior_work:
+            return  # financial work and this outbox row were committed together
 
-            order = self.order_service.mark_paid_from_webhook(payment.order_id)
+        # A payment can arrive after cancellation. Record the funds and a
+        # durable review signal, without reviving the order or paying the seller.
+        valid_states = PAID_CUSTOMER_STATES if order.order_type == "customer_order" else PAID_VENDOR_STATES
+        payable = {"pending"} if order.order_type == "customer_order" else {"checkout", "payment_pending"}
+        if order.status not in valid_states | payable:
+            self.db.add(AuditLog(action="payment.review_required", resource_type="payment",
+                                 resource_id=payment.id,
+                                 metadata_json={"order_id": str(order.id), "order_status": order.status}))
+            self._enqueue(payment, "payment.review", {"order_id": str(order.id)})
+            return
 
-            # Invoice generation is offloaded to a background worker so the
-            # webhook/callback handler responds quickly to the provider.
-            from app.workers.invoice_tasks import generate_invoice_for_order_task
-            generate_invoice_for_order_task.delay(order_id=str(order.id))
+        order = self.order_service.mark_paid_from_webhook(order.id, commit=False)
+        PayoutService(self.db).create_for_order(order, commit=False)
+        referral = ReferralService(self.db).qualify_if_applicable(
+            referred_user_id=order.buyer_user_id, qualifying_order_id=order.id,
+            order_total=order.total_amount, currency=order.currency, commit=False,
+        )
+        self._enqueue(payment, "payment.settled", {
+            "order_id": str(order.id), "referral_id": str(referral.id) if referral else None,
+        })
 
-            # Platform commission + seller payout (see docs/commission.md)
-            # -- computed here, once, at the same moment the order becomes
-            # authoritatively paid. Never derived from anything the client
-            # sent; always from the order's own server-side total_amount.
-            from app.services.payout_service import PayoutService
-            PayoutService(self.db).create_for_order(order)
+    def _enqueue(self, payment, kind, payload):
+        self.db.add(PaymentOutbox(payment_id=payment.id, dedupe_key=f"{kind}:{payment.id}",
+                                  kind=kind, payload=payload))
 
-            # Referral commission qualification: only ever the FIRST
-            # successful order for a given referred user counts (see
-            # referral_service.py::qualify_if_applicable) -- safe to call
-            # unconditionally on every paid order; it's a no-op past the
-            # first one.
-            from app.services.referral_service import ReferralService
-            ReferralService(self.db).qualify_if_applicable(
-                referred_user_id=order.buyer_user_id,
-                qualifying_order_id=order.id,
-                order_total=float(order.total_amount),
-                currency=order.currency,
-            )
-        elif status == "failed":
-            payment.status = "failed"
-            self.db.commit()
-
-        return payment
+    def _event(self, event_id, payment):
+        event = self.db.query(PaymentTransaction).filter(PaymentTransaction.provider_event_id == event_id).first()
+        if event and (event.payment_id != payment.id or event.provider != payment.provider):
+            raise ConflictError("Provider event ID is already associated with a different payment.")
+        return event
 
     def _get_payment_by_reference(self, provider_reference: str) -> Payment:
         payment = self.db.query(Payment).filter(Payment.provider_reference == provider_reference).first()
@@ -176,7 +183,14 @@ class PaymentService:
         return payment
 
     @staticmethod
-    def _validate_verification(payment, verification) -> None:
+    def _assert_provider(payment):
+        if payment.provider != settings.PAYMENT_PROVIDER:
+            raise PaymentError("Payment provider does not match the configured provider.")
+
+    @staticmethod
+    def _validate_verification(payment, verification):
+        if verification.status not in {"successful", "pending", "failed"}:
+            raise PaymentError("Unsupported provider payment status.")
         try:
             validate_payment_identity(
                 expected_reference=payment.provider_reference, reference=verification.provider_reference,

@@ -8,6 +8,7 @@ import hmac
 import httpx
 
 from app.core.config import settings
+from app.core.policies import money_to_minor_units
 from app.core.exceptions import ExternalProviderError
 from app.integrations.payments.base import (
     InitializePaymentResult,
@@ -34,7 +35,7 @@ class PaystackProvider(PaymentProvider):
                 headers=self._headers(),
                 json={
                     "email": customer_email,
-                    "amount": int(amount * 100),  # Paystack expects kobo
+                    "amount": money_to_minor_units(amount),  # Paystack expects kobo
                     "currency": currency,
                     "callback_url": callback_url,
                     "metadata": {"order_id": order_id},
@@ -88,7 +89,7 @@ class PaystackProvider(PaymentProvider):
             response = httpx.post(
                 f"{PAYSTACK_BASE_URL}/refund",
                 headers=self._headers(),
-                json={"transaction": provider_reference, "amount": int(amount * 100)},
+                json={"transaction": provider_reference, "amount": money_to_minor_units(amount)},
                 timeout=15.0,
             )
             response.raise_for_status()

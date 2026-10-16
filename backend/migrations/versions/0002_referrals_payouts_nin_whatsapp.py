@@ -15,7 +15,8 @@ from sqlalchemy.dialects import postgresql
 revision = "0002"
 down_revision = "0001"
 branch_labels = None
-depends_on = None
+# Preserve revision IDs and SQL; order the existing table alterations after creation.
+depends_on = "035e1bd61029"
 
 
 def upgrade() -> None:

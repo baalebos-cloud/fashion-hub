@@ -16,7 +16,7 @@ class OrderRepository:
         """SELECT ... FOR UPDATE row lock, used before any status transition
         to prevent two concurrent requests (e.g. a duplicate webhook and a
         manual admin action) from racing on the same order."""
-        return self.db.query(Order).filter(Order.id == order_id).with_for_update().first()
+        return self.db.query(Order).filter(Order.id == order_id).with_for_update().populate_existing().first()
 
     def get_by_order_number(self, order_number: str) -> Optional[Order]:
         return self.db.query(Order).filter(Order.order_number == order_number).first()

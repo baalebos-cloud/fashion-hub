@@ -16,6 +16,7 @@ celery_app = Celery(
     backend=settings.CELERY_RESULT_BACKEND,
     include=[
         "app.workers.payment_tasks",
+        "app.workers.payment_outbox_tasks",
         "app.workers.invoice_tasks",
         "app.workers.delivery_tasks",
         "app.workers.tracking_tasks",
@@ -41,6 +42,7 @@ celery_app.conf.update(
     task_default_retry_delay=30,
     task_routes={
         "app.workers.payment_tasks.*": {"queue": "payments"},
+        "app.workers.payment_outbox_tasks.*": {"queue": "payments"},
         "app.workers.delivery_tasks.*": {"queue": "delivery"},
         "app.workers.tracking_tasks.*": {"queue": "delivery"},
         "app.workers.notification_tasks.*": {"queue": "notifications"},
@@ -54,6 +56,10 @@ celery_app.conf.update(
         "app.workers.ai_tasks.*": {"queue": "ai"},
     },
     beat_schedule={
+        "drain-payment-outbox": {
+            "task": "app.workers.payment_outbox_tasks.drain_payment_outbox",
+            "schedule": 10.0,
+        },
         "reconcile-pending-payments": {
             "task": "app.workers.payment_tasks.reconcile_pending_payments_task",
             "schedule": 300.0,  # every 5 minutes
