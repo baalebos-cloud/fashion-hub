@@ -9,7 +9,7 @@ import { authRoutes } from "@/config/routes.config";
 import { ROLE_HOME_PATH } from "@/constants/roles";
 
 export function LoginForm() {
-  const { logIn, user } = useAuth();
+  const { logIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,8 +30,8 @@ export function LoginForm() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await logIn({ email, password });
-      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? (user ? ROLE_HOME_PATH[user.role as any] : "/");
+      const user = await logIn({ email, password });
+      const redirectTo = (location.state as { from?: Location })?.from?.pathname ?? ROLE_HOME_PATH[user.role];
       navigate(redirectTo, { replace: true });
     } catch (err) {
       setFormError(getDisplayErrorMessage(err, "Incorrect email or password."));

@@ -14,7 +14,7 @@ export interface NavItem {
  * `AppLayout` picks the right list based on the signed-in user's role, so
  * a tailor never sees "Add Product" and a customer never sees "KYB".
  */
-const NAV_BY_ROLE: Record<string, any> = {
+const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
   customer: [
     { label: "Overview", path: customerRoutes.dashboard },
     { label: "Find Tailor", path: customerRoutes.findProfessionals },
@@ -110,7 +110,7 @@ export function Sidebar({ role }: { role: UserRole }) {
   return (
     <nav className="app-sidebar hidden lg:flex lg:w-[264px] lg:flex-shrink-0 lg:flex-col border-r border-line bg-paper">
       <div className="flex flex-col gap-0.5 overflow-y-auto p-3">
-        {items.map((item: any) => (
+        {items.map((item) => (
           <NavLink
             key={item.label}
             to={item.path}

@@ -76,7 +76,7 @@ class FlutterwaveProvider(PaymentProvider):
     def verify_webhook_signature(self, *, payload: bytes, signature_header: str) -> bool:
         # Flutterwave uses a static verif-hash header comparison rather than HMAC-of-body.
         expected = settings.PAYMENT_WEBHOOK_SECRET or ""
-        return hmac.compare_digest(expected, signature_header or "")
+        return bool(expected and signature_header) and hmac.compare_digest(expected, signature_header)
 
     def initiate_refund(self, *, provider_reference: str, amount: float) -> dict:
         try:

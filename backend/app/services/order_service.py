@@ -41,7 +41,8 @@ _TRANSITION_RULES: dict[CustomerOrderStatus, dict] = {
     # CRITICAL: only the customer (buyer) may confirm receipt. This is
     # enforced with an explicit ownership + role check below, not just role.
     CustomerOrderStatus.RECEIVED: {"timestamp_field": "received_at", "allowed_roles": {UserRole.CUSTOMER}},
-    CustomerOrderStatus.COMPLETED: {"timestamp_field": "completed_at", "allowed_roles": None},  # system-triggered
+    # The received endpoint immediately completes the buyer's acknowledged order.
+    CustomerOrderStatus.COMPLETED: {"timestamp_field": "completed_at", "allowed_roles": {UserRole.CUSTOMER}},
     CustomerOrderStatus.CANCELLED: {"timestamp_field": "cancelled_at", "allowed_roles": {UserRole.CUSTOMER, UserRole.TAILOR, UserRole.DESIGNER, UserRole.ADMIN}},
 }
 
@@ -68,6 +69,8 @@ class OrderService:
         if idempotency_key:
             existing = self.orders.get_by_idempotency_key(idempotency_key)
             if existing:
+                if str(existing.buyer_user_id) != str(customer.id):
+                    raise ConflictError("Idempotency key is already in use.")
                 return existing
 
         subtotal = sum(item["unit_price"] * item["quantity"] for item in order_items)
@@ -111,6 +114,8 @@ class OrderService:
 
         rule = _TRANSITION_RULES.get(target_status, {})
         allowed_roles = rule.get("allowed_roles")
+        if allowed_roles is None:
+            raise ForbiddenError("This transition may only be performed by the system.")
         if allowed_roles is not None and UserRole(actor.role) not in allowed_roles:
             raise ForbiddenError(
                 f"Role '{actor.role}' is not permitted to move an order to '{target_status.value}'."
@@ -122,6 +127,19 @@ class OrderService:
             raise ForbiddenError("You do not have permission to modify another professional's order.")
         if target_status == CustomerOrderStatus.RECEIVED and str(order.buyer_user_id) != str(actor.id):
             raise ForbiddenError("Only the customer who placed this order can mark it as received.")
+        if actor.role == UserRole.CUSTOMER.value and str(order.buyer_user_id) != str(actor.id):
+            raise ForbiddenError("You do not have permission to modify another customer's order.")
+        if actor.role == UserRole.DELIVERY_PARTNER.value:
+            from app.models.delivery import Delivery
+            from app.models.delivery_partner import DeliveryPartner
+            assigned = (
+                self.db.query(Delivery)
+                .join(DeliveryPartner, Delivery.delivery_partner_id == DeliveryPartner.id)
+                .filter(Delivery.order_id == order.id, DeliveryPartner.user_id == actor.id)
+                .first()
+            )
+            if not assigned:
+                raise ForbiddenError("Only the assigned delivery partner may update fulfillment.")
 
         order.status = target_status.value
         timestamp_field = rule.get("timestamp_field")

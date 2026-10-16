@@ -33,7 +33,8 @@ def initialize_payment(
 ):
     service = PaymentService(db)
     result = service.initialize_payment_for_order(
-        order_id=payload.order_id, customer_email=current_user.email, callback_url=payload.callback_url
+        order_id=payload.order_id, customer_email=current_user.email, callback_url=payload.callback_url,
+        buyer_user_id=current_user.id,
     )
     return InitializePaymentResponse(**result)
 
@@ -41,7 +42,7 @@ def initialize_payment(
 @router.get("/{provider_reference}/verify", response_model=PaymentResponse)
 def verify_payment(provider_reference: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     service = PaymentService(db)
-    payment = service.verify_and_confirm(provider_reference)
+    payment = service.verify_and_confirm(provider_reference, buyer_user_id=current_user.id)
     return payment
 
 

@@ -14,6 +14,8 @@ celery==5.4.0
 
 # Auth / security
 passlib[bcrypt]==1.7.4
+# Passlib 1.7.4's backend self-test is incompatible with bcrypt 5.x.
+bcrypt==4.0.1
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.20
 

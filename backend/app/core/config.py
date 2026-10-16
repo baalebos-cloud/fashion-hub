@@ -8,7 +8,7 @@ Never hard-code secrets here. This module is imported everywhere via the
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import AnyUrl, Field, field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -44,12 +44,13 @@ class Settings(BaseSettings):
     EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = 60 * 24
 
     # --- CORS ---
-    CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:3000"]
+    CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
 
     # --- Rate limiting ---
     RATE_LIMIT_DEFAULT: str = "100/minute"
     RATE_LIMIT_AUTH: str = "10/minute"
     RATE_LIMIT_WEBHOOK: str = "60/minute"
+    RATE_LIMIT_STORAGE_URI: str = "memory://"
 
     # --- Payments ---
     PAYMENT_PROVIDER: str = "paystack"  # paystack | flutterwave
@@ -130,6 +131,29 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",") if origin.strip()]
         return v
+
+    @field_validator("APP_ENV")
+    @classmethod
+    def valid_environment(cls, value: str) -> str:
+        if value not in {"development", "test", "staging", "production"}:
+            raise ValueError("Invalid APP_ENV")
+        return value
+
+    @model_validator(mode="after")
+    def validate_deployment(self):
+        if self.APP_ENV in {"staging", "production"}:
+            if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-env":
+                raise ValueError("Set a randomly generated SECRET_KEY of at least 32 characters")
+            if self.DEBUG or self.DATABASE_ECHO:
+                raise ValueError("Disable DEBUG and DATABASE_ECHO in staging/production")
+            if not self.CORS_ALLOWED_ORIGINS or any(
+                origin == "*" or not origin.startswith("https://")
+                for origin in self.CORS_ALLOWED_ORIGINS
+            ):
+                raise ValueError("Configure explicit HTTPS CORS origins in staging/production")
+            if not self.RATE_LIMIT_STORAGE_URI.startswith(("redis://", "rediss://")):
+                raise ValueError("Use shared Redis rate-limit storage in staging/production")
+        return self
 
     @property
     def is_production(self) -> bool:
