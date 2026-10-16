@@ -93,3 +93,8 @@ Local environment: Python 3.12 and Node 24 are installed, but the workspace netw
 GitHub Actions run [38875824126](https://github.com/baalebos-cloud/fashion-hub/actions/runs/38875824126) verified backend startup, the foundation tests, PostgreSQL/PostGIS and Redis service tests, frontend lint, 11 frontend tests, and the production TypeScript/Vite build. Nine existing backend tests remain skipped because they are placeholders; passing CI does not establish complete user-journey coverage. Later runs on the PR also cover the added rate-limit and payment-ownership regressions. Review the latest CI results before merging. The frontend install reports nine dependency vulnerabilities (seven high and two moderate); dependency remediation remains a release blocker.
 
 No Docker build, full browser end-to-end verification, production deployment, restore rehearsal, or load test has been performed.
+
+
+### Catalog checkout verification
+
+The catalog checkout phase was verified in [Actions run 38900084684](https://github.com/baalebos-cloud/fashion-hub/actions/runs/38900084684): 89 backend tests passed, nine existing placeholders remained skipped, and 17 frontend tests plus lint/TypeScript/Vite checks passed. Coverage includes real PostGIS migrations, lost-response recovery, concurrent checkout/payment initialization, price/ownership rejection, and the HTTP order-to-invoice flow with a mocked payment provider. The [rollout guide](catalog-checkout.md) records the required migration and remaining live-order gates. No project/live database or provider account was used for these tests.
