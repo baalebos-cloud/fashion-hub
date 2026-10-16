@@ -12,18 +12,11 @@ import pytest
 from app.core.constants import CustomerOrderStatus, UserRole
 from app.core.exceptions import ForbiddenError, InvalidStateTransitionError
 from app.services.order_service import OrderService
+from tests.catalog_helpers import catalog_request
 
 
 def _create_pending_order(db, *, customer, tailor):
-    service = OrderService(db)
-    return service.create_customer_order(
-        customer=customer,
-        professional_user_id=tailor.id,
-        order_items=[{"unit_price": 100.0, "quantity": 1}],
-        delivery_address_id=None,
-        measurement_profile_id=None,
-        idempotency_key=None,
-    )
+    return OrderService(db).create_customer_order(**catalog_request(db, customer, tailor))
 
 
 def test_tailor_cannot_mark_order_received(db, make_user):
@@ -105,23 +98,10 @@ def test_duplicate_order_submission_is_idempotent(db, make_user):
     tailor = make_user(role=UserRole.TAILOR.value)
 
     service = OrderService(db)
-    key = "client-generated-idempotency-key-123"
-    order1 = service.create_customer_order(
-        customer=customer,
-        professional_user_id=tailor.id,
-        order_items=[{"unit_price": 50.0, "quantity": 2}],
-        delivery_address_id=None,
-        measurement_profile_id=None,
-        idempotency_key=key,
-    )
-    order2 = service.create_customer_order(
-        customer=customer,
-        professional_user_id=tailor.id,
-        order_items=[{"unit_price": 50.0, "quantity": 2}],
-        delivery_address_id=None,
-        measurement_profile_id=None,
-        idempotency_key=key,
-    )
+    request = catalog_request(db, customer, tailor, price='50.00')
+    request['order_items'][0]['quantity'] = 2
+    order1 = service.create_customer_order(**request)
+    order2 = service.create_customer_order(**request)
     assert order1.id == order2.id
 
 

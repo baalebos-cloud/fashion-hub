@@ -28,3 +28,5 @@ class Payment(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     paid_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     last_reconciled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    authorization_url: Mapped[str | None] = mapped_column(String(2048), nullable=True)

@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     admin,
+    addresses,
     ai,
     ai_navigation,
     auth,
@@ -56,6 +57,7 @@ from app.api.v1 import (
 api_router = APIRouter()
 
 api_router.include_router(auth.router)
+api_router.include_router(addresses.router)
 api_router.include_router(users.router)
 api_router.include_router(customers.router)
 api_router.include_router(professionals.router)

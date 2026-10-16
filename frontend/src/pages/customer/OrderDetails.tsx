@@ -28,6 +28,9 @@ export default function OrderDetails() {
         <OrderStatusBadge status={order.status as CustomerOrderStatus} />
       </div>
 
+      {order.items.length > 0 && <ul className="divide-y divide-line">
+        {order.items.map((item) => <li key={item.id} className="flex justify-between py-2 text-sm"><span>{item.name_snapshot} × {item.quantity}</span><span>{formatCurrency(item.line_total, order.currency)}</span></li>)}
+      </ul>}
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />

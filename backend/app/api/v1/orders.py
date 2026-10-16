@@ -192,7 +192,7 @@ def get_order_delivery_weather(order_id: uuid.UUID, current_user: User = Depends
     if not address:
         raise NotFoundError("Delivery address not found.")
     location = db.get(Location, address.location_id)
-    if not location:
+    if not location or location.latitude is None or location.longitude is None:
         raise NotFoundError("Delivery location not found.")
 
     # If a delivery is already under way, aim the forecast at the current

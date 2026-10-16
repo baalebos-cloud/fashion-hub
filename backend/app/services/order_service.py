@@ -62,36 +62,12 @@ class OrderService:
         measurement_profile_id: Optional[str],
         idempotency_key: Optional[str],
     ) -> Order:
-        """Creates a PENDING order. Edge case: duplicate submission -- if the
-        client retries with the same idempotency_key (e.g. after losing
-        connectivity mid-checkout), return the existing order instead of
-        creating a second one."""
-        if idempotency_key:
-            existing = self.orders.get_by_idempotency_key(idempotency_key)
-            if existing:
-                if str(existing.buyer_user_id) != str(customer.id):
-                    raise ConflictError("Idempotency key is already in use.")
-                return existing
-
-        subtotal = sum(item["unit_price"] * item["quantity"] for item in order_items)
-
-        order = Order(
-            order_number=generate_order_number(prefix="CO"),
-            order_type="customer_order",
-            buyer_user_id=customer.id,
-            seller_user_id=professional_user_id,
-            status=CustomerOrderStatus.PENDING.value,
-            subtotal=subtotal,
-            total_amount=subtotal,  # delivery_fee/tax applied at checkout time
-            delivery_address_id=delivery_address_id,
-            measurement_profile_id=measurement_profile_id,
-            ordered_at=utcnow(),
+        from app.services.catalog_order_service import CatalogOrderService
+        return CatalogOrderService(self.db).create(
+            customer=customer, professional_user_id=professional_user_id, order_items=order_items,
+            delivery_address_id=delivery_address_id, measurement_profile_id=measurement_profile_id,
             idempotency_key=idempotency_key,
         )
-        self.orders.add(order)
-        self.db.commit()
-        self.db.refresh(order)
-        return order
 
     def transition(
         self,

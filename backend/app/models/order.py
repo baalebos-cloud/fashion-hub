@@ -10,8 +10,8 @@ audit queries; order_service enforces which status enum applies per type.
 """
 import uuid
 from sqlalchemy import Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
@@ -53,3 +53,11 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     # Idempotency guard for duplicate order submission from flaky clients.
     idempotency_key: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True, index=True)
+
+    pricing_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    request_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    delivery_address_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    measurement_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    items: Mapped[list["OrderItem"]] = relationship(
+        "OrderItem", lazy="selectin", order_by="OrderItem.id",
+    )

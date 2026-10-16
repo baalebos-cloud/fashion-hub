@@ -55,6 +55,7 @@ export interface Order {
   status: CustomerOrderStatus | VendorOrderStatus;
   buyer_user_id: string;
   seller_user_id: string;
+  items: OrderItem[];
   subtotal: number;
   delivery_fee: number;
   tax_amount: number;
@@ -85,13 +86,11 @@ export interface OrderTimelineEntry {
 export interface CreateCustomerOrderPayload {
   professional_user_id: string;
   items: Array<{
-    reference_type: string;
-    reference_id?: string;
-    name_snapshot: string;
-    unit_price: number;
+    reference_type: "design";
+    reference_id: string;
     quantity: number;
   }>;
   delivery_address_id: string;
-  measurement_profile_id?: string;
-  idempotency_key?: string;
+  measurement_profile_id: string;
+  idempotency_key: string;
 }

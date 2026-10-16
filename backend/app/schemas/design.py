@@ -17,7 +17,10 @@ class CreateDesignRequest(BaseModel):
 
 class DesignResponse(BaseModel):
     id: uuid.UUID
+    professional_id: uuid.UUID
     title: str
+    description: Optional[str] = None
+    currency: str
     base_price: float
     is_published: bool
     required_measurement_fields: Optional[list[str]] = None

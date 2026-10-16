@@ -75,7 +75,7 @@ export const endpoints = {
 
   payments: {
     initialize: "/payments",
-    verify: (reference: string) => `/payments/${reference}/verify`,
+    verify: (reference: string) => `/payments/${encodeURIComponent(reference)}/verify`,
   },
 
   invoices: {
@@ -89,6 +89,10 @@ export const endpoints = {
 
   tracking: {
     byOrder: (orderId: string) => `/orders/${orderId}/tracking`,
+  },
+
+  addresses: {
+    list: "/addresses",
   },
 
   locations: {

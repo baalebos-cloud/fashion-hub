@@ -39,7 +39,7 @@ def migrate(engine, config, revision):
         command.upgrade(config, revision)
 
 
-@pytest.mark.parametrize("previous", [None, "0001", "035e1bd61029", "0002", "2ab23f38e9c6"])
+@pytest.mark.parametrize("previous", [None, "0001", "035e1bd61029", "0002", "2ab23f38e9c6", "0003"])
 def test_fresh_and_historical_upgrades_preserve_records(migration_database, previous):
     engine, config = migration_database
     if previous:
@@ -53,7 +53,7 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
                          {"id": notification_id, "user": user_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
         assert {"users", "payouts", "referrals", "payment_outbox"} <= set(inspect(conn).get_table_names())
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
         if previous in {"035e1bd61029", "0002", "2ab23f38e9c6"}:
@@ -120,4 +120,4 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
             command.downgrade(config, "2ab23f38e9c6")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
