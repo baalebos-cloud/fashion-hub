@@ -46,17 +46,26 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
         migrate(engine, config, previous)
     user_id = uuid.uuid4()
     notification_id = uuid.uuid4()
+    location_id = uuid.uuid4()
     if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003"}:
         with engine.begin() as conn:
             conn.execute(text("INSERT INTO users (id,email,hashed_password,full_name,role,is_active,is_email_verified,is_phone_verified,timezone) VALUES (:id,'preserved@example.com','test','Preserved','customer',true,false,false,'UTC')"), {"id": user_id})
-            conn.execute(text("INSERT INTO notifications (id,recipient_user_id,title,body,notification_type,is_read) VALUES (:id,:user,'Preserved','Legacy notification','legacy.payment',false)"),
+            event_column = ',event_type' if previous == '0003' else ''
+            event_value = ",'legacy.payment'" if previous == '0003' else ''
+            conn.execute(text(f"INSERT INTO notifications (id,recipient_user_id,title,body,notification_type,is_read{event_column}) VALUES (:id,:user,'Preserved','Legacy notification','legacy.payment',false{event_value})"),
                          {"id": notification_id, "user": user_id})
+            conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
         assert {"users", "payouts", "referrals", "payment_outbox", "addresses"} <= set(inspect(conn).get_table_names())
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
         if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003"}:
+            preserved_location = conn.execute(text('SELECT formatted_address,state_region,latitude,longitude FROM locations WHERE id=:id'), {'id': location_id}).one()
+            assert preserved_location.formatted_address == '10 Legacy Street'
+            assert preserved_location.state_region == 'Lagos'
+            assert float(preserved_location.latitude) == 6.5244
+            assert float(preserved_location.longitude) == 3.3792
             assert conn.execute(text("SELECT full_name FROM users WHERE id=:id"), {"id": user_id}).scalar_one() == "Preserved"
             assert conn.execute(text("SELECT event_type FROM notifications WHERE id=:id"), {"id": notification_id}).scalar_one() == "legacy.payment"
     # Repeating an upgrade is safe; the new revision can also be rolled back

@@ -82,6 +82,7 @@ export default function CreateOrder() {
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Place your order</h1>
+      <p className="text-sm text-ink-soft">Checkout is currently available for NGN designs delivered within Nigeria.</p>
       <div>
         <label htmlFor="order-design" className="mb-1.5 block text-sm font-medium text-ink">Published design</label>
         <Select id="order-design" value={selectedDesignId} onChange={(e) => setSelectedDesignId(e.target.value)} disabled={isLoading || isSubmitting}>

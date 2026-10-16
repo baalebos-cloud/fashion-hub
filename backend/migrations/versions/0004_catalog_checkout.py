@@ -32,6 +32,8 @@ def upgrade():
     op.execute('UPDATE locations SET formatted_address=address_line, state_region=state, latitude=ST_Y(geom::geometry), longitude=ST_X(geom::geometry)')
     op.alter_column('locations', 'address_line', existing_type=sa.String(512), nullable=True)
     op.alter_column('locations', 'state', existing_type=sa.String(128), nullable=True)
+    for name in ['city', 'country']:
+        op.alter_column('locations', name, existing_type=sa.String(128), nullable=True)
     # The historical schema never created the Address model's table.
     op.create_table(
         'addresses',
@@ -58,6 +60,9 @@ def downgrade():
     op.execute("UPDATE locations SET address_line=COALESCE(address_line,formatted_address,''), state=COALESCE(state,state_region,'')")
     op.alter_column('locations', 'address_line', existing_type=sa.String(512), nullable=False)
     op.alter_column('locations', 'state', existing_type=sa.String(128), nullable=False)
+    op.execute("UPDATE locations SET city=COALESCE(city,''), country=COALESCE(country,'')")
+    for name in ['city', 'country']:
+        op.alter_column('locations', name, existing_type=sa.String(128), nullable=False)
     for name in ['location_type', 'state_region', 'formatted_address', 'longitude', 'latitude']:
         op.drop_column('locations', name)
     op.drop_column('payments', 'authorization_url')

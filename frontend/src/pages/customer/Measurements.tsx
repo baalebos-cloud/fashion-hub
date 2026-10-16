@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 
 export default function Measurements() {
-  const { profiles, isLoading } = useMeasurements();
+  const { profiles, isLoading, error, refetch } = useMeasurements();
   const [isAdding, setIsAdding] = useState(false);
 
   return (
@@ -16,9 +16,10 @@ export default function Measurements() {
         {!isAdding && <Button onClick={() => setIsAdding(true)}>Add profile</Button>}
       </div>
 
-      {isAdding && <MeasurementForm onSaved={() => setIsAdding(false)} />}
+      {isAdding && <MeasurementForm onSaved={() => { setIsAdding(false); void refetch(); }} />}
 
-      {!isLoading && profiles.length === 0 && !isAdding && (
+      {error && <p role="alert" className="text-sm text-thread">{error}</p>}
+      {!error && !isLoading && profiles.length === 0 && !isAdding && (
         <EmptyState title="No measurement profiles yet" description="Add one to make ordering faster next time." />
       )}
 

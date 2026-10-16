@@ -7,7 +7,7 @@ export function SaveMeasurementProfile({ onSave, isSaving }: { onSave: (label: s
 
   return (
     <div className="flex gap-2">
-      <Input placeholder="e.g. My measurements" value={label} onChange={(e) => setLabel(e.target.value)} />
+      <Input aria-label="Measurement profile name" maxLength={128} placeholder="e.g. My measurements" value={label} onChange={(e) => setLabel(e.target.value)} />
       <Button onClick={() => onSave(label)} isLoading={isSaving} disabled={!label.trim()}>Save</Button>
     </div>
   );

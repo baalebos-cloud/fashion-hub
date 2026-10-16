@@ -143,6 +143,12 @@ def test_http_catalog_order_payment_and_invoice_with_ownership(db, context, make
     provider.initialize_payment.return_value = InitializePaymentResult('http-checkout', 'https://checkout.paystack.com/http-test', {})
     try:
         with TestClient(app) as client, patch('app.services.payment_service.get_payment_provider', return_value=provider):
+            design = db.get(Design, context['order_items'][0]['reference_id'])
+            professional = client.get('/api/v1/professionals/' + str(design.professional_id))
+            assert professional.status_code == 200, professional.text
+            assert professional.json()['user_id'] == str(context['professional_user_id'])
+            designs = client.get('/api/v1/designs', params={'professional_id': str(design.professional_id)})
+            assert designs.status_code == 200 and designs.json()[0]['currency'] == 'NGN'
             address = client.post('/api/v1/addresses', json=dict(label='Office', recipient_name='Customer', recipient_phone='+2348012345678',
                                   formatted_address='25 Test Avenue', city='Lagos', state_region='Lagos', country='NG'))
             assert address.status_code == 201, address.text
