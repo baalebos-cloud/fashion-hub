@@ -78,3 +78,42 @@ def test_duplicate_invoices_abort_instead_of_deleting_data(migration_database):
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM invoices")).scalar_one() == 2
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "2ab23f38e9c6"
+
+
+def insert_payment(connection):
+    order_id, payment_id = uuid.uuid4(), uuid.uuid4()
+    connection.execute(text("INSERT INTO orders (id,order_number,order_type,buyer_user_id,seller_user_id,status,subtotal,delivery_fee,tax_amount,discount_amount,total_amount,currency) VALUES (:id,:number,'customer_order',:buyer,:seller,'pending',10,0,0,0,10,'NGN')"),
+                       {"id": order_id, "number": "MIG-" + uuid.uuid4().hex[:16], "buyer": uuid.uuid4(), "seller": uuid.uuid4()})
+    connection.execute(text("INSERT INTO payments (id,order_id,provider,provider_reference,amount,currency,status) VALUES (:id,:order,'paystack',:reference,10,'NGN','initialized')"),
+                       {"id": payment_id, "order": order_id, "reference": "MIG-" + uuid.uuid4().hex})
+    return payment_id
+
+
+def test_json_boolean_development_schema_is_converted_without_losing_event(migration_database):
+    engine, config = migration_database
+    migrate(engine, config, "2ab23f38e9c6")
+    event_id = uuid.uuid4()
+    with engine.begin() as conn:
+        payment_id = insert_payment(conn)
+        conn.execute(text("INSERT INTO payment_transactions (id,payment_id,provider,provider_event_id,event_type,amount,raw_payload,processed) VALUES (:id,:payment,'paystack','legacy','charge.success',10,'{}',true)"),
+                     {"id": event_id, "payment": payment_id})
+        conn.execute(text("ALTER TABLE payment_transactions ALTER COLUMN processed TYPE json USING to_json(processed)"))
+    migrate(engine, config, "head")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT processed FROM payment_transactions WHERE id=:id"), {"id": event_id}).scalar_one() is True
+
+
+def test_downgrade_refuses_to_discard_pending_work(migration_database):
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    with engine.begin() as conn:
+        payment_id = insert_payment(conn)
+        conn.execute(text("INSERT INTO payment_outbox (id,payment_id,dedupe_key,kind,payload) VALUES (:id,:payment,'pending-migration-test','payment.settled','{}')"),
+                     {"id": uuid.uuid4(), "payment": payment_id})
+    with pytest.raises(RuntimeError, match="pending payment outbox"):
+        with engine.begin() as conn:
+            config.attributes["connection"] = conn
+            command.downgrade(config, "2ab23f38e9c6")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0003"

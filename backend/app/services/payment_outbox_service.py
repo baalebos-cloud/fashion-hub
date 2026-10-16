@@ -25,10 +25,12 @@ class PaymentOutboxService:
     def __init__(self, db: Session):
         self.db = db
 
-    def process_one(self) -> bool:
-        event = (self.db.query(PaymentOutbox)
-                 .filter(PaymentOutbox.processed_at.is_(None), PaymentOutbox.available_at <= utcnow())
-                 .order_by(PaymentOutbox.available_at, PaymentOutbox.id)
+    def process_one(self, *, payment_id=None) -> bool:
+        query = self.db.query(PaymentOutbox).filter(
+            PaymentOutbox.processed_at.is_(None), PaymentOutbox.available_at <= utcnow())
+        if payment_id is not None:
+            query = query.filter(PaymentOutbox.payment_id == payment_id)
+        event = (query.order_by(PaymentOutbox.available_at, PaymentOutbox.id)
                  .with_for_update(skip_locked=True).populate_existing().first())
         if not event:
             self.db.commit()
