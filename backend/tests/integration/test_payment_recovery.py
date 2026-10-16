@@ -284,3 +284,34 @@ def test_financial_amounts_use_exact_decimal_rounding(db, provider):
     assert payout.commission_amount == Decimal("15.00")
     assert payout.net_amount == Decimal("85.01")
     assert db.get(Referral, referral_id).commission_amount == Decimal("3.00")
+
+
+def test_reconciler_repairs_legacy_payment_after_another_reference_fails(engine, provider, monkeypatch):
+    from app.workers.payment_tasks import reconcile_pending_payments_task
+    with Session(engine) as db:
+        failed_id, _, _ = seed(db)
+        legacy_id, legacy_order_id, _ = seed(db)
+        failed = db.get(Payment, failed_id)
+        legacy = db.get(Payment, legacy_id)
+        failed_reference = failed.provider_reference
+        legacy_reference = legacy.provider_reference
+        legacy.status = "successful"  # committed by the old implementation, without effects
+        verification = configure(provider, legacy)
+        db.commit()
+
+    def verify(reference):
+        if reference == failed_reference:
+            raise RuntimeError("Provider temporarily unavailable")
+        assert reference == legacy_reference
+        return verification
+
+    provider.verify_payment.side_effect = verify
+    monkeypatch.setattr("app.core.database.SessionLocal", lambda: Session(engine))
+    reconcile_pending_payments_task.run()
+    with Session(engine) as db:
+        assert db.get(Payment, failed_id).status == "initialized"
+        assert db.get(Payment, failed_id).last_reconciled_at is not None
+        assert db.get(Payment, legacy_id).last_reconciled_at is not None
+        assert db.get(Order, legacy_order_id).status == "paid"
+        assert count(db, Payout, order_id=legacy_order_id) == 1
+        assert count(db, PaymentOutbox, payment_id=legacy_id) == 1

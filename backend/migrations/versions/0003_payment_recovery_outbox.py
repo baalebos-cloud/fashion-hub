@@ -26,6 +26,14 @@ def upgrade():
     op.create_index("ix_invoices_order_id", "invoices", ["order_id"], unique=True)
     op.add_column("invoices", sa.Column("order_date", sa.DateTime(), nullable=True))
     op.execute("UPDATE invoices AS i SET order_date = o.ordered_at FROM orders AS o WHERE o.id = i.order_id")
+    # Retain historical notification_type values while allowing the current
+    # model to write its channel/event_type/metadata fields.
+    op.add_column("notifications", sa.Column("channel", sa.String(16), server_default="in_app", nullable=False))
+    op.add_column("notifications", sa.Column("event_type", sa.String(64), nullable=True))
+    op.execute("UPDATE notifications SET event_type = notification_type")
+    op.alter_column("notifications", "event_type", nullable=False)
+    op.add_column("notifications", sa.Column("metadata_json", postgresql.JSONB(), nullable=True))
+    op.alter_column("notifications", "notification_type", nullable=True)
     op.add_column("payments", sa.Column("last_reconciled_at", sa.DateTime(timezone=True), nullable=True))
     op.create_table(
         "payment_outbox",
@@ -51,6 +59,11 @@ def downgrade():
     )).first()
     if pending:
         raise RuntimeError("Drain or explicitly resolve pending payment outbox work before downgrade")
+    op.execute("UPDATE notifications SET notification_type = left(event_type, 32) WHERE notification_type IS NULL")
+    op.alter_column("notifications", "notification_type", nullable=False)
+    op.drop_column("notifications", "metadata_json")
+    op.drop_column("notifications", "event_type")
+    op.drop_column("notifications", "channel")
     op.drop_table("payment_outbox")
     op.drop_column("payments", "last_reconciled_at")
     op.drop_column("invoices", "order_date")
