@@ -29,6 +29,8 @@ class InvoiceService:
 
         existing = self.db.query(Invoice).filter(Invoice.order_id == order.id).first()
         if existing:
+            if commit:
+                self.db.commit()
             return existing
 
         items = self.db.query(OrderItem).filter(OrderItem.order_id == order.id).all()

@@ -10,7 +10,7 @@ This repository contains working features alongside scaffolded modules. Read the
 - Frontend instructions: [frontend/README.md](frontend/README.md).
 - Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local`. Keep credentials out of Git.
 - API port: `8005`; Vite port: `5173`. The Vite development proxy forwards `/api` to the API.
-- The legacy Alembic graph has a known ordering conflict. Validate and repair migrations against a disposable PostGIS database before running them against existing data; see the review.
+- Read the [migration and payment recovery runbook](docs/payment-recovery.md) before upgrading. The migration ordering is repaired and tested, and the new payment code requires migration `0003`.
 
 ## Checks
 

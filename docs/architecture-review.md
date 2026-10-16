@@ -20,14 +20,14 @@ flowchart LR
     API --> DB[(PostgreSQL and PostGIS)]
     API --> Redis[(Redis)]
     API --> Providers[Payment and identity providers]
-    DB --> Outbox[Transactional outbox - planned]
+    DB --> Outbox[Transactional payment outbox]
     Outbox --> Workers[Celery workers]
     Redis --> Workers
     Workers --> Storage[Object storage]
     Workers --> Notifications[Email and notifications]
 ```
 
-The outbox in this diagram is a target design, not implemented by this PR. Use the existing modules as bounded domains: identity/access; catalog/professional profiles; orders/checkout/inventory; payments/refunds/payouts; fulfillment; communications; verification; and administration/audit. Keep API handlers thin and let services own authorization, business rules, and transaction boundaries. Avoid splitting these into independent services until measured traffic or team ownership warrants it.
+The payment outbox is implemented in the follow-up payment recovery change; see [the runbook](payment-recovery.md). The diagram remains a target for other domain events. Use the existing modules as bounded domains: identity/access; catalog/professional profiles; orders/checkout/inventory; payments/refunds/payouts; fulfillment; communications; verification; and administration/audit. Keep API handlers thin and let services own authorization, business rules, and transaction boundaries. Avoid splitting these into independent services until measured traffic or team ownership warrants it.
 
 ## Fixes proposed in this PR
 
@@ -52,9 +52,9 @@ Production configuration now requires `APP_ENV=production`, `DEBUG=false`, `DATA
 
 These are not fixed by this PR and must remain visible during review.
 
-1. **Payment transaction durability:** `PaymentService` commits payment success before order/payout/notification work finishes. A Redis lock can suppress retries after a failed attempt, and a committed provider-event row can be mistaken for a completed event. Move settlement, order transition, payout ledger entries, and outbox records into one PostgreSQL transaction, use durable provider/event uniqueness and row locks, then retry idempotent outbox consumers. Test crashes at every boundary, duplicate and out-of-order deliveries, provider outages, and reconciliation. Treat this as a release blocker for live money.
+1. **Payment transaction durability (addressed for local settlement in the follow-up PR; external effects remain):** The follow-up change commits payment/order/payout/referral/event/outbox records atomically and retries database invoice/notification work. It tests duplicate and concurrent deliveries and rollback/recovery. See [the recovery runbook](payment-recovery.md) for its scope. External payout transfers, refund/reversal sagas, PDF/storage and external notifications still need their own idempotency and reconciliation before live-money launch.
 2. **Authoritative pricing and order items:** customer order creation trusts client unit prices and does not persist the submitted line items. Resolve published designs or approved quotes server-side, snapshot validated prices with `Decimal`, enforce currency consistency, and persist items atomically. Custom requests need a quote/acceptance lifecycle before payment.
-3. **Migration history:** `0002` and `035e1bd61029` both descend from `0001`, but `0002` alters tables created by the initial-tables branch. The merge revision alone does not guarantee dependency order. Inventory every deployed Alembic revision before choosing a forward repair or a baseline for fresh installs. Do not rewrite applied history blindly. Prove upgrade on an empty PostGIS database and a sanitized copy of every supported existing revision, with backup and restoration rehearsals.
+3. **Migration history (ordering repair and upgrade coverage added):** the follow-up declares `0002`'s dependency on initial table creation without changing revision IDs or historical SQL. Fresh and supported historical upgrades are tested, and the main service suite now uses migrations. Existing unstamped/create_all databases and inconsistent manually edited schemas still require an explicit adoption plan; do not stamp or rewrite data blindly. See the recovery runbook before upgrading.
 4. **Checkout and inventory:** multi-vendor payment grouping is described but not implemented as a complete durable flow; cart/vendor identifiers contain placeholders, stock reservation expiry is absent, and snapshot prices can become stale. Lock cart and inventory rows, aggregate quantities, validate ownership, add reservation expiry/release and idempotency, and test two buyers competing for the last item.
 5. **Authentication lifecycle:** add one-time password reset tokens, atomic refresh rotation/reuse detection, session expiry/uniqueness constraints, verified-account policies, and MFA for privileged accounts. Browser tokens remain JavaScript-accessible; evaluate an HttpOnly cookie/BFF session architecture with explicit CSRF protection before a wider release.
 6. **Incomplete user journeys:** complete catalog discovery, profile provisioning, addresses, measurements, checkout, tracking, delivery assignment, reviews, invoice generation/storage, refunds, dispute handling, and administration. Replace successful-looking placeholders with implemented behavior or explicit unavailable states.

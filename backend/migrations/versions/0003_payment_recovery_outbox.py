@@ -24,6 +24,8 @@ def upgrade():
     op.execute("ALTER TABLE payment_transactions ALTER COLUMN processed TYPE boolean USING processed::text::boolean")
     op.drop_index("ix_invoices_order_id", table_name="invoices")
     op.create_index("ix_invoices_order_id", "invoices", ["order_id"], unique=True)
+    op.add_column("invoices", sa.Column("order_date", sa.DateTime(), nullable=True))
+    op.execute("UPDATE invoices AS i SET order_date = o.ordered_at FROM orders AS o WHERE o.id = i.order_id")
     op.add_column("payments", sa.Column("last_reconciled_at", sa.DateTime(timezone=True), nullable=True))
     op.create_table(
         "payment_outbox",
@@ -51,5 +53,6 @@ def downgrade():
         raise RuntimeError("Drain or explicitly resolve pending payment outbox work before downgrade")
     op.drop_table("payment_outbox")
     op.drop_column("payments", "last_reconciled_at")
+    op.drop_column("invoices", "order_date")
     op.drop_index("ix_invoices_order_id", table_name="invoices")
     op.create_index("ix_invoices_order_id", "invoices", ["order_id"], unique=False)
