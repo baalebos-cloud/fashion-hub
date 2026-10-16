@@ -91,3 +91,25 @@ def test_failed_webhook_signature_is_rejected(mock_get_provider, db, make_user):
             provider_reference=payment.provider_reference,
             amount=float(payment.amount),
         )
+
+
+def test_payment_initialization_rejects_another_buyer():
+    from app.core.exceptions import ForbiddenError
+    with patch('app.services.payment_service.get_payment_provider') as get_provider:
+        service = PaymentService(MagicMock())
+        service.orders.get_by_id = MagicMock(return_value=MagicMock(buyer_user_id='actual-buyer'))
+        with pytest.raises(ForbiddenError):
+            service.initialize_payment_for_order(order_id='order-id', customer_email='other@example.com',
+                                                 callback_url='https://example.com', buyer_user_id='another-buyer')
+        get_provider.return_value.initialize_payment.assert_not_called()
+
+
+def test_payment_verification_rejects_another_buyer():
+    from app.core.exceptions import ForbiddenError
+    with patch('app.services.payment_service.get_payment_provider') as get_provider:
+        service = PaymentService(MagicMock())
+        service._get_payment_by_reference = MagicMock(return_value=MagicMock(order_id='order-id'))
+        service.orders.get_by_id = MagicMock(return_value=MagicMock(buyer_user_id='actual-buyer'))
+        with pytest.raises(ForbiddenError):
+            service.verify_and_confirm('reference', buyer_user_id='another-buyer')
+        get_provider.return_value.verify_payment.assert_not_called()

@@ -33,6 +33,7 @@ The outbox in this diagram is a target design, not implemented by this PR. Use t
 
 | Finding | Change |
 | --- | --- |
+| Password backend versions break ordinary hashing; raw bcrypt truncates long passwords | Pin the compatible bcrypt backend, prehash new passwords with `bcrypt_sha256`, and retain legacy bcrypt verification |
 | Public signup accepts `admin` through an unrestricted role string and enum check | Restrict the request schema and service allowlist to public roles |
 | Wildcard credentialed CORS; weak production settings accepted | Use configured origins and reject unsafe staging/production settings |
 | Limiter configured without enforcement middleware; authentication limits only documented | Install shared limiter middleware and apply authentication endpoint limits; require Redis storage in production |
@@ -59,7 +60,7 @@ These are not fixed by this PR and must remain visible during review.
 6. **Incomplete user journeys:** complete catalog discovery, profile provisioning, addresses, measurements, checkout, tracking, delivery assignment, reviews, invoice generation/storage, refunds, dispute handling, and administration. Replace successful-looking placeholders with implemented behavior or explicit unavailable states.
 7. **Data integrity and privacy:** most UUID associations do not have foreign keys. Add constraints and indexes through reviewed migrations after checking existing data. Separate public profile/portfolio assets from private KYC documents; enforce signed access, encryption, retention/deletion, audit coverage, and least privilege. Do not log sensitive identity payloads or payment secrets.
 8. **Test coverage:** replace skipped API and end-to-end placeholders with complete role-based flows. A test asserting `NotImplementedError` proves an unfinished contract, not readiness. Add concurrency and failure-injection tests using real PostGIS/Redis and sandbox payment accounts.
-9. **Dependency and platform security:** review the pinned backend packages and frontend lockfile with vulnerability scanning, upgrade affected direct/transitive dependencies, and verify compatibility. A version pin is not evidence of security. Add dependency update automation, image scanning, and an SBOM once the build is stable.
+9. **Dependency and platform security:** the frontend CI install reports nine dependency vulnerabilities (seven high and two moderate). Review the pinned backend packages and frontend lockfile with vulnerability scanning, upgrade affected direct/transitive dependencies, and verify compatibility. A version pin is not evidence of security. The compatibility pin for Passlib/bcrypt is an interim measure; plan a supported Argon2id implementation with a tested gradual rehash of existing passwords. Add dependency update automation, image scanning, and an SBOM once the build is stable.
 
 ## Delivery stages and acceptance gates
 
@@ -87,4 +88,8 @@ Run migrations once as a reviewed release step, not independently in every API r
 
 ## Verification record
 
-Local environment: Python 3.12 and Node 24 are installed, but the workspace network proxy cannot reach GitHub/package registries. Source was obtained through the authenticated GitHub connection. Seven dependency-light settlement/configuration tests pass, Python compilation passes, and static local-import checks pass. Full PostgreSQL/Redis service tests, frontend lint/build/Vitest, Docker build, and browser end-to-end verification require the configured CI runner or a development machine with package access. CI results on the PR are the authoritative record for those checks; no production deployment or load test has been performed.
+Local environment: Python 3.12 and Node 24 are installed, but the workspace network proxy cannot reach GitHub/package registries. Source was obtained and the review branch published through the authenticated GitHub connection. Seven dependency-light settlement/configuration tests pass locally, Python compilation passes, and static local-import and whitespace checks pass.
+
+GitHub Actions run [38875824126](https://github.com/baalebos-cloud/fashion-hub/actions/runs/38875824126) verified backend startup, the foundation tests, PostgreSQL/PostGIS and Redis service tests, frontend lint, 11 frontend tests, and the production TypeScript/Vite build. Nine existing backend tests remain skipped because they are placeholders; passing CI does not establish complete user-journey coverage. Later runs on the PR also cover the added rate-limit and payment-ownership regressions. Review the latest CI results before merging. The frontend install reports nine dependency vulnerabilities (seven high and two moderate); dependency remediation remains a release blocker.
+
+No Docker build, full browser end-to-end verification, production deployment, restore rehearsal, or load test has been performed.

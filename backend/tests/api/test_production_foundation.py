@@ -71,3 +71,23 @@ def test_request_id_is_bounded(client):
     response = client.get('/health/live', headers={'X-Request-ID': 'x' * 1000})
     assert len(response.headers['X-Request-ID']) <= 64
     assert response.headers['X-Content-Type-Options'] == 'nosniff'
+
+
+def test_login_rate_limit_is_enforced(client, monkeypatch):
+    from app.core.rate_limit import limiter
+    limiter.reset()
+    monkeypatch.setattr('app.services.auth_service.AuthService.log_in', lambda *a, **k: {
+        'access_token': 'test-access', 'refresh_token': 'test-refresh',
+    })
+    try:
+        for _ in range(10):
+            response = client.post('/api/v1/auth/login', json={
+                'email': 'rate-test@example.com', 'password': 'Password123',
+            })
+            assert response.status_code == 200
+        response = client.post('/api/v1/auth/login', json={
+            'email': 'rate-test@example.com', 'password': 'Password123',
+        })
+        assert response.status_code == 429
+    finally:
+        limiter.reset()
