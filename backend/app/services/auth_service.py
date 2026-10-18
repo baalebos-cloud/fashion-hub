@@ -10,7 +10,6 @@ unit-testable with a plain SQLAlchemy Session.
 import hashlib
 from typing import Optional
 
-from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core.constants import UserRole
@@ -18,13 +17,14 @@ from app.core.policies import PUBLIC_SIGNUP_ROLES
 from app.core.config import settings
 from app.core.exceptions import ConflictError, UnauthorizedError, ValidationAppError
 from app.core.security import (
+    JWTError,
     create_access_token,
     create_email_verification_token,
     create_password_reset_token,
     create_refresh_token,
     decode_token,
     hash_password,
-    verify_password,
+    verify_and_update_password,
 )
 from app.models.user import RefreshSession, User
 from app.repositories.user_repository import UserRepository
@@ -77,10 +77,14 @@ class AuthService:
 
     def log_in(self, *, email: str, password: str, user_agent: Optional[str], ip_address: Optional[str]) -> dict:
         user = self.users.get_by_email(email.lower().strip())
-        if not user or not verify_password(password, user.hashed_password):
+        valid, updated_hash = verify_and_update_password(password, user.hashed_password) if user else (False, None)
+        if not valid:
             raise UnauthorizedError("Invalid email or password.")
         if not user.is_active:
             raise UnauthorizedError("This account has been deactivated.")
+
+        if updated_hash is not None:
+            user.hashed_password = updated_hash
 
         access_token = create_access_token(str(user.id), user.role)
         refresh_token = create_refresh_token(str(user.id))

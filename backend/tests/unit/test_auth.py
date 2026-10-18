@@ -35,3 +35,35 @@ def test_public_signup_cannot_create_admin():
         service.sign_up(email="admin@example.com", phone_number=None,
                         password="Password123", full_name="Public Admin", role="admin")
     service.db.add.assert_not_called()
+
+
+@pytest.mark.parametrize('scheme', ['bcrypt', 'bcrypt_sha256'])
+def test_successful_legacy_login_upgrades_password_and_retains_token_flow(db, make_user, scheme):
+    from app.core.security import pwd_context, decode_token, verify_password
+    password = 'ExistingPassword123'
+    user = make_user(hashed_password=pwd_context.hash(password, scheme=scheme))
+    service = AuthService(db)
+    result = service.log_in(email=user.email, password=password, user_agent=None, ip_address=None)
+    db.refresh(user)
+    assert user.hashed_password.startswith('$argon2id$')
+    assert verify_password(password, user.hashed_password)
+    assert decode_token(result['access_token'], expected_type='access')['sub'] == str(user.id)
+    assert decode_token(service.refresh_access_token(result['refresh_token']), expected_type='access')['sub'] == str(user.id)
+
+
+def test_failed_or_inactive_legacy_login_does_not_replace_hash(db, make_user):
+    from app.core.security import pwd_context
+    from app.core.exceptions import UnauthorizedError
+    legacy = pwd_context.hash('ExistingPassword123', scheme='bcrypt')
+    user = make_user(hashed_password=legacy)
+    service = AuthService(db)
+    with pytest.raises(UnauthorizedError):
+        service.log_in(email=user.email, password='WrongPassword123', user_agent=None, ip_address=None)
+    db.refresh(user)
+    assert user.hashed_password == legacy
+    user.is_active = False
+    db.commit()
+    with pytest.raises(UnauthorizedError):
+        service.log_in(email=user.email, password='ExistingPassword123', user_agent=None, ip_address=None)
+    db.refresh(user)
+    assert user.hashed_password == legacy

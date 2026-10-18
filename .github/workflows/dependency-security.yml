@@ -25,8 +25,7 @@ jobs:
       - name: Inspect baseline and generate candidate lockfile
         run: |
           npm audit --json > "$RUNNER_TEMP/npm-before.json" || true
-          npm audit fix --package-lock-only --ignore-scripts --force || true
-          npm install --package-lock-only --ignore-scripts --save-dev @vitejs/plugin-react@latest
+          npm audit fix --package-lock-only --ignore-scripts || true
           npm audit --json > "$RUNNER_TEMP/npm-after.json" || true
           python - <<'PY'
           import base64, json, os, pathlib, zlib
@@ -51,22 +50,19 @@ jobs:
           python-version: '3.12'
           cache: pip
           cache-dependency-path: backend/requirements.txt
-      - run: python -m pip install -r requirements.txt pip-audit
-      - name: Inspect backend dependencies and available releases
+      - run: python -m pip install -r requirements.txt pip-audit==2.10.1 pip-tools==7.6.2
+      - name: Resolve a reproducible backend environment
         run: |
-          pip-audit --format=json --output="$RUNNER_TEMP/backend-audit.json" --progress-spinner=off || true
-          python - <<'PY'
-          import concurrent.futures, json, os, pathlib, re, urllib.request
+          CUSTOM_COMPILE_COMMAND="python -m piptools compile --generate-hashes --output-file=requirements.lock requirements.txt" pip-compile --quiet --generate-hashes --no-emit-index-url --no-emit-trusted-host --output-file=requirements.lock requirements.txt
+          pip-audit --require-hashes -r requirements.lock --format=json --output="$RUNNER_TEMP/backend-audit.json" --progress-spinner=off || true
+          python - <<'PYTHON'
+          import base64, json, os, pathlib, zlib
           report = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'backend-audit.json').read_text())
           for dependency in report['dependencies']:
               if dependency.get('vulns'):
                   print('PYTHON_AUDIT', json.dumps(dependency))
-          names = sorted(set(re.split(r'[=\[< >]', line)[0] for line in pathlib.Path('requirements.txt').read_text().splitlines() if line and not line.startswith('#')) | {'PyJWT', 'argon2-cffi', 'pip-audit', 'pip-tools'})
-          def latest(name):
-              with urllib.request.urlopen('https://pypi.org/pypi/' + name + '/json', timeout=20) as response:
-                  info = json.load(response)['info']
-                  return name, {'version': info['version'], 'requires_python': info['requires_python']}
-          print('PYPI_LATEST', json.dumps(dict(concurrent.futures.ThreadPoolExecutor(max_workers=8).map(latest, names))))
-          PY
-      - name: Baseline must be remediated before review
-        run: pip-audit --progress-spinner=off
+          files = {'requirements.lock': pathlib.Path('requirements.lock').read_text()}
+          print('CANDIDATE_BACKEND_ZLIB_BASE64=' + base64.b64encode(zlib.compress(json.dumps(files).encode())).decode())
+          PYTHON
+      - name: Dependencies must be remediated before review
+        run: pip-audit --require-hashes -r requirements.lock --progress-spinner=off
