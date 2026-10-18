@@ -1,6 +1,6 @@
 # Fashion Hub — Frontend
 
-React 18 + TypeScript + Vite frontend for the Fashion Hub marketplace,
+React 19 + TypeScript + Vite frontend for the Fashion Hub marketplace,
 implementing dashboards for five roles (Customer, Tailor/Designer, Vendor,
 Delivery Partner, Admin) plus a public marketing site, all sharing one
 globally-available AI assistant, **Seam**.
@@ -13,7 +13,7 @@ Backend: **https://github.com/baalebos-cloud/fashion-hub** — see
 ```bash
 cp .env.example .env.local     # fill in secrets, or leave defaults for local dev
 npm install
-npm run dev                    # http://localhost:5173, proxies /api to localhost:8000
+npm run dev                    # http://localhost:5173, proxies /api to localhost:8005
 ```
 
 ```bash
@@ -21,6 +21,14 @@ npm run build      # type-check + production build to dist/
 npm run test       # vitest
 npm run lint        # eslint
 ```
+
+## Vercel frontend with a Railway backend
+
+Set `VITE_API_BASE_URL` in Vercel to your complete HTTPS backend URL including
+`/api/v1`, then redeploy. A bare Railway hostname becomes a path on Vercel,
+where signup returns 405. `NEXT_PUBLIC_API_URL` is not read by this Vite app.
+See [deployment and signup troubleshooting](docs/deployment.md) for environment
+scoping, CORS, verification, and the first admin account.
 
 ## Project layout
 
