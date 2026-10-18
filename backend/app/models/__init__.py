@@ -13,6 +13,8 @@ from app.models.vendor_category import VendorCategory
 from app.models.vendor_product import VendorProduct
 from app.models.product_variant import ProductVariant
 from app.models.inventory import Inventory
+from app.models.stock_reservation import StockReservation
+from app.models.inventory_restock import InventoryRestock
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
 from app.models.order import Order

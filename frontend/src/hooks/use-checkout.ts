@@ -1,17 +1,15 @@
 import { useState } from "react";
-import { checkoutApi } from "@/api/checkout.api";
+import { checkoutApi, type MaterialCheckout } from "@/api/checkout.api";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
-import type { Order } from "@/types/order";
 
 export function useCheckout() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  async function submit(cartId: string, deliveryAddressId: string): Promise<Order[]> {
+  async function submit(payload: MaterialCheckout) {
     setIsSubmitting(true);
     setError(null);
     try {
-      return await checkoutApi.submit(cartId, deliveryAddressId);
+      return await checkoutApi.submit(payload);
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Checkout failed. Please try again."));
       throw err;
@@ -19,6 +17,5 @@ export function useCheckout() {
       setIsSubmitting(false);
     }
   }
-
   return { submit, isSubmitting, error };
 }

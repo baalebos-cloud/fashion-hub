@@ -9,6 +9,7 @@ export interface Payment {
   currency: string;
   status: PaymentStatus;
   paid_at?: string | null;
+  requires_review?: boolean;
 }
 
 export interface InitializePaymentResponse {

@@ -1,24 +1,9 @@
-# Cart
+# Material cart
 
-`Cart` + `CartItem` support a tailor/designer adding products from
-**multiple vendors** into one cart before a single checkout.
+Each active tailor/designer has at most one active cart. It can contain several vendor profiles; one variant has one line with an integer quantity from 1 to 10,000 (up to 100 different variants). Vendor identity and current price come from the catalog. Adding an item checks availability but does not reserve it.
 
-## Stock checking: two layers
+- `GET /api/v1/carts/summary` returns the owned active cart, revision, named lines and current prices/availability.
+- `POST /api/v1/carts/items` accepts `product_variant_id` and `quantity` and returns the summary.
+- `PATCH /api/v1/carts/items/{id}` accepts `quantity`; `DELETE` removes the line. Both require ownership of the active cart.
 
-1. **Soft check at add-to-cart time** (`CartService.add_item`) — rejects
-   obviously-oversized additions for good UX, but does **not** reserve
-   inventory. Reserving at add-time would let idle carts starve other
-   buyers of stock that was never going to be purchased.
-2. **Hard, atomic check at checkout time** (`CheckoutService.checkout_cart`)
-   — the authoritative check. See [checkout.md](./checkout.md).
-
-## Endpoints (scaffold: `app/api/v1/carts.py`)
-
-Wire in against `CartService`:
-- Add item, update quantity, remove item
-- Get cart summary (subtotal, item list)
-
-## Edge case: vendor sells out while item sits in cart
-
-Handled entirely at checkout time with a row-locked, transactional
-inventory decrement — see [checkout.md](./checkout.md#edge-case-oversell-protection).
+Every mutation increments the cart revision. Cart summaries are advisory: checkout rechecks the catalog and locks stock before creating a hold. Each checkout selects one vendor and leaves the other vendors in the cart. See [checkout](checkout.md).

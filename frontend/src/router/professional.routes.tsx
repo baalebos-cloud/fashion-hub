@@ -15,6 +15,7 @@ import Services from "@/pages/professional/Services";
 import VendorMarketplace from "@/pages/professional/VendorMarketplace";
 import VendorProductDetails from "@/pages/professional/VendorProductDetails";
 import Cart from "@/pages/professional/Cart";
+import VendorPaymentSuccess from "@/pages/professional/VendorPaymentSuccess";
 import Checkout from "@/pages/professional/Checkout";
 import VendorOrders from "@/pages/professional/VendorOrders";
 import VendorOrderDetails from "@/pages/professional/VendorOrderDetails";
@@ -54,6 +55,7 @@ export const professionalRouteObjects: RouteObject[] = [
   { path: "vendor-marketplace/products/:productId", element: withLayout(VendorProductDetails) },
   { path: "cart", element: withLayout(Cart) },
   { path: "checkout", element: withLayout(Checkout) },
+  { path: "vendor-payment/success", element: withLayout(VendorPaymentSuccess) },
   { path: "vendor-orders", element: withLayout(VendorOrders) },
   { path: "vendor-orders/:orderId", element: withLayout(VendorOrderDetails) },
   { path: "delivery", element: withLayout(Delivery) },

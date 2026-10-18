@@ -13,6 +13,8 @@ export function ProductVariantSelector({ variants, selectedId, onSelect }: { var
           return (
             <button
               key={variant.id}
+              type="button"
+              aria-pressed={selectedId === variant.id}
               onClick={() => onSelect(variant.id)}
               className={cn(
                 "rounded-lg border px-3 py-1.5 text-sm",

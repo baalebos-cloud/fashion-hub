@@ -1,40 +1,13 @@
-# Checkout
+# Material checkout
 
-`CheckoutService.checkout_cart` implements the spec requirement: a cart may
-span multiple vendors, but the buyer pays **once** and gets **one**
-checkout/payment record, while each vendor still gets their own `Order`
-(and invoice) for their own accounting.
+Material carts may contain several vendors. **Each checkout selects one vendor and creates one order with its own payment.** Other vendor lines remain in the cart. Combined checkout payments need a separate payment-group model and are not implemented. Never sum several orders and pay only the first order.
 
-## Algorithm
+`POST /api/v1/checkout` accepts `cart_id`, `cart_revision`, `vendor_id` (the business profile ID), `delivery_address_id` and a 16–128 character `idempotency_key`. Client prices, totals, buyer IDs and seller IDs are rejected. Active tailors/designers can use their own cart and complete Nigerian delivery address. Checkout resolves variant → product → vendor → vendor user and saves server Decimal prices, product/SKU descriptions and a private delivery snapshot. Currently only NGN/Nigeria is supported; shipping/tax remain zero until separate pricing is implemented.
 
-1. Load all `CartItem`s for the cart.
-2. Lock every referenced `Inventory` row via `SELECT ... FOR UPDATE`, **in a
-   stable sorted order by `product_variant_id`** — this prevents deadlocks
-   when two concurrent checkouts touch overlapping products.
-3. Re-verify `quantity_available >= requested quantity` for every item.
-   Any shortfall fails the **entire** checkout with an itemized error
-   (never a silent partial fulfillment).
-4. Group line items by `vendor_id`; create one `Order`
-   (`order_type='vendor_order'`) per vendor, all sharing an
-   `idempotency_key` prefix (`{checkout_group_key}:{vendor_id}`) so the
-   payment layer can charge them together as a single transaction.
-5. Decrement `quantity_available` / increment `quantity_reserved` for each
-   item, inside the same DB transaction as order creation.
-6. Mark the cart `checked_out`.
+The account lock serializes cart mutations and checkout. A stale revision returns 409. An exact retry with the same key returns the original order, including after a lost commit acknowledgement; a changed intent or different buyer cannot reuse the key. Selected inventory rows lock in variant-ID order; insufficient stock aborts the transaction. Order, items, reservation records, counters, timeline and removal of selected cart lines commit together. The final order total is shown for review before payment initialization.
 
-## Edge case: oversell protection
+Checkout moves quantities from available to reserved. The canonical deadline is `orders.reservation_expires_at` (default 15 minutes). Successful payment consumes the holds in the settlement transaction; cancellation, provider-confirmed failure and expiry release them once. Terminal reservation rows are retained. Late successful payments are recorded as received funds with durable `payment.review` work; they cannot revive a cancelled order or create a seller payout. The verified payment response's `requires_review` flag drives the callback screen.
 
-Because steps 2–5 happen inside one transaction with row locks acquired in
-a consistent order, two customers racing to buy the last unit of a fabric
-can never both succeed — the second transaction blocks on the lock, then
-sees the updated (now insufficient) `quantity_available` and fails cleanly
-with a `ConflictError` listing exactly which items are short.
+New payment initialization rejects legacy vendor orders without this checkout's provenance/holds. Existing provider references remain verifiable/reconcilable. A paid order cannot be cancelled through the unpaid cancellation endpoint; refunds and returns require their own reviewed workflow. Vendor fulfillment transitions are not yet implemented and return an explicit conflict instead of using the customer state machine.
 
-## Single payment across vendor orders
-
-The client receives all created `Order`s from checkout, sums their
-`total_amount`, and calls `POST /api/v1/payments` once with that combined
-total against a single "checkout group" payment record. On success,
-`PaymentService` marks each underlying vendor order paid — a full
-implementation should extend `Payment` with a `checkout_group_key` FK so
-that one webhook event fans out to all sibling orders atomically.
+See [the stock rollout/runbook](../../docs/vendor-stock-reservations.md) for migration, workers, locks and verification.

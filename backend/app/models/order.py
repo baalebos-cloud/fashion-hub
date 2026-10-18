@@ -9,7 +9,7 @@ invoice, delivery link. Keeping them in one table simplifies invoicing and
 audit queries; order_service enforces which status enum applies per type.
 """
 import uuid
-from sqlalchemy import Numeric, String
+from sqlalchemy import DateTime, ForeignKey, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -61,3 +61,6 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     items: Mapped[list["OrderItem"]] = relationship(
         "OrderItem", lazy="selectin", order_by="OrderItem.id",
     )
+
+    source_cart_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("carts.id"), nullable=True)
+    reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
