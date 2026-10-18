@@ -10,7 +10,7 @@ const POLL_INTERVAL_MS = 15_000;
  * works even before that's wired up. */
 export function useTracking(orderId: string | undefined, isActive: boolean) {
   const [tracking, setTracking] = useState<OrderTrackingResponse | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval>>();
+  const intervalRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   useEffect(() => {
     if (!orderId || !isActive) return;
