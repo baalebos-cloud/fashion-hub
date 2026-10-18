@@ -5,12 +5,11 @@ from typing import Optional
 
 from fastapi import Depends, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from jose import JWTError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import decode_token
+from app.core.security import JWTError, decode_token
 from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)

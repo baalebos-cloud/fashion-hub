@@ -32,6 +32,14 @@ docker compose exec api python scripts/create_test_users.py
 API docs: http://localhost:8005/docs
 Health check: http://localhost:8005/health/ready
 
+## Dependency maintenance
+
+Install the compiled, hashed `requirements.txt` with
+`python -m pip install --require-hashes -r requirements.txt` on Python 3.12/Linux.
+Edit direct pins in `requirements.in` and recompile the lock as described in
+[the dependency security guide](../docs/dependency-security.md). CI verifies the
+compiled file, audits the full graph and tests the packaged backend.
+
 ## Project layout
 
 ```

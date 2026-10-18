@@ -2,8 +2,8 @@
 
 ## Authentication & session security
 
-- Passwords hashed with bcrypt (`passlib`); never stored or logged in
-  plaintext.
+- New passwords use Argon2id. Legacy bcrypt/bcrypt_sha256 hashes are verified
+  and upgraded on successful login; plaintext is never stored or logged.
 - JWT access tokens are short-lived (30 min default); refresh tokens are
   long-lived but their **hash** (SHA-256) is what's stored in `sessions`,
   so a database leak doesn't expose usable tokens.
@@ -57,7 +57,7 @@ check in the calling service.
 | Broken access control | Route RBAC + service-level ownership checks everywhere |
 | Injection | SQLAlchemy parameterized queries throughout; no raw string-interpolated SQL |
 | Sensitive data exposure | Location precision truncation; private KYC docs via signed URLs; secrets never in code |
-| Broken auth | bcrypt hashing, short-lived JWTs, hashed refresh tokens, session revocation |
+| Broken auth | Argon2id with legacy-hash migration, short-lived JWTs, hashed refresh tokens, session revocation |
 | Security misconfiguration | `.env`-based config, `DEBUG`/docs disabled in production (`app/main.py`) |
 | SSRF | Provider integrations call fixed, known provider hostnames only |
 | CSRF | N/A for a stateless bearer-token API; ensure any cookie-based session (if added) sets `SameSite` |

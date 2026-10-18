@@ -1,36 +1,20 @@
-# Invoices & Receipts
+# Invoices and receipts
 
-## Generation
+After server-side payment verification, settlement commits durable outbox work
+with the payment and order transition. The outbox worker calls
+`InvoiceService.generate_for_order` in its transaction, producing one invoice
+per order with saved line-item prices. Repeated delivery does not produce a
+second invoice. See [payment recovery](../../docs/payment-recovery.md).
 
-Triggered automatically by `PaymentService._apply_verified_result` on
-successful payment, via the background task
-`generate_invoice_for_order_task` — never inline in the webhook/callback
-request path, so the provider gets a fast HTTP response.
+`GET /api/v1/invoices/by-order/{order_id}` and `GET /api/v1/invoices/{invoice_id}`
+authorize the order's buyer, seller or an admin. An invoice that is still being
+prepared returns 404 with a retry message. Ordinary customer invoice responses
+do not expose seller commission.
 
-`InvoiceService.generate_for_order` snapshots line items (`name`,
-`unit_price`, `quantity`, `line_total`) into `Invoice.line_items_snapshot`
-(JSONB) at generation time, so the invoice remains accurate even if catalog
-prices change afterward.
+`InvoiceService.render_pdf` remains unimplemented. The unused WeasyPrint
+installation and its system libraries were removed during dependency
+remediation. Implement and review a renderer's resource-fetch policy, storage,
+access control and delivery retries before enabling PDF downloads; the current
+application provides the invoice's database snapshot independently.
 
-## PDF rendering
-
-`InvoiceService.render_pdf` (stubbed — wire in WeasyPrint, already listed
-in `requirements.txt`, against `app/templates/invoices/invoice.html`) then
-uploads via the configured `StorageProvider` and emails both parties
-(`send_invoice_email_task`).
-
-## Access control
-
-- Customer orders: visible to the **customer** and the **tailor/designer**.
-- Vendor orders: visible to the **tailor/designer (buyer)** and the
-  **vendor (seller)**.
-- Admins can view all invoices.
-
-Enforce this in the `invoices.py` route (currently a scaffold stub) using
-the same `_assert_can_view_order`-style pattern as `orders.py`.
-
-## Receipts
-
-`ReceiptService.generate_for_payment` creates a `Receipt` tied to the
-`Invoice` + `Payment`, confirming the amount actually paid (distinct from
-the invoice, which itemizes what was purchased).
+The receipt service remains separate and is not a completed HTTP user journey.

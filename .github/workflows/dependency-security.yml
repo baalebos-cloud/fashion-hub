@@ -1,0 +1,53 @@
+name: Dependency security
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: dependencies-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend-audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install the reviewed frontend lockfile
+        run: npm ci --ignore-scripts
+      - name: Audit runtime and development dependencies
+        run: npm audit
+  backend-audit:
+    env:
+      CUSTOM_COMPILE_COMMAND: python -m piptools compile --generate-hashes --output-file=requirements.txt requirements.in
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - run: python -m pip install pip-audit==2.10.1 pip-tools==7.6.2
+      - name: Verify the compiled lock matches its source
+        run: |
+          pip-compile --quiet --generate-hashes --no-emit-index-url --no-emit-trusted-host --output-file=requirements.txt requirements.in
+          git diff --exit-code -- requirements.txt
+      - name: Audit the complete locked backend environment
+        run: pip-audit --strict --require-hashes -r requirements.txt --progress-spinner=off

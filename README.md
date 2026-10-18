@@ -9,6 +9,7 @@ This repository contains working features alongside scaffolded modules. Read the
 - Backend instructions: [backend/README.md](backend/README.md).
 - Frontend instructions: [frontend/README.md](frontend/README.md).
 - Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local`. Keep credentials out of Git.
+- Dependency maintenance and credential compatibility: [security rollout](docs/dependency-security.md).
 - API port: `8005`; Vite port: `5173`. The Vite development proxy forwards `/api` to the API.
 - Read the [migration and payment recovery runbook](docs/payment-recovery.md) before upgrading. The migration ordering is repaired and tested, and this checkout requires migration `0004`.
 - Read the [catalog checkout contract and rollout](docs/catalog-checkout.md) for the breaking order API change, retry behavior and remaining launch blockers.
@@ -17,7 +18,7 @@ This repository contains working features alongside scaffolded modules. Read the
 
 ```sh
 cd backend
-python -m pip install -r requirements.txt
+python -m pip install --require-hashes -r requirements.txt
 python -m unittest discover -s tests/foundation -v
 pytest tests --cov=app --cov-report=term-missing
 ```
