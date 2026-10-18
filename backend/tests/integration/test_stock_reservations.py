@@ -358,3 +358,48 @@ def test_restock_is_owned_additive_and_preserves_holds(db, context, make_user):
     assert result['product_name'] == 'Navy cotton'
     with pytest.raises(ConflictError):
         service.restock(inv.product_variant_id, owner_user_id=owner, quantity_to_add=1000000000)
+
+
+def test_stock_deadline_is_rechecked_after_waiting_for_inventory(db, context):
+    from app.services import stock_reservation_service as module
+    args, _, _, inv = context
+    order = CheckoutService(db).checkout_cart(**args)
+    provider = MagicMock()
+    value = payment(db, order, provider)
+    before = utcnow()
+    clock = [before]
+    original = module.lock_inventory
+    def lock_after_delay(session, ids):
+        rows = original(session, ids)
+        clock[0] = order.reservation_expires_at + timedelta(seconds=1)
+        return rows
+    with patch('app.services.payment_service.get_payment_provider', return_value=provider), patch.object(module, 'utcnow', side_effect=lambda: clock[0]), patch.object(module, 'lock_inventory', side_effect=lock_after_delay):
+        PaymentService(db).verify_and_confirm(value.provider_reference)
+    assert db.get(Order, order.id).status == 'cancelled'
+    assert counters(db, inv) == (10, 0)
+    assert db.query(PaymentOutbox).filter_by(payment_id=value.id).one().kind == 'payment.review'
+
+
+def test_restock_and_checkout_cannot_lose_counter_updates(migration_database):
+    from app.services.inventory_service import InventoryService
+    engine, config = migration_database
+    migrate(engine, config, 'head')
+    with Session(engine) as db:
+        seller, vendor, _, variant, inv = catalog(db, stock=1)
+        args = request(db, user(db, 'tailor'), vendor, variant)
+        seller_id, variant_id = seller.id, variant.id
+    barrier = Barrier(2)
+    def checkout():
+        with Session(engine) as db:
+            barrier.wait(timeout=10)
+            CheckoutService(db).checkout_cart(**args)
+    def restock():
+        with Session(engine) as db:
+            barrier.wait(timeout=10)
+            InventoryService(db).restock(variant_id, owner_user_id=seller_id, quantity_to_add=5)
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(checkout), pool.submit(restock)]
+        for future in futures: future.result(timeout=20)
+    with Session(engine) as db:
+        inv = db.query(Inventory).filter_by(product_variant_id=variant_id).one()
+        assert (inv.quantity_available, inv.quantity_reserved) == (5, 1)
