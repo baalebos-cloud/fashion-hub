@@ -1,31 +1,23 @@
 import { useState } from "react";
-import { useCart } from "@/hooks/use-cart";
+import { useCartStore } from "@/store/cart.store";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 
 export function QuantityControl({ cartItemId, quantity }: { cartItemId: string; quantity: number }) {
-  const { updateItem } = useCart();
-  const [value, setValue] = useState(quantity);
+  const updateItem = useCartStore((state) => state.updateItem);
   const [isSaving, setIsSaving] = useState(false);
-
+  const [error, setError] = useState<string | null>(null);
   async function commit(next: number) {
-    if (next < 1) return;
-    setValue(next);
-    setIsSaving(true);
-    try {
-      await updateItem(cartItemId, next);
-    } finally {
-      setIsSaving(false);
-    }
+    setIsSaving(true); setError(null);
+    try { await updateItem(cartItemId, next); }
+    catch (err) { setError(getDisplayErrorMessage(err)); }
+    finally { setIsSaving(false); }
   }
-
-  return (
+  return <div>
     <div className="inline-flex items-center rounded-lg border border-line">
-      <button type="button" onClick={() => commit(value - 1)} disabled={isSaving} className="flex h-8 w-8 items-center justify-center text-ink hover:bg-muslin disabled:opacity-40">
-        −
-      </button>
-      <span className="w-8 text-center text-sm text-ink">{value}</span>
-      <button type="button" onClick={() => commit(value + 1)} disabled={isSaving} className="flex h-8 w-8 items-center justify-center text-ink hover:bg-muslin disabled:opacity-40">
-        +
-      </button>
+      <button type="button" aria-label="Decrease quantity" onClick={() => { void commit(quantity - 1); }} disabled={isSaving || quantity <= 1} className="h-8 w-8">−</button>
+      <span className="w-8 text-center text-sm">{quantity}</span>
+      <button type="button" aria-label="Increase quantity" onClick={() => { void commit(quantity + 1); }} disabled={isSaving || quantity >= 10000} className="h-8 w-8">+</button>
     </div>
-  );
+    {error && <p role="alert" className="text-xs text-thread">{error}</p>}
+  </div>;
 }

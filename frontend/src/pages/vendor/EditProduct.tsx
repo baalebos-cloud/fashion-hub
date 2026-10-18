@@ -17,17 +17,19 @@ export default function EditProduct() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (productId) productsApi.getById(productId).then(setProduct);
+    let active = true; setProduct(null); setError(null);
+    if (productId) productsApi.owned(productId).then((value) => { if (active) setProduct(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); });
+    return () => { active = false; };
   }, [productId]);
 
-  if (!product) return <LoadingScreen label="Loading product…" />;
+  if (!product) return error ? <p role="alert">{error}</p> : <LoadingScreen label="Loading product…" />;
 
   async function handleSave() {
     if (!productId || !product) return;
     setIsSaving(true);
     setError(null);
     try {
-      await productsApi.update(productId, { name: product.name, description: product.description ?? undefined, base_price: product.base_price });
+      await productsApi.update(productId, { name: product.name, description: product.description ?? undefined, is_active: product.is_active });
       navigate(vendorRoutes.products);
     } catch (err) {
       setError(getDisplayErrorMessage(err));
@@ -39,9 +41,12 @@ export default function EditProduct() {
   return (
     <div className="flex max-w-sm flex-col gap-4">
       <h1 className="font-display text-xl text-ink">Edit product</h1>
-      <Input value={product.name} onChange={(e) => setProduct({ ...product, name: e.target.value })} />
-      <Textarea value={product.description ?? ""} onChange={(e) => setProduct({ ...product, description: e.target.value })} rows={3} />
-      <Input type="number" value={product.base_price} onChange={(e) => setProduct({ ...product, base_price: Number(e.target.value) })} />
+      <label htmlFor="product-name">Product name</label>
+      <Input id="product-name" value={product.name} onChange={(e) => setProduct({ ...product, name: e.target.value })} />
+      <label htmlFor="product-description">Description</label>
+      <Textarea id="product-description" value={product.description ?? ""} onChange={(e) => setProduct({ ...product, description: e.target.value })} rows={3} />
+      <label><input type="checkbox" checked={product.is_active} onChange={(event) => setProduct({ ...product, is_active: event.target.checked })} /> Active listing</label>
+      <p className="text-sm">Variant price: {product.base_price} {product.currency}. Price changes are not available in this form.</p>
       {error && <p className="text-sm text-thread">{error}</p>}
       <Button onClick={handleSave} isLoading={isSaving}>Save changes</Button>
     </div>

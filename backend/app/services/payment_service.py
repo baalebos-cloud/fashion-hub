@@ -47,6 +47,21 @@ class PaymentService:
             raise ConflictError("Order is not payable.")
         from app.services.catalog_order_service import assert_catalog_order_payable
         assert_catalog_order_payable(order)
+        if order.order_type == 'vendor_order':
+            from app.services.stock_reservation_service import SOURCE, StockReservationService
+            from decimal import Decimal
+            stock = StockReservationService(self.db)
+            if order.pricing_source != SOURCE or not order.delivery_address_snapshot:
+                raise ConflictError('Recreate this material order from the current cart before payment.')
+            if not stock.active(order):
+                stock.cancel_unpaid(order, note='Stock reservation expired or requires review before payment.')
+                self.db.commit()
+                raise ConflictError('Stock reservation expired. Create a new order before payment.')
+            subtotal = sum((i.line_total for i in order.items), Decimal('0.00'))
+            if (any(i.quantity < 1 or i.unit_price <= 0 or i.line_total != i.unit_price * i.quantity for i in order.items)
+                or subtotal != order.subtotal or order.currency != 'NGN'
+                or subtotal + order.delivery_fee + order.tax_amount - order.discount_amount != order.total_amount):
+                raise ConflictError('Order totals require review before payment.')
         try:
             callback = urlsplit(callback_url)
             origin = f"{callback.scheme}://{callback.netloc}"
@@ -156,6 +171,10 @@ class PaymentService:
         if verification.status != "successful":
             if payment.status != "successful":
                 payment.status = verification.status
+                if verification.status == 'failed':
+                    from app.services.stock_reservation_service import SOURCE, UNPAID, StockReservationService
+                    if order.pricing_source == SOURCE and order.status in UNPAID:
+                        StockReservationService(self.db).cancel_unpaid(order, note='Provider confirmed payment failure.')
             return
         payment.status = "successful"
         payment.paid_at = payment.paid_at or utcnow()
@@ -167,6 +186,11 @@ class PaymentService:
         # durable review signal, without reviving the order or paying the seller.
         valid_states = PAID_CUSTOMER_STATES if order.order_type == "customer_order" else PAID_VENDOR_STATES
         payable = {"pending"} if order.order_type == "customer_order" else {"checkout", "payment_pending"}
+        from app.services.stock_reservation_service import SOURCE, UNPAID, StockReservationService
+        if order.pricing_source == SOURCE and order.status in UNPAID:
+            stock = StockReservationService(self.db)
+            if not stock.consume(order):
+                stock.cancel_unpaid(order, note='Payment arrived after the stock reservation expired.')
         if order.status not in valid_states | payable:
             self.db.add(AuditLog(action="payment.review_required", resource_type="payment",
                                  resource_id=payment.id,

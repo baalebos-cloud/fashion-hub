@@ -62,5 +62,6 @@ class OrderResponse(BaseModel):
     received_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
+    reservation_expires_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}

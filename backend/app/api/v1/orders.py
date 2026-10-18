@@ -26,6 +26,7 @@ that a tailor/designer owns THIS order, and that only the order's own
 customer may call /received.
 """
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -69,15 +70,17 @@ def create_order(
 @router.get("", response_model=list[OrderResponse])
 def list_orders(
     pagination: PaginationParams = Depends(),
+    perspective: Literal['buying', 'selling'] | None = None,
+    order_type: Literal['vendor_order', 'customer_order'] | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """GET /api/v1/orders -- orders where the current user is the buyer
     (customers) or the seller (tailors/designers/vendors)."""
     repo = OrderRepository(db)
-    if current_user.role in ("tailor", "designer", "vendor"):
-        return repo.list_for_seller(current_user.id, offset=pagination.offset, limit=pagination.page_size)
-    return repo.list_for_buyer(current_user.id, offset=pagination.offset, limit=pagination.page_size)
+    if perspective == 'selling' or (perspective is None and current_user.role in ('tailor', 'designer', 'vendor')):
+        return repo.list_for_seller(current_user.id, order_type=order_type, offset=pagination.offset, limit=pagination.page_size)
+    return repo.list_for_buyer(current_user.id, order_type=order_type, offset=pagination.offset, limit=pagination.page_size)
 
 
 @router.get("/{order_id}", response_model=OrderResponse)
