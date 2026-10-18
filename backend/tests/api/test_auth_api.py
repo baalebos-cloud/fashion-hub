@@ -39,6 +39,26 @@ def test_signup_and_login_flow(client, db):
     assert client.get('/api/v1/orders', headers={'Authorization': 'Bearer ' + refreshed.json()['access_token']}).status_code == 200
 
 
+def test_vendor_signup_login_and_authenticated_identity(client, db):
+    password = 'NewVendorPassword123'
+    response = client.post('/api/v1/auth/signup', json={
+        'email': 'http-vendor@example.com', 'password': password,
+        'full_name': 'HTTP Vendor', 'role': 'vendor',
+    })
+    assert response.status_code == 201, response.text
+    assert response.json()['role'] == 'vendor'
+    user = db.query(User).filter(User.email == 'http-vendor@example.com').one()
+    assert user.role == 'vendor' and user.hashed_password.startswith('$argon2id$')
+
+    login = client.post('/api/v1/auth/login', json={'email': user.email, 'password': password})
+    assert login.status_code == 200, login.text
+    identity = client.get('/api/v1/users/me', headers={
+        'Authorization': 'Bearer ' + login.json()['access_token'],
+    })
+    assert identity.status_code == 200, identity.text
+    assert identity.json()['role'] == 'vendor' and identity.json()['email'] == user.email
+
+
 @pytest.mark.parametrize('scheme', ['bcrypt', 'bcrypt_sha256'])
 def test_legacy_login_upgrades_through_http(client, db, make_user, scheme):
     password = 'LegacyPassword123'
