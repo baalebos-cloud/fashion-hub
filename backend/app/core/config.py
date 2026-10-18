@@ -8,7 +8,7 @@ Never hard-code secrets here. This module is imported everywhere via the
 from functools import lru_cache
 from typing import List, Optional
 
-from pydantic import field_validator, model_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_STORAGE_URI: str = "memory://"
 
     # --- Payments ---
+    VENDOR_RESERVATION_TTL_MINUTES: int = Field(15, ge=1, le=120)
     PAYMENT_PROVIDER: str = "paystack"  # paystack | flutterwave
     PAYMENT_SECRET_KEY: Optional[str] = None
     PAYMENT_PUBLIC_KEY: Optional[str] = None

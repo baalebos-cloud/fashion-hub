@@ -39,7 +39,7 @@ def migrate(engine, config, revision):
         command.upgrade(config, revision)
 
 
-@pytest.mark.parametrize("previous", [None, "0001", "035e1bd61029", "0002", "2ab23f38e9c6", "0003"])
+@pytest.mark.parametrize("previous", [None, "0001", "035e1bd61029", "0002", "2ab23f38e9c6", "0003", "0004"])
 def test_fresh_and_historical_upgrades_preserve_records(migration_database, previous):
     engine, config = migration_database
     if previous:
@@ -47,20 +47,23 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
     user_id = uuid.uuid4()
     notification_id = uuid.uuid4()
     location_id = uuid.uuid4()
-    if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003"}:
+    if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003", "0004"}:
         with engine.begin() as conn:
             conn.execute(text("INSERT INTO users (id,email,hashed_password,full_name,role,is_active,is_email_verified,is_phone_verified,timezone) VALUES (:id,'preserved@example.com','test','Preserved','customer',true,false,false,'UTC')"), {"id": user_id})
-            event_column = ',event_type' if previous == '0003' else ''
-            event_value = ",'legacy.payment'" if previous == '0003' else ''
+            event_column = ',event_type' if previous in {'0003', '0004'} else ''
+            event_value = ",'legacy.payment'" if previous in {'0003', '0004'} else ''
             conn.execute(text(f"INSERT INTO notifications (id,recipient_user_id,title,body,notification_type,is_read{event_column}) VALUES (:id,:user,'Preserved','Legacy notification','legacy.payment',false{event_value})"),
                          {"id": notification_id, "user": user_id})
-            conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
+            if previous == '0004':
+                conn.execute(text("INSERT INTO locations (id,location_type,formatted_address,city,state_region,country,latitude,longitude) VALUES (:id,'customer_address','10 Legacy Street','Lagos','Lagos','NG',6.5244,3.3792)"), {'id': location_id})
+            else:
+                conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0005"
         assert {"users", "payouts", "referrals", "payment_outbox", "addresses"} <= set(inspect(conn).get_table_names())
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
-        if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003"}:
+        if previous in {"035e1bd61029", "0002", "2ab23f38e9c6", "0003", "0004"}:
             preserved_location = conn.execute(text('SELECT formatted_address,state_region,latitude,longitude FROM locations WHERE id=:id'), {'id': location_id}).one()
             assert preserved_location.formatted_address == '10 Legacy Street'
             assert preserved_location.state_region == 'Lagos'
@@ -129,7 +132,7 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
             command.downgrade(config, "2ab23f38e9c6")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0004"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0005"
 
 
 def test_orphan_line_items_abort_without_removing_records(migration_database):
@@ -170,6 +173,64 @@ def test_downgrade_preserves_new_checkout_records(migration_database, saved_reco
             config.attributes['connection'] = conn
             command.downgrade(config, '0003')
     with engine.connect() as conn:
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0004'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0005'
         table = 'orders' if saved_record == 'order' else 'addresses'
         assert conn.execute(text(f'SELECT count(*) FROM {table}')).scalar_one() == 1
+
+
+def stock_legacy_seed(engine):
+    from sqlalchemy.orm import Session
+    from tests.vendor_helpers import catalog, user, address
+    from app.models.cart import Cart
+    from app.models.cart_item import CartItem
+    # ORM's new Cart.revision cannot be used before 0005; insert the old
+    # cart shape explicitly while keeping catalog fixtures version-neutral.
+    with Session(engine) as db:
+        _, vendor, product, variant, inv = catalog(db)
+        buyer = user(db, 'tailor')
+        db.commit()
+        values = dict(cart=uuid.uuid4(), item=uuid.uuid4(), owner=buyer.id,
+                      variant=variant.id, vendor=vendor.id, product=product.id, inventory=inv.id)
+    with engine.begin() as conn:
+        conn.execute(text("INSERT INTO carts (id,owner_user_id,status) VALUES (:cart,:owner,'active')"), values)
+        conn.execute(text("INSERT INTO cart_items (id,cart_id,product_variant_id,vendor_id,quantity,unit_price_snapshot) VALUES (:item,:cart,:variant,:product,2,100.01)"), values)
+    return values
+
+
+@pytest.mark.parametrize('invalid', ['reserved', 'duplicate_cart', 'duplicate_line', 'quantity', 'orphan'])
+def test_stock_migration_rejects_ambiguous_legacy_data_without_deleting_it(migration_database, invalid):
+    engine, config = migration_database
+    migrate(engine, config, '0004')
+    values = stock_legacy_seed(engine)
+    with engine.begin() as conn:
+        if invalid == 'reserved': conn.execute(text('UPDATE inventory SET quantity_reserved=2'))
+        if invalid == 'duplicate_cart': conn.execute(text("INSERT INTO carts (id,owner_user_id,status) VALUES (:id,:owner,'active')"), {**values, 'id': uuid.uuid4()})
+        if invalid == 'duplicate_line': conn.execute(text('INSERT INTO cart_items (id,cart_id,product_variant_id,vendor_id,quantity,unit_price_snapshot) VALUES (:id,:cart,:variant,:product,1,100.01)'), {**values, 'id': uuid.uuid4()})
+        if invalid == 'quantity': conn.execute(text('UPDATE cart_items SET quantity=0'))
+        if invalid == 'orphan': conn.execute(text('UPDATE product_variants SET product_id=:id'), {'id': uuid.uuid4()})
+    with pytest.raises(RuntimeError, match='legacy reserved|Duplicate|Invalid|Orphan'):
+        migrate(engine, config, 'head')
+    with engine.connect() as conn:
+        assert conn.execute(text('SELECT count(*) FROM cart_items')).scalar_one() == (2 if invalid == 'duplicate_line' else 1)
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0004'
+        assert conn.execute(text('SELECT vendor_id FROM cart_items LIMIT 1')).scalar_one() == values['product']
+
+
+def test_stock_migration_repairs_vendor_identity_and_preserves_history_on_downgrade(migration_database):
+    engine, config = migration_database
+    migrate(engine, config, '0004')
+    values = stock_legacy_seed(engine)
+    migrate(engine, config, 'head')
+    with engine.connect() as conn:
+        assert conn.execute(text('SELECT vendor_id FROM cart_items')).scalar_one() == values['vendor']
+        assert conn.execute(text('SELECT revision FROM carts')).scalar_one() == 0
+    with engine.begin() as conn:
+        payment_id = insert_payment(conn)
+        conn.execute(text("UPDATE orders SET pricing_source='vendor_catalog_v1',order_type='vendor_order' WHERE id=(SELECT order_id FROM payments WHERE id=:id)"), {'id': payment_id})
+    with pytest.raises(RuntimeError, match='history exists'):
+        with engine.begin() as conn:
+            config.attributes['connection'] = conn
+            command.downgrade(config, '0004')
+    with engine.connect() as conn:
+        assert conn.execute(text('SELECT count(*) FROM orders')).scalar_one() == 1
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0005'

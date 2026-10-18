@@ -1,23 +1,16 @@
-"""
-/checkout
-
-Single-payment, multi-vendor checkout. See app/services/checkout_service.py for business logic.
-
-STATUS: scaffold stub. Wire in the corresponding service (see
-app/services/) and repository as this module is implemented; follow the
-pattern established in auth.py / orders.py (RBAC via require_roles,
-business rules delegated to a service, never inline in the route).
-"""
+"""One vendor order and stock reservation per revision-bound checkout."""
 from fastapi import APIRouter, Depends
-
-from app.core.dependencies import get_current_user
+from sqlalchemy.orm import Session
+from app.core.database import get_db
+from app.core.permissions import Role, require_roles
 from app.models.user import User
+from app.schemas.checkout import CheckoutRequest
+from app.schemas.order import OrderResponse
+from app.services.checkout_service import CheckoutService
 
-router = APIRouter(prefix="/checkout", tags=["Checkout"])
+router = APIRouter(prefix='/checkout', tags=['Checkout'])
 
 
-@router.get("/health-check")
-def module_placeholder():
-    """Placeholder route confirming this module is wired into the app.
-    Replace with real endpoints for Checkout."""
-    return {"module": "Checkout", "status": "not yet implemented"}
+@router.post('', response_model=OrderResponse, status_code=201)
+def checkout(payload: CheckoutRequest, user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)), db: Session = Depends(get_db)):
+    return CheckoutService(db).checkout_cart(buyer_user_id=user.id, **payload.model_dump())

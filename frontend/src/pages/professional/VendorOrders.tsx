@@ -1,21 +1,28 @@
-import { useOrders } from "@/hooks/use-orders";
+import { useEffect, useState } from "react";
+import { ordersApi } from "@/api/orders.api";
 import { OrderList } from "@/components/orders/OrderList";
-import { LoadingScreen } from "@/components/common/LoadingScreen";
+import { Button } from "@/components/ui/button";
 import { professionalRoutes } from "@/config/routes.config";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import type { Order } from "@/types/order";
 
-/** This professional's orders as the BUYER of vendor materials
- * (order_type=vendor_order) — distinct from Orders.tsx, which shows
- * customer orders where this professional is the SELLER. */
 export default function VendorOrders() {
-  const { orders, isLoading } = useOrders();
-  const vendorOrders = orders.filter((o) => o.order_type === "vendor_order");
-
-  if (isLoading) return <LoadingScreen />;
-
-  return (
-    <div>
-      <h1 className="mb-6 font-display text-xl text-ink">Vendor orders</h1>
-      <OrderList orders={vendorOrders} detailsPathFor={professionalRoutes.vendorOrderDetails} />
-    </div>
-  );
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let active = true;
+    setLoading(true); setError(null);
+    ordersApi.list({ perspective: "buying", order_type: "vendor_order", page }).then((values) => { if (active) setOrders(values); })
+      .catch((err) => { if (active) setError(getDisplayErrorMessage(err)); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [page]);
+  return <div className="flex flex-col gap-5">
+    <h1 className="font-display text-xl text-ink">Material orders</h1>
+    {error && <p role="alert">{error}</p>}
+    {loading ? <p role="status">Loading orders…</p> : <OrderList orders={orders} detailsPathFor={professionalRoutes.vendorOrderDetails} />}
+    <div className="flex gap-4"><Button disabled={loading || page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {page}</span><Button disabled={loading || orders.length < 20} onClick={() => setPage((value) => value + 1)}>Next</Button></div>
+  </div>;
 }

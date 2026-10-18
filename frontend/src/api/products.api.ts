@@ -8,16 +8,25 @@ export interface ProductCreatePayload {
   description?: string;
   base_price: number;
   category_id?: string;
+  initial_stock?: number;
 }
 
 export const productsApi = {
   async list(params: PaginationParams & { vendorId?: string; categoryId?: string } = {}): Promise<
-    PaginatedResponse<VendorProduct>
+    (PaginatedResponse<VendorProduct> & { total_pages: number })
   > {
-    const response = await apiClient.get<PaginatedResponse<VendorProduct>>(endpoints.vendorProducts.list, {
+    const response = await apiClient.get<(PaginatedResponse<VendorProduct> & { total_pages: number })>(endpoints.vendorProducts.list, {
       params: { vendor_id: params.vendorId, category_id: params.categoryId, page: params.page, page_size: params.pageSize },
     });
     return response.data;
+  },
+
+  async mine(page = 1): Promise<PaginatedResponse<VendorProduct> & { total_pages: number }> {
+    return (await apiClient.get<PaginatedResponse<VendorProduct> & { total_pages: number }>(endpoints.vendorProducts.mine, { params: { page } })).data;
+  },
+
+  async owned(id: string): Promise<VendorProduct> {
+    return (await apiClient.get<VendorProduct>(endpoints.vendorProducts.owned(id))).data;
   },
 
   async getById(id: string): Promise<VendorProduct> {
@@ -30,7 +39,7 @@ export const productsApi = {
     return response.data;
   },
 
-  async update(id: string, payload: Partial<ProductCreatePayload>): Promise<VendorProduct> {
+  async update(id: string, payload: { name: string; description?: string; is_active: boolean }): Promise<VendorProduct> {
     const response = await apiClient.patch<VendorProduct>(endpoints.vendorProducts.details(id), payload);
     return response.data;
   },

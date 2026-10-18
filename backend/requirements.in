@@ -1,16 +1,16 @@
 fastapi==0.143.5
-uvicorn[standard]==0.34.0
-gunicorn==23.0.0
+uvicorn[standard]==0.54.0
+gunicorn==26.2.0
 
 # Database
-sqlalchemy==2.0.36
-alembic==1.14.0
-psycopg[binary]==3.2.3
-geoalchemy2==0.16.0
+sqlalchemy==2.1.4
+alembic==1.20.0
+psycopg[binary]==3.3.6
+geoalchemy2==0.20.0
 
 # Caching / background jobs
-redis==5.2.1
-celery==5.4.0
+redis==8.1.0
+celery==5.6.3
 
 # Auth / security
 # Passlib/bcrypt verify existing hashes only; new passwords use Argon2id.
@@ -22,12 +22,12 @@ argon2-cffi==25.1.0
 python-multipart==0.0.32
 
 # Validation / settings
-pydantic==2.10.4
-pydantic-settings==2.7.0
-email-validator==2.2.0
+pydantic==2.14.1
+pydantic-settings==2.16.0
+email-validator==2.3.0
 
 # Rate limiting
-slowapi==0.1.9
+slowapi==0.1.10
 
 # HTTP client for provider integrations (payments/maps/delivery/KYC)
 httpx==0.28.1
@@ -36,15 +36,15 @@ httpx==0.28.1
 anthropic==0.42.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
-boto3==1.35.90
+boto3==1.43.114
 
 # Testing
 pytest==9.1.1
 pytest-asyncio==1.4.0
-pytest-cov==6.0.0
+pytest-cov==7.1.0
 httpx==0.28.1
 faker==33.1.0
 
 # Dev tooling
-ruff==0.8.4
+ruff==0.17.0
 mypy==1.14.0

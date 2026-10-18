@@ -70,6 +70,7 @@ export const professionalRoutes = {
   vendorProductDetails: (id: string) => `/app/professional/vendor-marketplace/products/${id}`,
   cart: "/app/professional/cart",
   checkout: "/app/professional/checkout",
+  vendorPaymentSuccess: "/app/professional/vendor-payment/success",
   vendorOrders: "/app/professional/vendor-orders",
   vendorOrderDetails: (id: string) => `/app/professional/vendor-orders/${id}`,
   delivery: "/app/professional/delivery",
