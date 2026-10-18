@@ -6,6 +6,8 @@ the platform stays provider-agnostic and suitable for any VPS/self-managed
 infrastructure (Contabo, Hetzner, DigitalOcean, or similar) -- no
 Terraform, AWS, Azure, or GCP-specific tooling is used.
 
+For a Railway deployment, see [database configuration and startup troubleshooting](railway.md).
+
 ## Runtime topology
 
 ```

@@ -11,9 +11,13 @@ from typing import List, Optional
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.core.database_url import normalize_database_url
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore", hide_input_in_errors=True,
+    )
 
     # --- Application ---
     APP_ENV: str = "development"  # development | staging | production
@@ -23,7 +27,9 @@ class Settings(BaseSettings):
     DEBUG: bool = True
 
     # --- Database ---
-    DATABASE_URL: str = "postgresql+psycopg://fashionhub:fashionhub@localhost:5435/fashionhub"
+    DATABASE_URL: str = Field(
+        "postgresql+psycopg://fashionhub:fashionhub@localhost:5435/fashionhub", repr=False,
+    )
     DATABASE_POOL_SIZE: int = 10
     DATABASE_MAX_OVERFLOW: int = 20
     DATABASE_ECHO: bool = False
@@ -125,6 +131,11 @@ class Settings(BaseSettings):
     # to whoever referred the seller, once the seller's referred signup
     # completes their first successful paid order.
     REFERRAL_COMMISSION_SHARE: float = 0.20
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def valid_database_url(cls, value: str) -> str:
+        return normalize_database_url(value)
 
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
