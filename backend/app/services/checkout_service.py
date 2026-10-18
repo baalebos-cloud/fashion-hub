@@ -1,123 +1,118 @@
-"""
-Checkout business logic for the tailor/designer -> vendor cart flow.
-
-Key requirement from the spec: a cart may contain products from MULTIPLE
-vendors, but the buyer pays ONCE and gets ONE checkout/payment record and
-ONE invoice per vendor is still generated for that vendor's accounting, tied
-back to the same parent payment via `parent_order_id`/grouping metadata.
-
-This function is the one place inventory is authoritatively decremented,
-inside a single DB transaction with row-level locks on each Inventory row
-(acquired in a stable, sorted order to avoid deadlocks between concurrent
-checkouts touching overlapping products).
-"""
-from collections import defaultdict
-
-from sqlalchemy.orm import Session
-
-from app.core.constants import VendorOrderStatus
-from app.core.exceptions import ConflictError, ValidationAppError
+"""One vendor order per checkout, with revision-bound retries and stock holds."""
+import hashlib
+import json
+from datetime import timedelta
+from decimal import Decimal
+from sqlalchemy.exc import IntegrityError
+from app.core.config import settings
+from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.timezone import utcnow
+from app.models.address import Address
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
-from app.models.inventory import Inventory
+from app.models.location import Location
 from app.models.order import Order
 from app.models.order_item import OrderItem
+from app.models.order_timeline import OrderTimelineEntry
+from app.models.stock_reservation import StockReservation
+from app.schemas.checkout import CheckoutRequest
+from app.services.cart_service import CartService
+from app.services.stock_reservation_service import SOURCE
+from app.services.vendor_catalog_service import MAX_AMOUNT, assert_purchasable, catalog_rows, lock_inventory, price_of
 from app.utils.order_number import generate_order_number
 
 
 class CheckoutService:
-    def __init__(self, db: Session):
+    def __init__(self, db):
         self.db = db
 
-    def checkout_cart(self, *, cart_id, buyer_user_id, delivery_address_id) -> list[Order]:
-        cart = self.db.get(Cart, cart_id)
-        if not cart or cart.status != "active":
-            raise ValidationAppError("Cart is not available for checkout.")
-
-        items = self.db.query(CartItem).filter(CartItem.cart_id == cart.id).all()
-        if not items:
-            raise ValidationAppError("Cannot check out an empty cart.")
-
-        # Lock inventory rows in a stable order (by product_variant_id) to
-        # prevent deadlocks when two checkouts race on overlapping items.
-        variant_ids = sorted({str(i.product_variant_id) for i in items})
-        inventories = {
-            str(inv.product_variant_id): inv
-            for inv in self.db.query(Inventory)
-            .filter(Inventory.product_variant_id.in_(variant_ids))
-            .order_by(Inventory.product_variant_id)
-            .with_for_update()
-            .all()
-        }
-
-        # Edge case: vendor sold out while item sat in cart. Fail the WHOLE
-        # checkout with a clear, itemized error rather than partially
-        # fulfilling -- the client should let the buyer adjust quantities.
-        shortfalls = []
-        for item in items:
-            inv = inventories.get(str(item.product_variant_id))
-            if inv is None or inv.quantity_available < item.quantity:
-                shortfalls.append(
-                    {
-                        "product_variant_id": str(item.product_variant_id),
-                        "requested": item.quantity,
-                        "available": inv.quantity_available if inv else 0,
-                    }
-                )
-        if shortfalls:
-            raise ConflictError(f"Some items are no longer available in the requested quantity: {shortfalls}")
-
-        # Group line items by vendor: one Order per vendor, but all created
-        # atomically and linked by a shared `idempotency_key` prefix so the
-        # payment layer can charge them together as a single transaction.
-        items_by_vendor: dict[str, list[CartItem]] = defaultdict(list)
-        for item in items:
-            items_by_vendor[str(item.vendor_id)].append(item)
-
-        checkout_group_key = generate_order_number(prefix="CHK")
-        created_orders: list[Order] = []
-
-        for vendor_id, vendor_items in items_by_vendor.items():
-            subtotal = sum(float(i.unit_price_snapshot) * i.quantity for i in vendor_items)
-            order = Order(
-                order_number=generate_order_number(prefix="VO"),
-                order_type="vendor_order",
-                buyer_user_id=buyer_user_id,
-                seller_user_id=vendor_id,
-                status=VendorOrderStatus.CHECKOUT.value,
-                subtotal=subtotal,
-                total_amount=subtotal,
-                delivery_address_id=delivery_address_id,
-                ordered_at=utcnow(),
-                idempotency_key=f"{checkout_group_key}:{vendor_id}",
-            )
+    def checkout_cart(self, *, buyer_user_id, **payload):
+        from pydantic import ValidationError
+        try:
+            request = CheckoutRequest(**payload)
+        except ValidationError as exc:
+            raise ValidationAppError('Select a vendor, current cart revision, delivery address and idempotency key.') from exc
+        fingerprint = hashlib.sha256(json.dumps(request.model_dump(mode='json', exclude={'idempotency_key'}), sort_keys=True).encode()).hexdigest()
+        CartService(self.db).lock_buyer(buyer_user_id)
+        existing = self.db.query(Order).filter(Order.idempotency_key == request.idempotency_key).first()
+        if existing:
+            return self._replay(existing, buyer_user_id, fingerprint)
+        cart = (self.db.query(Cart).filter(Cart.id == request.cart_id, Cart.owner_user_id == buyer_user_id)
+                .with_for_update().populate_existing().first())
+        if not cart:
+            raise NotFoundError('Cart not found.')
+        if cart.status != 'active' or cart.revision != request.cart_revision:
+            raise ConflictError('The cart changed. Refresh it before checking out.')
+        address = self.db.query(Address).filter(Address.id == request.delivery_address_id, Address.user_id == buyer_user_id).first()
+        location = self.db.get(Location, address.location_id) if address else None
+        if not address or not location:
+            raise NotFoundError('Delivery address not found.')
+        if not all([address.recipient_name, address.recipient_phone, location.formatted_address,
+                    location.city, location.state_region, location.country == 'NG']):
+            raise ValidationAppError('Save a complete Nigerian delivery address before checkout.')
+        items = self.db.query(CartItem).filter(CartItem.cart_id == cart.id).order_by(CartItem.product_variant_id).all()
+        rows = catalog_rows(self.db, [i.product_variant_id for i in items], lock=True)
+        selected = [i for i in items if str(rows[str(i.product_variant_id)][2].id) == str(request.vendor_id)]
+        if not selected:
+            raise ValidationAppError('This vendor has no items in the cart.')
+        inventories = lock_inventory(self.db, [i.product_variant_id for i in selected])
+        subtotal = Decimal('0.00')
+        snapshots = []
+        seller_id = None
+        for item in selected:
+            row = rows[str(item.product_variant_id)]
+            assert_purchasable(row)
+            variant, product, vendor, seller = row
+            inv = inventories.get(str(variant.id))
+            if not inv or inv.quantity_available < item.quantity:
+                raise ConflictError('Some requested items are no longer available. Refresh the cart.')
+            price = price_of(variant)
+            subtotal += price * item.quantity
+            seller_id = seller.id
+            snapshots.append(OrderItem(reference_type='product_variant', reference_id=variant.id,
+                name_snapshot=(product.name + ' (' + variant.sku + ')')[:255], description_snapshot=product.description,
+                unit_price=price, quantity=item.quantity, line_total=price * item.quantity))
+        if subtotal <= 0 or subtotal > MAX_AMOUNT:
+            raise ValidationAppError('Order exceeds the supported total.')
+        order = Order(order_number=generate_order_number(prefix='VO'), order_type='vendor_order',
+                      buyer_user_id=buyer_user_id, seller_user_id=seller_id, status='checkout', subtotal=subtotal,
+                      total_amount=subtotal, currency='NGN', delivery_fee=0, tax_amount=0, discount_amount=0,
+                      ordered_at=utcnow(), delivery_address_id=address.id, source_cart_id=cart.id,
+                      pricing_source=SOURCE, request_fingerprint=fingerprint, idempotency_key=request.idempotency_key,
+                      reservation_expires_at=utcnow() + timedelta(minutes=settings.VENDOR_RESERVATION_TTL_MINUTES),
+                      delivery_address_snapshot=dict(recipient_name=address.recipient_name, recipient_phone=address.recipient_phone,
+                          formatted_address=location.formatted_address, city=location.city, state_region=location.state_region,
+                          country=location.country, postal_code=location.postal_code), items=snapshots)
+        try:
             self.db.add(order)
-            self.db.flush()  # get order.id before creating items
-
-            for item in vendor_items:
-                self.db.add(
-                    OrderItem(
-                        order_id=order.id,
-                        reference_type="product_variant",
-                        reference_id=item.product_variant_id,
-                        name_snapshot="Vendor material",  # resolve real product name via join in full impl
-                        unit_price=item.unit_price_snapshot,
-                        quantity=item.quantity,
-                        line_total=float(item.unit_price_snapshot) * item.quantity,
-                    )
-                )
-                # Reserve stock immediately; released back if payment fails
-                # (see payment_service failure path / a reservation-expiry job).
+            self.db.flush()
+            for item in selected:
                 inv = inventories[str(item.product_variant_id)]
                 inv.quantity_available -= item.quantity
                 inv.quantity_reserved += item.quantity
+                self.db.add(StockReservation(order_id=order.id, product_variant_id=item.product_variant_id,
+                                              quantity=item.quantity, status='active'))
+                self.db.delete(item)
+            self.db.add(OrderTimelineEntry(order_id=order.id, to_status='checkout', actor_user_id=buyer_user_id,
+                                          note='Material order created with reserved inventory.'))
+            cart.revision += 1
+            if len(selected) == len(items):
+                cart.status = 'checked_out'
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            existing = self.db.query(Order).filter(Order.idempotency_key == request.idempotency_key).first()
+            if existing:
+                return self._replay(existing, buyer_user_id, fingerprint)
+            raise
+        except Exception:
+            self.db.rollback()
+            raise
+        self.db.refresh(order)
+        return order
 
-            created_orders.append(order)
-
-        cart.status = "checked_out"
-        self.db.commit()
-        for order in created_orders:
-            self.db.refresh(order)
-
-        return created_orders
+    @staticmethod
+    def _replay(order, buyer_id, fingerprint):
+        if str(order.buyer_user_id) != str(buyer_id) or order.request_fingerprint != fingerprint or order.pricing_source != SOURCE:
+            raise ConflictError('Idempotency key is already in use for a different checkout.')
+        return order

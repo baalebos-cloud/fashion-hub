@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { productsApi } from "@/api/products.api";
 import { ProductDetails as ProductDetailsComponent } from "@/components/marketplace/ProductDetails";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
@@ -12,17 +13,22 @@ export default function ProductDetails() {
   const navigate = useNavigate();
   const [product, setProduct] = useState<VendorProduct | null>(null);
 
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    if (productId) productsApi.getById(productId).then(setProduct);
+    let active = true; setProduct(null); setError(null);
+    if (productId) productsApi.getById(productId).then((value) => { if (active) setProduct(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); });
+    return () => { active = false; };
   }, [productId]);
+  if (error) return <p role="alert">{error}</p>;
 
   if (!product) return <LoadingScreen label="Loading product…" />;
 
   return (
     <div className="mx-auto max-w-4xl px-4 py-10">
       <ProductDetailsComponent
+        key={product.id}
         product={product}
-        variants={[]}
+        variants={product.variants ?? []}
         inventory={null}
         onAddToCart={async () => {
           // Public visitors aren't authenticated as a professional yet —

@@ -12,8 +12,8 @@ import type { OrderTrackingResponse } from "@/types/tracking";
  * avoid scattering these path strings across components.
  */
 export const ordersApi = {
-  async list(): Promise<Order[]> {
-    const response = await apiClient.get<Order[]>(endpoints.orders.list);
+  async list(params: { perspective?: "buying" | "selling"; order_type?: "vendor_order" | "customer_order"; page?: number } = {}): Promise<Order[]> {
+    const response = await apiClient.get<Order[]>(endpoints.orders.list, { params });
     return response.data;
   },
 

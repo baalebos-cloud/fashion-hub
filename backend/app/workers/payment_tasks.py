@@ -63,3 +63,18 @@ def process_refund_task(self, refund_id: str):
         except ExternalProviderError as exc:
             raise self.retry(exc=exc, countdown=60)
         db.commit()
+
+
+@celery_app.task(name='app.workers.payment_tasks.expire_stock_reservations_task')
+def expire_stock_reservations_task():
+    from app.core.database import SessionLocal
+    from app.services.stock_reservation_service import StockReservationService
+    count = 0
+    # Commit one order at a time: overlapping workers use SKIP LOCKED and a
+    # failed order cannot roll back earlier releases or hold multiple orders.
+    for _ in range(200):
+        with SessionLocal() as db:
+            if not StockReservationService(db).expire_one():
+                break
+            count += 1
+    return count

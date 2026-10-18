@@ -64,6 +64,7 @@ export interface Order {
   currency: string;
   ordered_at?: string | null;
   paid_at?: string | null;
+  reservation_expires_at?: string | null;
   accepted_at?: string | null;
   production_started_at?: string | null;
   ready_at?: string | null;

@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { cartApi } from "@/api/cart.api";
 import type { CartSummary } from "@/types/cart";
 
@@ -33,7 +34,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const summary = await cartApi.getSummary();
       set({ summary });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "Could not load your cart." });
+      set({ error: getDisplayErrorMessage(err, "Could not load your cart.") });
     } finally {
       set({ isLoading: false });
     }
@@ -45,7 +46,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const summary = await cartApi.addItem(productVariantId, quantity);
       set({ summary });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "Could not add this item." });
+      set({ error: getDisplayErrorMessage(err, "Could not add this item.") });
       throw err;
     }
   },
@@ -56,7 +57,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const summary = await cartApi.updateItem(cartItemId, quantity);
       set({ summary });
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "Could not update quantity." });
+      set({ error: getDisplayErrorMessage(err, "Could not update quantity.") });
       throw err;
     }
   },
