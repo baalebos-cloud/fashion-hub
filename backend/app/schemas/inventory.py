@@ -10,6 +10,8 @@ class RestockRequest(BaseModel):
 class InventoryResponse(BaseModel):
     id: uuid.UUID
     product_variant_id: uuid.UUID
+    product_name: str
+    sku: str
     quantity_available: int
     quantity_reserved: int
 

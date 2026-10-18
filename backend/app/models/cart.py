@@ -1,12 +1,7 @@
+from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped
 from typing import Any
-"""
-A tailor/designer's shopping cart for purchasing vendor materials.
-One active cart per (professional, vendor) pair is typical, but the model
-allows a single cart to reference multiple vendors' items via cart_items;
-checkout_service groups line items by vendor to produce one or more
-vendor orders while still charging the buyer once (see checkout.py schema).
-"""
+"""One active material cart per professional; each checkout selects one vendor."""
 import uuid
 from sqlalchemy import CheckConstraint, Index, Integer, String, text
 from sqlalchemy.dialects.postgresql import UUID

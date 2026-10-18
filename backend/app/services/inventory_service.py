@@ -16,7 +16,13 @@ class InventoryService:
             VendorProduct, VendorProduct.id == ProductVariant.product_id).filter(VendorProduct.vendor_id == vendor.id)
 
     def list(self, user_id, *, offset=0, limit=20):
-        return self.owned_query(user_id).order_by(Inventory.product_variant_id).offset(offset).limit(limit).all()
+        rows = self.owned_query(user_id).add_columns(VendorProduct.name, ProductVariant.sku).order_by(Inventory.product_variant_id).offset(offset).limit(limit).all()
+        return [self.describe(inv, name, sku) for inv, name, sku in rows]
+
+    @staticmethod
+    def describe(inv, name, sku):
+        return dict(id=inv.id, product_variant_id=inv.product_variant_id, product_name=name, sku=sku,
+                    quantity_available=inv.quantity_available, quantity_reserved=inv.quantity_reserved)
 
     def restock(self, product_variant_id, *, owner_user_id, quantity_to_add):
         if type(quantity_to_add) is not int or not 1 <= quantity_to_add <= 1000000000:
@@ -28,4 +34,6 @@ class InventoryService:
             raise ConflictError('Restock exceeds the supported inventory total.')
         inventory.quantity_available += quantity_to_add
         self.db.commit()
-        return inventory
+        variant = self.db.get(ProductVariant, inventory.product_variant_id)
+        product = self.db.get(VendorProduct, variant.product_id)
+        return self.describe(inventory, product.name, variant.sku)

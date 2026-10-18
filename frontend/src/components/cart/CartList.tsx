@@ -16,7 +16,7 @@ export function CartList({ items }: { items: CartItemType[] }) {
     <div className="flex flex-col gap-6">
       {Object.entries(groups).map(([vendorId, vendorItems]) => (
         <div key={vendorId}>
-          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">Vendor {vendorId.slice(0, 8)}</div>
+          <div className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">{vendorItems[0].vendor_name}</div>
           {vendorItems.map((item) => (
             <CartItem key={item.id} item={item} />
           ))}

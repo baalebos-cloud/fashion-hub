@@ -22,7 +22,7 @@ export default function ProductDetails() {
     <div className="mx-auto max-w-4xl px-4 py-10">
       <ProductDetailsComponent
         product={product}
-        variants={[]}
+        variants={product.variants ?? []}
         inventory={null}
         onAddToCart={async () => {
           // Public visitors aren't authenticated as a professional yet —

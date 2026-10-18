@@ -28,6 +28,17 @@ def product(product_id: uuid.UUID, db: Session = Depends(get_db)):
     return VendorCatalogService(db).get(product_id)
 
 
+@router.get('/{product_id}/owned', response_model=VendorProductResponse)
+def owned(product_id: uuid.UUID, user: User = Depends(require_roles(Role.VENDOR)), db: Session = Depends(get_db)):
+    service = VendorCatalogService(db)
+    from app.models.vendor_product import VendorProduct
+    row = service.query(user.id).filter(VendorProduct.id == product_id).first()
+    if not row:
+        from app.core.exceptions import NotFoundError
+        raise NotFoundError('Product not found.')
+    return service.listing(*row)
+
+
 @router.post('', response_model=VendorProductResponse, status_code=201)
 def create(payload: VendorProductCreateRequest, user: User = Depends(require_roles(Role.VENDOR)), db: Session = Depends(get_db)):
     return VendorCatalogService(db).create(user.id, payload)

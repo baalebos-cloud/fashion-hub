@@ -6,13 +6,14 @@ import { Link } from "react-router-dom";
 import { professionalRoutes } from "@/config/routes.config";
 
 export default function Cart() {
-  const { summary } = useCart();
+  const { summary, isLoading, error } = useCart();
   const items = summary?.items ?? [];
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Your cart</h1>
-      <CartList items={items} />
+      {error && <p role="alert">{error}</p>}
+      {isLoading ? <p role="status">Loading cart…</p> : <CartList items={items} />}
       {items.length > 0 && (
         <>
           <CartSummary subtotal={summary?.subtotal ?? 0} />
