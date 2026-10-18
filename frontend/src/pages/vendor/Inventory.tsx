@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { inventoryApi } from "@/api/inventory.api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,11 +7,16 @@ import type { Inventory as InventoryRecord } from "@/types/product";
 
 function StockRow({ value, onRestocked }: { value: InventoryRecord; onRestocked: (value: InventoryRecord) => void }) {
   const [quantity, setQuantity] = useState(1);
+  const keys = useRef(new Map<number, string>());
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   async function restock() {
     setSaving(true); setError(null);
-    try { onRestocked(await inventoryApi.restock(value.product_variant_id, quantity)); }
+    if (!keys.current.has(quantity)) keys.current.set(quantity, crypto.randomUUID());
+    try {
+      onRestocked(await inventoryApi.restock(value.product_variant_id, quantity, keys.current.get(quantity)!));
+      keys.current.delete(quantity);
+    }
     catch (err) { setError(getDisplayErrorMessage(err)); }
     finally { setSaving(false); }
   }

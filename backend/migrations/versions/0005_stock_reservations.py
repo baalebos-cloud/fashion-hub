@@ -60,6 +60,18 @@ def upgrade():
         sa.CheckConstraint('quantity > 0', name='ck_reservation_quantity'),
         sa.CheckConstraint("status IN ('active','consumed','released')", name='ck_reservation_status'),
     )
+    op.create_table('inventory_restocks',
+        sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+        sa.Column('product_variant_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('product_variants.id'), nullable=False),
+        sa.Column('actor_user_id', postgresql.UUID(as_uuid=True), sa.ForeignKey('users.id'), nullable=False),
+        sa.Column('quantity', sa.Integer(), nullable=False),
+        sa.Column('idempotency_key', sa.String(128), nullable=False, unique=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.CheckConstraint('quantity > 0 AND quantity <= 1000000000', name='ck_restock_quantity'),
+    )
+    op.create_index('ix_inventory_restocks_product_variant_id', 'inventory_restocks', ['product_variant_id'])
+    op.create_index('ix_inventory_restocks_actor_user_id', 'inventory_restocks', ['actor_user_id'])
     op.create_index('ix_stock_reservations_order_id', 'stock_reservations', ['order_id'])
     op.create_index('ix_stock_reservations_product_variant_id', 'stock_reservations', ['product_variant_id'])
 
@@ -68,6 +80,9 @@ def downgrade():
     bind = op.get_bind()
     if bind.execute(sa.text('SELECT 1 FROM stock_reservations LIMIT 1')).first() or bind.execute(sa.text("SELECT 1 FROM orders WHERE pricing_source='vendor_catalog_v1' LIMIT 1")).first():
         raise RuntimeError('Stock reservation history exists; preserve it with a reviewed forward migration.')
+    if bind.execute(sa.text('SELECT 1 FROM inventory_restocks LIMIT 1')).first():
+        raise RuntimeError('Restock history exists; preserve it with a reviewed forward migration.')
+    op.drop_table('inventory_restocks')
     op.drop_table('stock_reservations')
     op.drop_index('ix_orders_active_reservation_expiry', table_name='orders')
     op.drop_column('orders', 'reservation_expires_at')

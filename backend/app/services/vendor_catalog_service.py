@@ -105,6 +105,10 @@ class VendorCatalogService:
             self.db.add(variant)
             self.db.flush()
             self.db.add(Inventory(product_variant_id=variant.id, quantity_available=payload.initial_stock, quantity_reserved=0))
+            if payload.initial_stock:
+                from app.models.inventory_restock import InventoryRestock
+                self.db.add(InventoryRestock(product_variant_id=variant.id, actor_user_id=user_id,
+                                             quantity=payload.initial_stock, idempotency_key="initial_" + product.id.hex))
             self.db.commit()
         except Exception:
             self.db.rollback()

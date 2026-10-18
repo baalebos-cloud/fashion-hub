@@ -18,4 +18,4 @@ def inventory(pagination: PaginationParams = Depends(), user: User = Depends(req
 
 @router.post('/{variant_id}/restock', response_model=InventoryResponse)
 def restock(variant_id: uuid.UUID, payload: RestockRequest, user: User = Depends(require_roles(Role.VENDOR)), db: Session = Depends(get_db)):
-    return InventoryService(db).restock(variant_id, owner_user_id=user.id, quantity_to_add=payload.quantity_to_add)
+    return InventoryService(db).restock(variant_id, owner_user_id=user.id, quantity_to_add=payload.quantity_to_add, idempotency_key=payload.idempotency_key)

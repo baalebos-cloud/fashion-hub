@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 
 class RestockRequest(BaseModel):
     model_config = {'extra': 'forbid'}
+    idempotency_key: str = Field(min_length=16, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     quantity_to_add: int = Field(..., gt=0, le=1000000000, strict=True)
 
 
