@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq5 libgeos-c1v5 proj-bin \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser
-COPY requirements.lock .
-RUN pip install --require-hashes -r requirements.lock
+COPY requirements.txt .
+RUN pip install --require-hashes -r requirements.txt
 COPY --chown=appuser:appuser . .
 USER appuser
 EXPOSE 8005
