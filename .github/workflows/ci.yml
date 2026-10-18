@@ -40,7 +40,7 @@ jobs:
       SECRET_KEY: ci-only-key-never-use-in-production
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.12'
           cache: pip
@@ -61,7 +61,7 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -77,7 +77,7 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Verify production styling in a browser
         run: npm run test:browser
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: browser-failure
@@ -87,7 +87,7 @@ jobs:
     timeout-minutes: 15
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build backend image with locked dependencies
         run: docker build --tag fashion-hub:ci backend
       - name: Verify non-root container startup and liveness
