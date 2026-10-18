@@ -15,6 +15,7 @@ describe("Vercel backend API configuration", () => {
     undefined, "", "/api/v1", "//backend.example/api/v1",
     "fashion-hub-production-2661.up.railway.app",
     "fashion-hub-production-2661.up.railway.app/api/v1",
+    "https:backend.example/api/v1", "https:/backend.example/api/v1",
     "http://backend.example/api/v1", "https://backend.example",
     "https://user:private-marker@backend.example/api/v1",
     "https://backend.example/api/v1?token=private-marker",

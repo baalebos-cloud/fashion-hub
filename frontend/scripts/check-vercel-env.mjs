@@ -7,6 +7,7 @@ let valid = false;
 try {
   const url = new URL(value);
   valid = typeof value === "string" && value === value.trim()
+    && value.toLowerCase().startsWith("https://")
     && url.protocol === "https:" && Boolean(url.hostname)
     && !url.username && !url.password && !url.search && !url.hash
     && url.pathname !== "/";
