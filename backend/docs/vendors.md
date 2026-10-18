@@ -1,32 +1,13 @@
 # Vendors
 
-`Vendor` (1:1 with `User`, role=`vendor`) sells materials (fabrics,
-buttons, zippers, threads, etc.) to tailors/designers through
-`VendorProduct` + `ProductVariant` + `Inventory`.
+A vendor business profile is distinct from its user account. Products belong to the profile; order seller IDs and payouts refer to the user account.
 
-## Product management
+`GET /vendors/me` returns the current vendor's profile or null. `POST /vendors/me` creates one unverified profile; public callers cannot set verification. Only an administrator can `POST /vendors/{profile_id}/verify`, which records an audit event. This manual decision does not implement provider KYB; administrators must complete their actual verification process before granting it.
 
-- `POST /api/v1/vendor-products` — creates a product with a default
-  variant and zero-quantity inventory row (`ProductService.create_product`).
-- Vendors add real SKUs/variants (e.g. different colors/units) and set
-  stock via `POST /api/v1/vendor-inventory` (`InventoryService.restock`).
+`POST /vendor-products` creates an owned NGN product with one generated default SKU and an inventory row. Accepts name, description, base_price, optional category_id and initial_stock (default zero). Products stay private until the vendor is verified; inactive products and inactive/non-vendor accounts are excluded from public discovery. `GET /vendor-products` and `GET /vendor-products/{id}` expose active verified listings and variant prices/available quantities, without reserved counters. Lists are paginated.
 
-## Order handling
+`GET /vendor-products/mine` and `GET /vendor-products/{id}/owned` include the vendor's private/inactive products. `PATCH /vendor-products/{id}` changes name, description and active state. Editing prices or adding custom variants is not implemented by this form/API; immutable order snapshots preserve already agreed prices.
 
-A vendor receives orders where `orders.seller_user_id == their user id`
-and `order_type = 'vendor_order'`, created via the checkout flow — see
-[checkout.md](./checkout.md). Vendor order lifecycle:
+`GET /vendor-inventory` exposes only the vendor's stock, names and SKUs. `POST /vendor-inventory/{variant_id}/restock` adds `quantity_to_add` under an inventory row lock. It never overwrites reserved quantities. Requests cannot select another vendor's profile or stock. Inventory totals are bounded at one billion units.
 
-```
-CART -> CHECKOUT -> PAYMENT_PENDING -> PAID -> CONFIRMED -> PROCESSING
-     -> READY_FOR_PICKUP -> PICKED_UP -> IN_TRANSIT -> DELIVERED
-     -> RECEIVED -> COMPLETED
-```
-
-Only the buyer (tailor/designer) may transition `DELIVERED -> RECEIVED`,
-mirroring the customer-order rule.
-
-## Verification
-
-Vendors require KYB verification before receiving the verified badge — see
-[kyc-kyb.md](./kyc-kyb.md).
+Vendors see sales via `GET /orders?perspective=selling&order_type=vendor_order`. Professionals see purchases with `perspective=buying`. Checkout/payment/expiry are implemented; fulfillment, buyer receipt, refunds and physical returns remain future work. Paid orders cannot use the unpaid cancellation route. See [checkout](checkout.md) and [the rollout runbook](../../docs/vendor-stock-reservations.md).

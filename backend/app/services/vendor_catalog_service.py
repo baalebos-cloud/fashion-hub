@@ -55,10 +55,10 @@ class VendorCatalogService:
             raise NotFoundError('Save a vendor profile before publishing products.')
         return vendor
 
-    def listing(self, product, vendor):
-        from app.models.inventory import Inventory
-        variants = (self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id)
-                    .filter(ProductVariant.product_id == product.id).order_by(ProductVariant.sku).all())
+    def listing(self, product, vendor, variants=None):
+        if variants is None:
+            variants = (self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id)
+                        .filter(ProductVariant.product_id == product.id).order_by(ProductVariant.sku).all())
         return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, name=product.name,
                     description=product.description, category_id=product.category_id, primary_image_url=product.primary_image_url,
                     base_price=float(product.base_price), currency=product.currency, is_active=product.is_active,
@@ -79,7 +79,10 @@ class VendorCatalogService:
             query = query.filter(VendorProduct.category_id == category_id)
         total = query.count()
         rows = query.order_by(VendorProduct.created_at.desc(), VendorProduct.id).offset(pagination.offset).limit(pagination.page_size).all()
-        return dict(items=[self.listing(p, v) for p, v in rows], total=total, page=pagination.page,
+        variants = {}
+        for variant, inventory in self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id).filter(ProductVariant.product_id.in_([p.id for p, _ in rows])).order_by(ProductVariant.sku):
+            variants.setdefault(variant.product_id, []).append((variant, inventory))
+        return dict(items=[self.listing(p, v, variants.get(p.id, [])) for p, v in rows], total=total, page=pagination.page,
                     page_size=pagination.page_size, total_pages=(total + pagination.page_size - 1) // pagination.page_size)
 
     def get(self, product_id):

@@ -29,7 +29,7 @@ export function VerifiedPaymentReturn({ ordersPath }: { ordersPath: string }) {
   if (reference && result?.reference === reference && result.payment.status === "successful" && !result.payment.requires_review) {
     return <PaymentSuccessComponent ordersPath={ordersPath} />;
   }
-  if (result?.payment.requires_review) return (
+  if (reference && result?.reference === reference && result.payment.requires_review) return (
     <div className="mx-auto flex max-w-sm flex-col gap-4 py-12 text-center">
       <h1>Payment received — review required</h1>
       <p role="status">Your payment was received, but the order could not be confirmed. Contact support with reference {reference}. Check your order before paying again.</p>

@@ -97,7 +97,7 @@ def test_rejected_checkout_has_no_partial_stock_or_order(db, context, change):
     with pytest.raises((ConflictError, NotFoundError, ValidationAppError)):
         CheckoutService(db).checkout_cart(**args)
     db.rollback()
-    assert db.query(StockReservation).count() == db.query(Order).count() == 0
+    assert db.query(StockReservation).count() == db.query(Order).filter_by(pricing_source='vendor_catalog_v1').count() == 0
     assert counters(db, inventory)[1] == 0
 
 
@@ -259,3 +259,102 @@ def test_http_catalog_cart_checkout_payment_and_invoice(db, make_user):
             assert client.post('/api/v1/vendor-inventory/' + variant_id + '/restock', json={'quantity_to_add': 5}).status_code == 403
     finally:
         app.dependency_overrides.clear()
+
+
+@pytest.mark.parametrize('competing', ['cancel', 'expiry', 'failure'])
+def test_settlement_racing_release_keeps_finance_and_stock_consistent(migration_database, competing):
+    engine, config = migration_database
+    migrate(engine, config, 'head')
+    with Session(engine) as db:
+        _, vendor, _, variant, inv = catalog(db, stock=1)
+        buyer = user(db, 'tailor')
+        args = request(db, buyer, vendor, variant)
+        order = CheckoutService(db).checkout_cart(**args)
+        provider = MagicMock()
+        pay = payment(db, order, provider)
+        order_id, buyer_id, inv_id, reference = order.id, buyer.id, inv.id, pay.provider_reference
+        if competing == 'expiry':
+            order.reservation_expires_at = utcnow() - timedelta(seconds=1)
+            db.commit()
+    barrier = Barrier(2)
+    def settle(status):
+        with Session(engine) as db:
+            service = PaymentService(db)
+            value = db.query(Payment).filter_by(provider_reference=reference).one()
+            result = VerifyPaymentResult(reference, status, value.amount, 'NGN', None, {})
+            barrier.wait(timeout=10)
+            service._settle(reference, result, 'race-'+status, 'payment.verified')
+    def release():
+        with Session(engine) as db:
+            barrier.wait(timeout=10)
+            if competing == 'expiry': StockReservationService(db).expire_one()
+            else:
+                from app.models.user import User
+                try: OrderService(db).cancel(order_id=order_id, actor=db.get(User, buyer_id))
+                except ConflictError: pass  # settlement won; paid stock is never returned
+    with patch('app.services.payment_service.get_payment_provider', return_value=provider), ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [pool.submit(settle, 'successful'), pool.submit(settle, 'failed') if competing == 'failure' else pool.submit(release)]
+        for future in futures: future.result(timeout=20)
+    with Session(engine) as db:
+        order, inv = db.get(Order, order_id), db.get(Inventory, inv_id)
+        work = db.query(PaymentOutbox).one()
+        assert db.query(Payment).one().status == 'successful'
+        assert inv.quantity_reserved == 0
+        if order.status == 'paid':
+            assert inv.quantity_available == 0 and work.kind == 'payment.settled'
+            assert db.query(Payout).count() == 1
+            assert db.query(StockReservation).one().status == 'consumed'
+        else:
+            assert order.status == 'cancelled' and inv.quantity_available == 1 and work.kind == 'payment.review'
+            assert db.query(Payout).count() == 0
+            assert db.query(StockReservation).one().status == 'released'
+
+
+def test_cart_mutation_and_checkout_serialize_the_revision(migration_database):
+    engine, config = migration_database
+    migrate(engine, config, 'head')
+    with Session(engine) as db:
+        _, vendor, _, variant, inv = catalog(db, stock=3)
+        buyer = user(db, 'tailor')
+        args = request(db, buyer, vendor, variant)
+        item_id = db.query(CartItem).one().id
+        inv_id = inv.id
+    barrier = Barrier(2)
+    def checkout():
+        with Session(engine) as db:
+            barrier.wait(timeout=10)
+            try: return CheckoutService(db).checkout_cart(**args).id
+            except ConflictError: return None
+    def mutate():
+        with Session(engine) as db:
+            barrier.wait(timeout=10)
+            try: CartService(db).update_quantity(owner_user_id=args['buyer_user_id'], cart_item_id=item_id, quantity=2)
+            except NotFoundError: pass  # checkout consumed the original line
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        a, b = pool.submit(checkout), pool.submit(mutate)
+        order_id = a.result(timeout=20)
+        b.result(timeout=20)
+    with Session(engine) as db:
+        inv = db.get(Inventory, inv_id)
+        if order_id:
+            assert (inv.quantity_available, inv.quantity_reserved) == (2, 1)
+            assert db.query(Order).one().items[0].quantity == 1
+        else:
+            assert (inv.quantity_available, inv.quantity_reserved) == (3, 0)
+            assert db.query(CartItem).one().quantity == 2
+
+
+def test_restock_is_owned_additive_and_preserves_holds(db, context, make_user):
+    from app.services.inventory_service import InventoryService
+    from app.models.vendor import Vendor
+    args, _, _, inv = context
+    order = CheckoutService(db).checkout_cart(**args)
+    service = InventoryService(db)
+    with pytest.raises(NotFoundError):
+        service.restock(inv.product_variant_id, owner_user_id=make_user(role='vendor').id, quantity_to_add=3)
+    owner = db.get(Vendor, args['vendor_id']).user_id
+    result = service.restock(inv.product_variant_id, owner_user_id=owner, quantity_to_add=3)
+    assert (result['quantity_available'], result['quantity_reserved']) == (11, 2)
+    assert result['product_name'] == 'Navy cotton'
+    with pytest.raises(ConflictError):
+        service.restock(inv.product_variant_id, owner_user_id=owner, quantity_to_add=1000000000)

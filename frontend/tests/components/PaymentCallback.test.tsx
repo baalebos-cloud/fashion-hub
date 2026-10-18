@@ -40,6 +40,13 @@ describe("payment callback", () => {
     await screen.findByText("Payment successful");
     expect(verify).toHaveBeenCalledTimes(2);
   });
+  it("shows a received payment needing review without claiming a confirmed order", async () => {
+    verify.mockResolvedValue({ ...payment("successful"), requires_review: true });
+    open("?reference=saved-reference");
+    await screen.findByText("Payment received — review required");
+    expect(screen.queryByText("Payment successful")).toBeNull();
+    expect(screen.getByText(/Contact support with reference/)).toBeTruthy();
+  });
   it("offers a retry after a verification error", async () => {
     verify.mockRejectedValueOnce(new Error("Provider unavailable")).mockResolvedValueOnce(payment("failed"));
     open("?trxref=saved-reference");
