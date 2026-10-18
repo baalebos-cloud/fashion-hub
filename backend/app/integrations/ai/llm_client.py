@@ -37,19 +37,20 @@ class LLMClient:
         except ImportError as exc:
             raise ExternalProviderError("The 'anthropic' package is not installed.") from exc
 
-        client = anthropic.Anthropic(api_key=self.api_key)
         system_messages = [m.content for m in messages if m.role == "system"]
         conversation = [{"role": m.role, "content": m.content} for m in messages if m.role != "system"]
 
         try:
-            response = client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system="\n".join(system_messages) if system_messages else None,
-                messages=conversation,
-            )
+            # Omit the optional system field when absent: JSON null is not
+            # a valid system prompt. The context manager closes the SDK's
+            # HTTP transport on both successful and failed requests.
+            request = dict(model=self.model, max_tokens=max_tokens, messages=conversation)
+            if system_messages:
+                request["system"] = "\n".join(system_messages)
+            with anthropic.Anthropic(api_key=self.api_key) as client:
+                response = client.messages.create(**request)
         except Exception as exc:  # noqa: BLE001 - provider SDK exception types vary
-            raise ExternalProviderError(f"Anthropic completion failed: {exc}") from exc
+            raise ExternalProviderError("AI provider request failed. Please try again.") from exc
 
         text = "".join(block.text for block in response.content if getattr(block, "type", None) == "text")
         return ChatCompletionResult(content=text, raw_response=response.model_dump())
