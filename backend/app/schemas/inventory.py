@@ -3,7 +3,8 @@ from pydantic import BaseModel, Field
 
 
 class RestockRequest(BaseModel):
-    quantity_to_add: int = Field(..., gt=0)
+    model_config = {'extra': 'forbid'}
+    quantity_to_add: int = Field(..., gt=0, le=1000000000, strict=True)
 
 
 class InventoryResponse(BaseModel):

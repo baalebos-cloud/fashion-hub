@@ -43,7 +43,10 @@ def initialize_payment(
 def verify_payment(provider_reference: str, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     service = PaymentService(db)
     payment = service.verify_and_confirm(provider_reference, buyer_user_id=current_user.id)
-    return payment
+    from app.models.payment_outbox import PaymentOutbox
+    result = PaymentResponse.model_validate(payment)
+    result.requires_review = db.query(PaymentOutbox.id).filter_by(payment_id=payment.id, kind='payment.review').first() is not None
+    return result
 
 
 @router.get("/payouts", response_model=list[dict])

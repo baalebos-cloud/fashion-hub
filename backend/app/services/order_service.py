@@ -81,6 +81,8 @@ class OrderService:
         if not order:
             raise NotFoundError("Order not found.")
 
+        if order.order_type == 'vendor_order':
+            raise ConflictError('Material order fulfillment requires the vendor fulfillment workflow.')
         current_status = CustomerOrderStatus(order.status)
         valid_next = CUSTOMER_ORDER_TRANSITIONS.get(current_status, [])
         if target_status not in valid_next:
@@ -177,6 +179,19 @@ class OrderService:
         if not order:
             raise NotFoundError("Order not found.")
 
+        if order.order_type == 'vendor_order':
+            if actor.role != 'admin' and str(actor.id) not in {str(order.buyer_user_id), str(order.seller_user_id)}:
+                raise ForbiddenError('You do not have permission to cancel this material order.')
+            if order.status == 'cancelled':
+                return order
+            from app.services.stock_reservation_service import StockReservationService
+            try:
+                StockReservationService(self.db).cancel_unpaid(order, note=reason or 'Unpaid material order cancelled.', actor_user_id=actor.id)
+                self.db.commit()
+            except Exception:
+                self.db.rollback()
+                raise
+            return order
         current_status = CustomerOrderStatus(order.status)
         if current_status in (
             CustomerOrderStatus.SHIPPED,

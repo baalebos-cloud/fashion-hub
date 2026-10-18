@@ -13,7 +13,7 @@ from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 class VendorProduct(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "vendor_products"
 
-    vendor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    vendor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("vendors.id"), nullable=False, index=True)
     category_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, index=True)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)

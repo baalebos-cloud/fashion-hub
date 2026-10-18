@@ -23,5 +23,6 @@ class PaymentResponse(BaseModel):
     currency: str
     status: str
     paid_at: Optional[datetime] = None
+    requires_review: bool = False
 
     model_config = {"from_attributes": True}
