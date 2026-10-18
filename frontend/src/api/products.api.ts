@@ -22,11 +22,11 @@ export const productsApi = {
   },
 
   async mine(page = 1): Promise<PaginatedResponse<VendorProduct> & { total_pages: number }> {
-    return (await apiClient.get<PaginatedResponse<VendorProduct> & { total_pages: number }>(`${endpoints.vendorProducts.list}/mine`, { params: { page } })).data;
+    return (await apiClient.get<PaginatedResponse<VendorProduct> & { total_pages: number }>(endpoints.vendorProducts.mine, { params: { page } })).data;
   },
 
   async owned(id: string): Promise<VendorProduct> {
-    return (await apiClient.get<VendorProduct>(`${endpoints.vendorProducts.list}/${id}/owned`)).data;
+    return (await apiClient.get<VendorProduct>(endpoints.vendorProducts.owned(id))).data;
   },
 
   async getById(id: string): Promise<VendorProduct> {

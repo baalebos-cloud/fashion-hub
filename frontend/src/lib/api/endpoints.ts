@@ -38,11 +38,19 @@ export const endpoints = {
   vendors: {
     list: "/vendors",
     details: (id: string) => `/vendors/${id}`,
+    mine: "/vendors/me",
   },
 
   vendorProducts: {
     list: "/vendor-products",
     details: (id: string) => `/vendor-products/${id}`,
+    mine: "/vendor-products/mine",
+    owned: (id: string) => `/vendor-products/${id}/owned`,
+  },
+
+  inventory: {
+    list: "/vendor-inventory",
+    restock: (id: string) => `/vendor-inventory/${id}/restock`,
   },
 
   categories: {
@@ -50,7 +58,7 @@ export const endpoints = {
   },
 
   cart: {
-    summary: "/carts",
+    summary: "/carts/summary",
     items: "/carts/items",
     item: (id: string) => `/carts/items/${id}`,
   },

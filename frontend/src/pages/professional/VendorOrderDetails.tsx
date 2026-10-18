@@ -10,6 +10,7 @@ import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { professionalRoutes } from "@/config/routes.config";
 import { formatCurrency } from "@/lib/formatters/currency";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 
 export default function VendorOrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -17,6 +18,7 @@ export default function VendorOrderDetails() {
   const [hasConsented, setHasConsented] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [isCancelling, setIsCancelling] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -27,9 +29,9 @@ export default function VendorOrderDetails() {
   const unpaid = order.status === "checkout" || order.status === "payment_pending";
   const expired = !order.reservation_expires_at || Date.parse(order.reservation_expires_at) <= now;
   async function cancelOrder() {
-    setIsCancelling(true);
+    setIsCancelling(true); setActionError(null);
     try { await cancel("Cancelled by material buyer."); }
-    catch { /* The order store displays the error. */ }
+    catch (err) { setActionError(getDisplayErrorMessage(err)); }
     finally { setIsCancelling(false); }
   }
   return (
@@ -47,6 +49,7 @@ export default function VendorOrderDetails() {
         <Button variant="secondary" onClick={() => { void cancelOrder(); }} isLoading={isCancelling}>Cancel unpaid order</Button>
       </>}
       {error && <p role="alert">{error}</p>}
+      {actionError && <p role="alert">{actionError}</p>}
       <OrderTimeline entries={timeline} />
       <Link to={professionalRoutes.vendorOrders} className="underline">View material orders</Link>
       <Link to={professionalRoutes.vendorMarketplace} className="underline">Continue shopping</Link>

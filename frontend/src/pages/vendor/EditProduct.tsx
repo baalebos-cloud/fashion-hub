@@ -17,7 +17,9 @@ export default function EditProduct() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (productId) productsApi.owned(productId).then(setProduct).catch((err) => setError(getDisplayErrorMessage(err)));
+    let active = true; setProduct(null); setError(null);
+    if (productId) productsApi.owned(productId).then((value) => { if (active) setProduct(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); });
+    return () => { active = false; };
   }, [productId]);
 
   if (!product) return error ? <p role="alert">{error}</p> : <LoadingScreen label="Loading product…" />;
