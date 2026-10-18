@@ -90,14 +90,34 @@ jobs:
       - uses: actions/checkout@v7
       - name: Build backend image with locked dependencies
         run: docker build --tag fashion-hub:ci backend
-      - name: Verify non-root container startup and liveness
+      - name: Verify non-root startup with a provider-style database URL
         run: |
-          docker run --detach --name fashion-hub-ci --publish 127.0.0.1:8005:8005 fashion-hub:ci
+          docker run --detach --name fashion-hub-ci --publish 127.0.0.1:8005:8005 \
+            --env 'DATABASE_URL=postgresql://ci:ci@db.invalid:5432/fashionhub?sslmode=require' fashion-hub:ci
           test "$(docker exec fashion-hub-ci id -u)" = "10001"
           timeout 45 bash -c 'until curl --fail --silent http://127.0.0.1:8005/health/live; do sleep 1; done'
+      - name: Verify malformed database configuration fails with redacted logs
+        run: |
+          if timeout 20 docker run --name fashion-hub-invalid-db \
+            --env 'DATABASE_URL=postgresql://ci:boot-password-marker@db.invalid:/fashionhub' \
+            fashion-hub:ci > /tmp/fashion-hub-invalid-db.log 2>&1; then
+            echo 'Expected malformed database configuration to stop startup.'
+            exit 1
+          else
+            status=$?
+            test "$status" -ne 124
+          fi
+          python - <<'PY'
+          from pathlib import Path
+
+          output = Path('/tmp/fashion-hub-invalid-db.log').read_text()
+          assert 'DATABASE_URL' in output and 'numeric port' in output
+          assert 'boot-password-marker' not in output and 'db.invalid' not in output
+          assert 'invalid literal for int()' not in output
+          PY
       - name: Container logs
         if: failure()
         run: docker logs fashion-hub-ci
-      - name: Stop test container
+      - name: Stop test containers
         if: always()
-        run: docker rm --force fashion-hub-ci || true
+        run: docker rm --force fashion-hub-ci fashion-hub-invalid-db || true
