@@ -1,9 +1,16 @@
-/* 1. Imports sit at the absolute top layer */
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap");
+@import "tailwindcss";
 @import "./styles/variables.css";
 @import "./styles/globals.css";
 @import "./styles/responsive.css";
 
-/* 2. Tailwind declarations sit directly below them */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Keep the existing Workroom palette, fonts and card radius. */
+@config "../tailwind.config.js";
+
+/* Preserve the Tailwind 3 utilities still used by saved-address and UI cards. */
+@theme {
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+@utility rounded {
+  border-radius: 0.25rem;
+}

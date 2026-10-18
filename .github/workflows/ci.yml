@@ -44,8 +44,8 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: pip install -r requirements.txt
+          cache-dependency-path: backend/requirements.lock
+      - run: pip install --require-hashes -r requirements.lock
       - name: Compile backend
         run: python -m compileall -q app
       - name: Verify application imports
@@ -73,3 +73,31 @@ jobs:
         if: ${{ !cancelled() }}
       - run: npm run build
         if: ${{ !cancelled() }}
+      - name: Install browser for theme regression checks
+        run: npx playwright install --with-deps chromium
+      - name: Verify production styling in a browser
+        run: npm run test:browser
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-failure
+          path: frontend/test-results
+          retention-days: 7
+  container:
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image with locked dependencies
+        run: docker build --tag fashion-hub:ci backend
+      - name: Verify non-root container startup and liveness
+        run: |
+          docker run --detach --name fashion-hub-ci --publish 127.0.0.1:8005:8005 fashion-hub:ci
+          test "$(docker exec fashion-hub-ci id -u)" = "10001"
+          timeout 45 bash -c 'until curl --fail --silent http://127.0.0.1:8005/health/live; do sleep 1; done'
+      - name: Container logs
+        if: failure()
+        run: docker logs fashion-hub-ci
+      - name: Stop test container
+        if: always()
+        run: docker rm --force fashion-hub-ci || true

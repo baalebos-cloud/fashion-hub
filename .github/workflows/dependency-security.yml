@@ -25,6 +25,7 @@ jobs:
       - name: Inspect baseline and generate candidate lockfile
         run: |
           npm audit --json > "$RUNNER_TEMP/npm-before.json" || true
+          npm install --package-lock-only --ignore-scripts
           npm audit fix --package-lock-only --ignore-scripts || true
           npm audit --json > "$RUNNER_TEMP/npm-after.json" || true
           python - <<'PY'
@@ -49,20 +50,7 @@ jobs:
         with:
           python-version: '3.12'
           cache: pip
-          cache-dependency-path: backend/requirements.txt
-      - run: python -m pip install -r requirements.txt pip-audit==2.10.1 pip-tools==7.6.2
-      - name: Resolve a reproducible backend environment
-        run: |
-          CUSTOM_COMPILE_COMMAND="python -m piptools compile --generate-hashes --output-file=requirements.lock requirements.txt" pip-compile --quiet --generate-hashes --no-emit-index-url --no-emit-trusted-host --output-file=requirements.lock requirements.txt
-          pip-audit --require-hashes -r requirements.lock --format=json --output="$RUNNER_TEMP/backend-audit.json" --progress-spinner=off || true
-          python - <<'PYTHON'
-          import base64, json, os, pathlib, zlib
-          report = json.loads(pathlib.Path(os.environ['RUNNER_TEMP'], 'backend-audit.json').read_text())
-          for dependency in report['dependencies']:
-              if dependency.get('vulns'):
-                  print('PYTHON_AUDIT', json.dumps(dependency))
-          files = {'requirements.lock': pathlib.Path('requirements.lock').read_text()}
-          print('CANDIDATE_BACKEND_ZLIB_BASE64=' + base64.b64encode(zlib.compress(json.dumps(files).encode())).decode())
-          PYTHON
-      - name: Dependencies must be remediated before review
-        run: pip-audit --require-hashes -r requirements.lock --progress-spinner=off
+          cache-dependency-path: backend/requirements.lock
+      - run: python -m pip install pip-audit==2.10.1
+      - name: Audit the complete locked backend environment
+        run: pip-audit --strict --require-hashes -r requirements.lock --progress-spinner=off

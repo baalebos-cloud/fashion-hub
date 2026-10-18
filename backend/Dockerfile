@@ -7,12 +7,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     WEB_CONCURRENCY=2
 WORKDIR /app
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq5 libgeos-c1v5 proj-bin libpango-1.0-0 libpangocairo-1.0-0 \
-    libcairo2 libgdk-pixbuf-2.0-0 libffi8 shared-mime-info \
+    libpq5 libgeos-c1v5 proj-bin \
     && rm -rf /var/lib/apt/lists/* \
     && useradd --create-home --uid 10001 appuser
-COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY requirements.lock .
+RUN pip install --require-hashes -r requirements.lock
 COPY --chown=appuser:appuser . .
 USER appuser
 EXPOSE 8005
