@@ -1,4 +1,6 @@
-import { useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { deliveryRoutes } from "@/config/routes.config";
 import { useDelivery } from "@/hooks/use-delivery";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
@@ -6,6 +8,7 @@ import { formatCurrency } from "@/lib/formatters/currency";
 
 export default function DeliveryDetails() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
+  const navigate = useNavigate();
   const { delivery, isLoading, error } = useDelivery(deliveryId);
 
   if (error) return <p role="alert" className="text-thread">{error}</p>;
@@ -18,6 +21,16 @@ export default function DeliveryDetails() {
         <DeliveryStatusBadge status={delivery.status} />
       </div>
       <div className="text-lg font-medium text-ink">{formatCurrency(delivery.delivery_fee)}</div>
+      {delivery.status === "assigned" && (
+        <Button className="self-start" onClick={() => navigate(deliveryRoutes.pickup(delivery.id))}>
+          Confirm pickup
+        </Button>
+      )}
+      {["in_transit", "picked_up", "out_for_delivery"].includes(delivery.status) && (
+        <Button className="self-start" onClick={() => navigate(deliveryRoutes.dropoff(delivery.id))}>
+          Confirm drop-off
+        </Button>
+      )}
     </div>
   );
 }
