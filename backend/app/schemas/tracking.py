@@ -1,12 +1,12 @@
 import uuid
 from typing import Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GPSPingRequest(BaseModel):
-    latitude: float
-    longitude: float
-    eta_minutes: Optional[int] = None
+    latitude: float = Field(ge=-90, le=90, allow_inf_nan=False, strict=True)
+    longitude: float = Field(ge=-180, le=180, allow_inf_nan=False, strict=True)
+    eta_minutes: Optional[int] = Field(None, ge=0, le=1440, strict=True)
 
 
 class TrackingResponse(BaseModel):

@@ -10,15 +10,17 @@ class TrackingService:
     def __init__(self, db: Session):
         self.db = db
 
-    def record_gps_ping(self, delivery_id, *, latitude: float, longitude: float, eta_minutes: int | None = None):
+    def record_gps_ping(self, delivery_id, *, latitude: float, longitude: float, eta_minutes: int | None = None,
+                        delivery_status: str = "in_transit"):
         from app.models.delivery_tracking import DeliveryTracking
         from app.models.tracking_event import TrackingEvent
 
         tracking = self.db.query(DeliveryTracking).filter(DeliveryTracking.delivery_id == delivery_id).first()
         if not tracking:
-            tracking = DeliveryTracking(delivery_id=delivery_id, current_status="in_transit")
+            tracking = DeliveryTracking(delivery_id=delivery_id, current_status=delivery_status)
             self.db.add(tracking)
 
+        tracking.current_status = delivery_status
         tracking.current_latitude = latitude
         tracking.current_longitude = longitude
         tracking.eta_minutes = eta_minutes
