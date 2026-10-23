@@ -13,7 +13,7 @@ echo "==> Building images"
 docker compose -f docker-compose.yml -f deployment/docker/docker-compose.prod.yml build
 
 echo "==> Running database migrations"
-docker compose run --rm api alembic upgrade head
+docker compose -f docker-compose.yml -f deployment/docker/docker-compose.prod.yml run --rm api alembic upgrade head
 
 echo "==> Restarting services"
 docker compose -f docker-compose.yml -f deployment/docker/docker-compose.prod.yml up -d

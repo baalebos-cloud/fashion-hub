@@ -14,15 +14,22 @@ export default function FindProfessionals() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
+    let active = true;
+    setError("");
     setIsLoading(true);
     professionalsApi
       .list({ query, professionalType: filters.professionalType, radiusKm: filters.radiusKm })
       .then((response) => {
+        if (!active) return;
         setProfessionals(response.items);
         setTotal(response.total);
       })
-      .finally(() => setIsLoading(false));
+      .catch(() => { if (active) setError("Could not load professionals. Please try again."); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
   }, [query, filters]);
 
   return (
@@ -32,6 +39,7 @@ export default function FindProfessionals() {
         <ProfessionalSearch value={query} onChange={setQuery} />
         <ProfessionalFilters value={filters} onChange={setFilters} />
       </div>
+      {error && <p role="alert">{error}</p>}
       <ProfessionalGrid
         professionals={professionals}
         total={total}

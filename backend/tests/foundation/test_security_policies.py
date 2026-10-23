@@ -49,6 +49,7 @@ class DeploymentSettingsTests(unittest.TestCase):
         values = dict(_env_file=None, APP_ENV="production", DEBUG=False,
                       SECRET_KEY="x" * 48, DATABASE_ECHO=False,
                       CORS_ALLOWED_ORIGINS=["https://fashion.example"],
+                      FRONTEND_URL="https://fashion.example",
                       RATE_LIMIT_STORAGE_URI="redis://localhost:6379/3")
         values.update(overrides)
         return Settings(**values)
@@ -60,7 +61,8 @@ class DeploymentSettingsTests(unittest.TestCase):
         for overrides in [dict(SECRET_KEY="change-me-in-env"), dict(DEBUG=True),
                           dict(DATABASE_ECHO=True), dict(CORS_ALLOWED_ORIGINS=["*"]),
                           dict(CORS_ALLOWED_ORIGINS=["http://fashion.example"]),
-                          dict(CORS_ALLOWED_ORIGINS=[]), dict(RATE_LIMIT_STORAGE_URI="memory://")]:
+                          dict(CORS_ALLOWED_ORIGINS=[]), dict(FRONTEND_URL="http://fashion.example"),
+                          dict(RATE_LIMIT_STORAGE_URI="memory://")]:
             with self.subTest(overrides=overrides), self.assertRaises(ValidationError):
                 self.production(**overrides)
 

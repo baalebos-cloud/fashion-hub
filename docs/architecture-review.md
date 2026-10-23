@@ -12,7 +12,7 @@ The application is still before a live-money launch. Shipping/tax pricing, durab
 
 The project is a modular application scaffold with some working marketplace services. Its existing stack is suitable for an initial production marketplace. The immediate constraint is incomplete and unsafe business flows, rather than a need for more infrastructure. No traffic target, country rollout, production database state, or operating budget has been confirmed; capacity numbers below are proposed acceptance targets, not measured guarantees.
 
-The repository contains a React 18/TypeScript/Vite SPA using Axios and Zustand; a FastAPI API grouped by domain; SQLAlchemy repositories and PostgreSQL/PostGIS models; Redis and Celery workers; payment, identity, mapping, storage, and notification adapters; and Docker/Nginx deployment assets. Thirty-five API modules contain scaffold/placeholder declarations. Search, nearby dispatch, and invoice PDF rendering raise `NotImplementedError`. Several API and end-to-end tests are skipped or placeholders.
+The repository contains a React 19/TypeScript/Vite SPA using Axios and Zustand; a FastAPI API grouped by domain; SQLAlchemy repositories and PostgreSQL/PostGIS models; Redis and Celery workers; payment, identity, mapping, storage, and notification adapters; and Docker/Nginx deployment assets. Thirty-five API modules contain scaffold/placeholder declarations. Search, nearby dispatch, and invoice PDF rendering raise `NotImplementedError`. Several API and end-to-end tests are skipped or placeholders.
 
 ## Recommended architecture
 

@@ -21,6 +21,7 @@ interface OrderState {
   ship: (id: string) => Promise<void>;
   markReceived: (id: string) => Promise<void>;
   cancel: (id: string, note?: string) => Promise<void>;
+  vendorFulfillment: (id: string, target: "confirmed" | "processing" | "ready_for_pickup") => Promise<void>;
 }
 
 export const useOrderStore = create<OrderState>((set) => ({
@@ -69,4 +70,9 @@ export const useOrderStore = create<OrderState>((set) => ({
   ship: async (id) => set({ currentOrder: await ordersApi.ship(id) }),
   markReceived: async (id) => set({ currentOrder: await ordersApi.markReceived(id) }),
   cancel: async (id, note) => set({ currentOrder: await ordersApi.cancel(id, note) }),
+  vendorFulfillment: async (id, target) => {
+    const currentOrder = await ordersApi.vendorFulfillment(id, target);
+    const timeline = await ordersApi.getTimeline(id);
+    set({ currentOrder, timeline });
+  },
 }));

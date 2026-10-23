@@ -48,7 +48,7 @@ def test_successful_legacy_login_upgrades_password_and_retains_token_flow(db, ma
     assert user.hashed_password.startswith('$argon2id$')
     assert verify_password(password, user.hashed_password)
     assert decode_token(result['access_token'], expected_type='access')['sub'] == str(user.id)
-    assert decode_token(service.refresh_access_token(result['refresh_token']), expected_type='access')['sub'] == str(user.id)
+    assert decode_token(service.refresh_access_token(result['refresh_token'])['access_token'], expected_type='access')['sub'] == str(user.id)
 
 
 def test_failed_or_inactive_legacy_login_does_not_replace_hash(db, make_user):

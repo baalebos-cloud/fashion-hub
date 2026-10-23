@@ -3,6 +3,8 @@ import { useOrder } from "@/hooks/use-order";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { MarkReceivedButton } from "@/components/orders/MarkReceivedButton";
+import { ReviewForm } from "@/components/reviews/ReviewForm";
+import { ordersApi } from "@/api/orders.api";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { formatCurrency } from "@/lib/formatters/currency";
@@ -35,6 +37,14 @@ export default function OrderDetails() {
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
+      {order.order_type === "customer_order" && order.status === "completed" && (
+        <section>
+          <h2 className="mb-3 text-sm font-medium text-ink-soft">Review your order</h2>
+          <ReviewForm onSubmit={async (score, comment) => {
+            await ordersApi.submitReview(order.id, score, comment);
+          }} />
+        </section>
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Timeline</h2>

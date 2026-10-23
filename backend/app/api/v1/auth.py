@@ -55,11 +55,9 @@ def log_in(payload: LogInRequest, request: Request, db: Session = Depends(get_db
     return TokenResponse(access_token=result["access_token"], refresh_token=result["refresh_token"])
 
 
-@router.post("/refresh", response_model=dict)
+@router.post("/refresh", response_model=TokenResponse)
 def refresh_token(payload: RefreshRequest, db: Session = Depends(get_db)):
-    service = AuthService(db)
-    access_token = service.refresh_access_token(payload.refresh_token)
-    return {"access_token": access_token, "token_type": "bearer"}
+    return AuthService(db).refresh_access_token(payload.refresh_token)
 
 
 @router.post("/logout", status_code=204)

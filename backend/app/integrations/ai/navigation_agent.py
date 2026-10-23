@@ -11,33 +11,33 @@ from app.integrations.ai.prompts import NAVIGATION_ASSISTANT_SYSTEM_PROMPT
 # navigation instructions.
 ROLE_APP_MAP = {
     "customer": {
-        "Find a Tailor": "/discover/professionals",
-        "Orders": "/orders",
-        "Track Delivery": "/orders/:id/tracking",
-        "Invoices": "/orders/:id/invoice",
-        "Measurements": "/profile/measurements",
-        "Favorites": "/favorites",
+        "Find a Tailor": "/app/customer/find",
+        "Orders": "/app/customer/orders",
+        "Track Delivery": "/app/customer/orders/:id/track",
+        "Invoices": "/app/customer/invoices",
+        "Measurements": "/app/customer/measurements",
+        "Favorites": "/app/customer/favorites",
     },
     "tailor": {
-        "Incoming Orders": "/professional/orders",
-        "Vendor Marketplace": "/vendor-marketplace",
-        "Cart": "/vendor-marketplace/cart",
-        "Portfolio": "/professional/portfolio",
-        "KYC/KYB": "/professional/verification",
+        "Incoming Orders": "/app/professional/orders",
+        "Vendor Marketplace": "/app/professional/vendor-marketplace",
+        "Cart": "/app/professional/cart",
+        "Portfolio": "/app/professional/portfolio",
+        "KYC/KYB": "/app/professional/verification",
     },
     "designer": {
-        "Incoming Orders": "/professional/orders",
-        "Portfolio": "/professional/portfolio",
-        "KYC/KYB": "/professional/verification",
+        "Incoming Orders": "/app/professional/orders",
+        "Portfolio": "/app/professional/portfolio",
+        "KYC/KYB": "/app/professional/verification",
     },
     "vendor": {
-        "Products": "/vendor/products",
-        "Orders": "/vendor/orders",
-        "Inventory": "/vendor/inventory",
+        "Products": "/app/vendor/products",
+        "Orders": "/app/vendor/orders",
+        "Inventory": "/app/vendor/inventory",
     },
     "delivery_partner": {
-        "Delivery Requests": "/delivery/requests",
-        "Active Deliveries": "/delivery/active",
+        "Delivery Requests": "/app/delivery/requests",
+        "Active Deliveries": "/app/delivery/active",
     },
 }
 

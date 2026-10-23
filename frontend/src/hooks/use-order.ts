@@ -26,5 +26,7 @@ export function useOrder(orderId: string | undefined) {
     ship: () => orderId && store.ship(orderId),
     markReceived: () => orderId && store.markReceived(orderId),
     cancel: (note?: string) => orderId && store.cancel(orderId, note),
+    vendorFulfillment: (status: "confirmed" | "processing" | "ready_for_pickup") =>
+      orderId ? store.vendorFulfillment(orderId, status) : Promise.reject(new Error("Order ID is missing.")),
   };
 }

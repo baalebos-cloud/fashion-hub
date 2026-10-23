@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"  # development | staging | production
     APP_NAME: str = "Fashion Hub"
     APP_URL: str = "http://localhost:8005"
+    FRONTEND_URL: str = "http://localhost:5173"
     API_PREFIX: str = "/api/v1"
     DEBUG: bool = True
 
@@ -77,6 +78,7 @@ class Settings(BaseSettings):
     # --- KYC / KYB ---
     KYC_PROVIDER: str = "manual"
     KYC_API_KEY: Optional[str] = None
+    IDENTITY_ENCRYPTION_KEY: Optional[str] = Field(None, repr=False)
 
     # --- AI Assistant ---
     AI_PROVIDER: str = "anthropic"
@@ -158,6 +160,8 @@ class Settings(BaseSettings):
                 raise ValueError("Set a randomly generated SECRET_KEY of at least 32 characters")
             if self.DEBUG or self.DATABASE_ECHO:
                 raise ValueError("Disable DEBUG and DATABASE_ECHO in staging/production")
+            if not self.FRONTEND_URL.startswith("https://"):
+                raise ValueError("Configure an HTTPS FRONTEND_URL for authentication email links")
             if not self.CORS_ALLOWED_ORIGINS or any(
                 origin == "*" or not origin.startswith("https://")
                 for origin in self.CORS_ALLOWED_ORIGINS

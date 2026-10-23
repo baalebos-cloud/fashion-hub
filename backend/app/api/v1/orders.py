@@ -39,6 +39,10 @@ from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
 from app.schemas.order import CreateCustomerOrderRequest, OrderResponse, OrderTransitionRequest
+from app.schemas.review import CreateReviewRequest, ReviewResponse
+from app.services.review_service import ReviewService
+from app.services.vendor_fulfillment_service import VendorFulfillmentService
+from pydantic import BaseModel, Field
 from app.services.order_service import OrderService
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
@@ -156,9 +160,8 @@ def get_order_tracking(order_id: uuid.UUID, current_user: User = Depends(get_cur
         raise NotFoundError("Order not found.")
     _assert_can_view_order(order, current_user)
 
-    # TODO: from app.services.tracking_service import TrackingService
-    # return TrackingService(db).get_tracking_for_order(order_id)
-    return {"order_id": str(order_id), "status": order.status, "tracking": None, "note": "tracking_service not yet wired"}
+    from app.services.tracking_service import TrackingService
+    return TrackingService(db).get_order_tracking_response(order)
 
 
 @router.get("/{order_id}/weather")
@@ -261,33 +264,39 @@ def get_order_timeline(order_id: uuid.UUID, current_user: User = Depends(get_cur
     ]
 
 
-@router.post("/{order_id}/review", status_code=201)
+@router.post("/{order_id}/review", response_model=ReviewResponse, status_code=201)
 def review_order(
     order_id: uuid.UUID,
-    payload: OrderTransitionRequest,
-    current_user: User = Depends(require_roles(Role.CUSTOMER)),
+    payload: CreateReviewRequest,
+    current_user: User = Depends(require_roles(Role.CUSTOMER, Role.TAILOR, Role.DESIGNER)),
     db: Session = Depends(get_db),
 ):
-    """
-    POST /api/v1/orders/{order_id}/review
-
-    Business rule: only allowed once order.status is RECEIVED or COMPLETED
-    (enforced in review_service, not here). `note` is reused as the review
-    comment for this scaffold endpoint -- a full implementation would use a
-    dedicated ReviewCreateRequest schema with a required numeric rating.
-    """
+    """A review is saved only for a completed transaction owned by the buyer."""
     order = OrderRepository(db).get_by_id(order_id)
     if not order:
         raise NotFoundError("Order not found.")
-    if str(order.buyer_user_id) != str(current_user.id):
-        raise ForbiddenError("Only the customer who placed this order can review it.")
-    if order.status not in (CustomerOrderStatus.RECEIVED.value, CustomerOrderStatus.COMPLETED.value):
-        from app.core.exceptions import ConflictError
-        raise ConflictError("You can only review an order after it has been received.")
+    review = ReviewService(db).create_review(
+        order=order, reviewer=current_user, comment=payload.comment, score=payload.score
+    )
+    return {"id": review.id, "order_id": review.order_id, "comment": review.comment,
+            "score": payload.score, "created_at": review.created_at}
 
-    # TODO: from app.services.review_service import ReviewService
-    # return ReviewService(db).create_review(order=order, reviewer=current_user, comment=payload.note, score=...)
-    return {"order_id": str(order_id), "comment": payload.note, "note": "review_service not yet wired"}
+
+class VendorFulfillmentRequest(BaseModel):
+    target_status: Literal["confirmed", "processing", "ready_for_pickup"]
+    note: str | None = Field(None, max_length=1000)
+
+
+@router.post("/{order_id}/vendor-fulfillment", response_model=OrderResponse)
+def vendor_fulfillment(
+    order_id: uuid.UUID,
+    payload: VendorFulfillmentRequest,
+    current_user: User = Depends(require_roles(Role.VENDOR)),
+    db: Session = Depends(get_db),
+):
+    return VendorFulfillmentService(db).transition(
+        order_id=order_id, actor=current_user, target_status=payload.target_status, note=payload.note
+    )
 
 
 @router.post("/{order_id}/cancel", response_model=OrderResponse)

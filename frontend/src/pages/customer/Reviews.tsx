@@ -1,14 +1,32 @@
+import { useEffect, useState } from "react";
 import { ReviewList } from "@/components/reviews/ReviewList";
+import { reviewsApi } from "@/api/reviews.api";
+import type { Review } from "@/types/review";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 
-/** Requires a "my reviews" endpoint (e.g. GET /reviews?reviewer_id=me) —
- * the current backend scaffold only exposes GET /reviews?professional_id=
- * (see backend/app/api/v1/reviews.py stub and api/reviews.api.ts). Once
- * that lands, fetch and pass real reviews here instead of an empty list. */
 export default function Reviews() {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    reviewsApi.mine().then((items) => {
+      if (active) setReviews(items);
+    }).catch((err: unknown) => {
+      if (active) setError(getDisplayErrorMessage(err));
+    }).finally(() => {
+      if (active) setLoading(false);
+    });
+    return () => { active = false; };
+  }, []);
+
   return (
     <div>
       <h1 className="mb-6 font-display text-xl text-ink">Your reviews</h1>
-      <ReviewList reviews={[]} />
+      {loading && <p role="status">Loading reviews…</p>}
+      {error && <p role="alert" className="text-thread">{error}</p>}
+      {!loading && !error && <ReviewList reviews={reviews} />}
     </div>
   );
 }

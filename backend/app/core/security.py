@@ -6,6 +6,8 @@ tested without a database or network. Business rules (e.g. "is this user
 allowed to reset their password") belong in services, not here.
 """
 import uuid
+import hashlib
+import hmac
 from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
@@ -84,11 +86,16 @@ def create_email_verification_token(user_id: str) -> str:
     )
 
 
-def create_password_reset_token(user_id: str) -> str:
+def password_version(password_hash: str) -> str:
+    return hmac.new(settings.SECRET_KEY.encode(), password_hash.encode(), hashlib.sha256).hexdigest()
+
+
+def create_password_reset_token(user_id: str, password_hash: str) -> str:
     return _create_token(
         subject=user_id,
         expires_delta=timedelta(minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES),
         token_type="password_reset",
+        extra_claims={"password_version": password_version(password_hash)},
     )
 
 

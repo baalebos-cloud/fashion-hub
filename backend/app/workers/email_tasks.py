@@ -50,3 +50,19 @@ def send_invoice_email_task(self, user_email: str, invoice_pdf_url: str):
         )
     except ExternalProviderError as exc:
         raise self.retry(exc=exc, countdown=30)
+
+
+@celery_app.task(name="app.workers.email_tasks.drain_auth_email_outbox")
+def drain_auth_email_outbox(limit: int = 20):
+    """Recover committed verification/reset email jobs after a Redis outage."""
+    from app.core.database import SessionLocal
+    from app.services.auth_email_outbox_service import AuthEmailOutboxService
+
+    processed = 0
+    with SessionLocal() as db:
+        service = AuthEmailOutboxService(db)
+        for _ in range(min(max(1, limit), 50)):
+            if not service.process_one():
+                break
+            processed += 1
+    return processed

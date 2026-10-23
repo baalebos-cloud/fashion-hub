@@ -78,6 +78,7 @@ export const endpoints = {
     received: (id: string) => `/orders/${id}/received`,
     timeline: (id: string) => `/orders/${id}/timeline`,
     review: (id: string) => `/orders/${id}/review`,
+    vendorFulfillment: (id: string) => `/orders/${id}/vendor-fulfillment`,
     cancel: (id: string) => `/orders/${id}/cancel`,
   },
 
@@ -93,6 +94,13 @@ export const endpoints = {
 
   deliveries: {
     details: (id: string) => `/deliveries/${id}`,
+    pickedUp: (id: string) => `/deliveries/${id}/picked-up`,
+    delivered: (id: string) => `/deliveries/${id}/delivered`,
+  },
+  deliveryRequests: {
+    available: "/delivery-requests/available",
+    forOrder: (id: string) => `/delivery-requests/orders/${id}`,
+    accept: (id: string) => `/delivery-requests/${id}/accept`,
   },
 
   tracking: {

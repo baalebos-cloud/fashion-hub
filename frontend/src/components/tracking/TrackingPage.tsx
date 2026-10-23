@@ -10,10 +10,12 @@ import type { Order } from "@/types/order";
 
 export function TrackingPage({ order }: { order: Order }) {
   const isActive = !["delivered", "received", "completed", "cancelled"].includes(order.status);
-  const { tracking } = useTracking(order.id, isActive);
+  const { tracking, error, isLoading } = useTracking(order.id, isActive);
   const { weather, isLoading: isWeatherLoading, error: weatherError } = useOrderWeather(order.id, isActive);
 
-  if (!tracking) return <LoadingScreen label="Fetching the latest tracking update…" />;
+  if (error && !tracking) return <p role="alert" className="text-thread">{error}</p>;
+  if (isLoading) return <LoadingScreen label="Fetching the latest tracking update…" />;
+  if (!tracking) return <p role="status">Tracking information is currently unavailable.</p>;
 
   return (
     <div className="flex flex-col gap-6">

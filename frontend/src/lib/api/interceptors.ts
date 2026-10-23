@@ -36,14 +36,15 @@ export function attachResponseInterceptors(client: AxiosInstance): void {
       }
       request._retry = true;
       if (!refreshPromise) {
-        refreshPromise = refreshClient.post<{ access_token: string }>("/auth/refresh", {
+        refreshPromise = refreshClient.post<{ access_token: string; refresh_token: string }>("/auth/refresh", {
           refresh_token: refreshToken,
         }).then(({ data }) => {
-          if (typeof data.access_token !== "string" || !data.access_token) {
+          if (typeof data.access_token !== "string" || !data.access_token ||
+              typeof data.refresh_token !== "string" || !data.refresh_token) {
             throw new Error("Invalid refresh response");
           }
           if (getRefreshToken() !== refreshToken) throw new Error("Session changed during refresh");
-          setTokens({ accessToken: data.access_token, refreshToken });
+          setTokens({ accessToken: data.access_token, refreshToken: data.refresh_token });
           return data.access_token;
         }).catch((refreshError: unknown) => {
           if (getRefreshToken() === refreshToken) clearTokens();
