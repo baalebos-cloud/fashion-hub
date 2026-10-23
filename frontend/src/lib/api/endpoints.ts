@@ -78,6 +78,7 @@ export const endpoints = {
     received: (id: string) => `/orders/${id}/received`,
     timeline: (id: string) => `/orders/${id}/timeline`,
     review: (id: string) => `/orders/${id}/review`,
+    vendorFulfillment: (id: string) => `/orders/${id}/vendor-fulfillment`,
     cancel: (id: string) => `/orders/${id}/cancel`,
   },
 

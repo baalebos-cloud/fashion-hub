@@ -60,6 +60,11 @@ export const ordersApi = {
     return response.data;
   },
 
+  async vendorFulfillment(id: string, target_status: "confirmed" | "processing" | "ready_for_pickup"): Promise<Order> {
+    const response = await apiClient.post<Order>(endpoints.orders.vendorFulfillment(id), { target_status });
+    return response.data;
+  },
+
   async getTimeline(id: string): Promise<OrderTimelineEntry[]> {
     const response = await apiClient.get<OrderTimelineEntry[]>(endpoints.orders.timeline(id));
     return response.data;
