@@ -33,7 +33,8 @@ class AuthEmailOutboxService:
         event, subject, _ = KINDS[kind]
         self.db.add(Notification(
             recipient_user_id=user.id, channel="email", event_type=event,
-            title=subject, metadata_json={"ciphertext": _cipher().encrypt(token.encode()).decode()},
+            title=subject, body="Authentication email is awaiting dispatch.",
+            metadata_json={"ciphertext": _cipher().encrypt(token.encode()).decode()},
         ))
 
     def process_one(self) -> bool:
