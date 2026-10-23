@@ -2,6 +2,7 @@
 # Dumps the PostgreSQL database to a timestamped, gzip-compressed file.
 # Schedule via cron, e.g.: 0 2 * * * /path/to/backup.sh >> /var/log/fashionhub-backup.log 2>&1
 set -euo pipefail
+cd "$(dirname "$0")/../.."
 
 BACKUP_DIR="${BACKUP_DIR:-/var/backups/fashionhub}"
 TIMESTAMP="$(date +%Y%m%d_%H%M%S)"

@@ -77,6 +77,7 @@ class Settings(BaseSettings):
     # --- KYC / KYB ---
     KYC_PROVIDER: str = "manual"
     KYC_API_KEY: Optional[str] = None
+    IDENTITY_ENCRYPTION_KEY: Optional[str] = Field(None, repr=False)
 
     # --- AI Assistant ---
     AI_PROVIDER: str = "anthropic"

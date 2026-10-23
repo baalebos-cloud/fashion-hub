@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
-from app.core.security import JWTError, decode_token
+from app.core.security import JWTError, decode_token, password_version
 from app.models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -38,6 +38,11 @@ def get_current_user(
     user = db.get(User, user_id)
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
+    import hmac
+    if payload.get("password_version") is not None and not hmac.compare_digest(
+        payload["password_version"], password_version(user.hashed_password)
+    ):
+        raise HTTPException(status_code=401, detail="Session expired after password change.")
     return user
 
 

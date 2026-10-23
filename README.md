@@ -11,7 +11,7 @@ This repository contains working features alongside scaffolded modules. Read the
 - Copy `backend/.env.example` to `backend/.env` and `frontend/.env.example` to `frontend/.env.local`. Keep credentials out of Git.
 - Dependency maintenance and credential compatibility: [security rollout](docs/dependency-security.md).
 - API port: `8005`; Vite port: `5173`. The Vite development proxy forwards `/api` to the API.
-- Read the [migration and payment recovery runbook](docs/payment-recovery.md) before upgrading. The migration ordering is repaired and tested, and this checkout requires migration `0004`.
+- Read the [migration and payment recovery runbook](docs/payment-recovery.md) before upgrading. The migration ordering is repaired and tested, and this checkout requires migration `0005`.
 - Read the [catalog checkout contract and rollout](docs/catalog-checkout.md) for the breaking order API change, retry behavior and remaining launch blockers.
 
 ## Checks

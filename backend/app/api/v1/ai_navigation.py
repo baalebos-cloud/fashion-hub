@@ -78,5 +78,5 @@ def send_feedback(
 ):
     """Thumbs up/down on a specific assistant reply -- feeds back into
     auditing/improving ROLE_APP_MAP and prompts (see docs/ai-assistant.md)."""
-    AINavigationService(db).record_feedback(payload.ai_message_id, was_helpful=payload.was_helpful)
+    AINavigationService(db).record_feedback(payload.ai_message_id, user_id=current_user.id, was_helpful=payload.was_helpful)
     return None

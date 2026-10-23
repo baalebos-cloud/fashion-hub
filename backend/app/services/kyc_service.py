@@ -48,6 +48,8 @@ class KYCService:
         if not user:
             raise NotFoundError("User not found.")
 
+        from app.core.identity_encryption import encrypt_identity
+        encrypted_nin = encrypt_identity(nin_number)
         nin_provider = get_nin_provider()
         nin_result = nin_provider.verify(nin_number)  # raises on invalid/not-found NIN
 
@@ -80,7 +82,7 @@ class KYCService:
         verification = KYCVerification(
             user_id=user_id,
             id_type="nin",
-            id_number_encrypted=nin_number,
+            id_number_encrypted=encrypted_nin,
             nin_verified_full_name=nin_result.full_name,
             nin_verified_date_of_birth=nin_result.date_of_birth,
             nin_verified_gender=nin_result.gender,

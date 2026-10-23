@@ -8,7 +8,14 @@ class AINavigationService:
     def __init__(self, db: Session):
         self.db = db
 
-    def record_feedback(self, ai_message_id, *, was_helpful: bool):
+    def record_feedback(self, ai_message_id, *, user_id, was_helpful: bool):
+        from app.models.ai_message import AIMessage
+        from app.models.ai_conversation import AIConversation
+        from app.core.exceptions import NotFoundError
+        message = (self.db.query(AIMessage).join(AIConversation, AIConversation.id == AIMessage.conversation_id)
+                   .filter(AIMessage.id == ai_message_id, AIConversation.user_id == user_id, AIMessage.role == "assistant").first())
+        if not message:
+            raise NotFoundError("Assistant message not found.")
         from app.models.ai_action import AIAction
 
         action = self.db.query(AIAction).filter(AIAction.ai_message_id == ai_message_id).first()

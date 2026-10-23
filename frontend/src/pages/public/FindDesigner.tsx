@@ -11,21 +11,29 @@ export default function FindDesigner() {
   const [total, setTotal] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
+  const [error, setError] = useState("");
+
   useEffect(() => {
+    let active = true;
+    setError("");
     setIsLoading(true);
     professionalsApi
       .list({ professionalType: "designer", query })
       .then((response) => {
+        if (!active) return;
         setProfessionals(response.items);
         setTotal(response.total);
       })
-      .finally(() => setIsLoading(false));
+      .catch(() => { if (active) setError("Could not load professionals. Please try again."); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
   }, [query]);
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
       <h1 className="mb-6 font-display text-2xl text-ink">Find a designer</h1>
       <div className="mb-6"><ProfessionalSearch value={query} onChange={setQuery} /></div>
+      {error && <p role="alert">{error}</p>}
       <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={publicRoutes.professionalProfile} />
     </div>
   );

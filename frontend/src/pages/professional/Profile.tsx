@@ -1,3 +1,4 @@
+import { ProfessionalProfileForm } from "@/components/professionals/ProfessionalProfileForm";
 import { useAuth } from "@/hooks/use-auth";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
@@ -13,6 +14,7 @@ export default function Profile() {
       <ProfileHeader user={user} />
       <ProfilePhoto currentUrl={user.profile_photo_url} onUploaded={() => {}} />
       <ProfileForm />
+      <ProfessionalProfileForm />
     </div>
   );
 }

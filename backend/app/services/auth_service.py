@@ -24,6 +24,7 @@ from app.core.security import (
     create_refresh_token,
     decode_token,
     hash_password,
+    password_version,
     verify_and_update_password,
 )
 from app.models.user import RefreshSession, User
@@ -86,7 +87,7 @@ class AuthService:
         if updated_hash is not None:
             user.hashed_password = updated_hash
 
-        access_token = create_access_token(str(user.id), user.role)
+        access_token = create_access_token(str(user.id), user.role, {"password_version": password_version(user.hashed_password)})
         refresh_token = create_refresh_token(str(user.id))
 
         session = RefreshSession(
@@ -122,7 +123,7 @@ class AuthService:
         if not user or not user.is_active:
             raise UnauthorizedError("User not found or inactive.")
 
-        return create_access_token(str(user.id), user.role)
+        return create_access_token(str(user.id), user.role, {"password_version": password_version(user.hashed_password)})
 
     def log_out(self, refresh_token: str) -> None:
         token_hash = self._hash_token(refresh_token)
@@ -149,7 +150,7 @@ class AuthService:
             # Do not reveal whether the email exists.
             return
         from app.workers.email_tasks import send_password_reset_email_task
-        token = create_password_reset_token(str(user.id))
+        token = create_password_reset_token(str(user.id), user.hashed_password)
         send_password_reset_email_task.delay(user_email=user.email, token=token)
 
     def reset_password(self, *, token: str, new_password: str) -> None:
@@ -158,12 +159,13 @@ class AuthService:
         except (JWTError, ValueError):
             raise ValidationAppError("Invalid or expired reset token.")
 
-        user = self.users.get_by_id(payload["sub"])
-        if not user:
-            raise ValidationAppError("User not found.")
+        # Serialize reset attempts. Changing the hash consumes every reset link
+        # issued against the previous password, including concurrent replays.
+        import hmac
+        user = self.db.query(User).filter(User.id == payload["sub"]).with_for_update().populate_existing().first()
+        if not user or not hmac.compare_digest(payload.get("password_version", ""), password_version(user.hashed_password)):
+            raise ValidationAppError("Invalid or already used reset token.")
         user.hashed_password = hash_password(new_password)
-        self.db.commit()
-        # Revoke all existing sessions on password change.
         self.db.query(RefreshSession).filter(RefreshSession.user_id == user.id).update({"revoked": True})
         self.db.commit()
 

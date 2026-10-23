@@ -12,6 +12,12 @@ export interface ProfessionalSearchParams extends PaginationParams {
 }
 
 export const professionalsApi = {
+  async mine(): Promise<Professional | null> {
+    return (await apiClient.get<Professional | null>("/professionals/me")).data;
+  },
+  async saveProfile(payload: { business_name: string; bio: string; years_experience: number; accepts_new_orders: boolean }): Promise<Professional> {
+    return (await apiClient.put<Professional>("/professionals/me", payload)).data;
+  },
   async list(params: ProfessionalSearchParams = {}): Promise<PaginatedResponse<Professional>> {
     const response = await apiClient.get<PaginatedResponse<Professional>>(endpoints.professionals.list, {
       params: {
