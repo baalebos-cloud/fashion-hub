@@ -4,6 +4,8 @@ export interface TrackingSnapshot {
   current_longitude?: number | null;
   current_status: string;
   eta_minutes?: number | null;
+  last_ping_at?: string | null;
+  is_stale?: boolean;
 }
 
 export interface OrderTrackingResponse {

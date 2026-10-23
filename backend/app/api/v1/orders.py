@@ -160,9 +160,8 @@ def get_order_tracking(order_id: uuid.UUID, current_user: User = Depends(get_cur
         raise NotFoundError("Order not found.")
     _assert_can_view_order(order, current_user)
 
-    # TODO: from app.services.tracking_service import TrackingService
-    # return TrackingService(db).get_tracking_for_order(order_id)
-    return {"order_id": str(order_id), "status": order.status, "tracking": None, "note": "tracking_service not yet wired"}
+    from app.services.tracking_service import TrackingService
+    return TrackingService(db).get_order_tracking_response(order)
 
 
 @router.get("/{order_id}/weather")

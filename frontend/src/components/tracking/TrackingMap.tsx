@@ -10,17 +10,19 @@ import type { TrackingSnapshot } from "@/types/tracking";
  */
 export function TrackingMap({ tracking }: { tracking: TrackingSnapshot | null }) {
   const { isReady, error } = useMap();
+  const hasPosition = tracking?.current_latitude != null && tracking.current_longitude != null;
 
   return (
     <div className="flex h-64 flex-col items-center justify-center gap-1 rounded-card border border-line bg-muslin p-4 text-center text-sm text-ink-soft">
       {error && <span className="text-thread">{error}</span>}
       {!error && !isReady && "Loading map…"}
-      {!error && isReady && tracking?.current_latitude != null && (
+      {tracking?.is_stale && <span role="status">GPS updates are delayed. Showing the last known location.</span>}
+      {!error && isReady && hasPosition && (
         <span>
           Live position: {tracking.current_latitude.toFixed(4)}, {tracking.current_longitude?.toFixed(4)}
         </span>
       )}
-      {!error && isReady && tracking?.current_latitude == null && "Waiting for the first location update…"}
+      {!error && isReady && !hasPosition && "Waiting for the first location update…"}
     </div>
   );
 }
