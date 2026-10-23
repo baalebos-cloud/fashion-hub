@@ -87,3 +87,26 @@ def test_inactive_user_cannot_use_an_existing_token(client, db, make_user):
     user.is_active = False
     db.commit()
     assert client.get('/api/v1/orders', headers={'Authorization': 'Bearer ' + token}).status_code == 401
+
+
+def test_auth_emails_are_durable_encrypted_and_sent_once(db, make_user, monkeypatch):
+    from unittest.mock import patch
+    from app.models.notification import Notification
+    from app.services.auth_service import AuthService
+    from app.services.auth_email_outbox_service import AuthEmailOutboxService
+
+    # No external email provider or Celery broker is required for this test.
+    monkeypatch.setattr("app.services.auth_service.settings.APP_ENV", "test")
+    user = make_user()
+    service = AuthService(db)
+    service.request_password_reset(user.email)
+    job = db.query(Notification).filter_by(recipient_user_id=user.id, event_type="auth.password_reset").one()
+    assert job.metadata_json["ciphertext"].startswith("gAAAA")
+    assert user.email not in str(job.metadata_json)
+    with patch("app.integrations.notifications.email.send_email") as sender:
+        assert AuthEmailOutboxService(db).process_one()
+        sender.assert_called_once()
+        assert "/reset-password?token=" in sender.call_args.kwargs["html_body"]
+        assert not AuthEmailOutboxService(db).process_one()
+    db.refresh(job)
+    assert job.sent_at and job.metadata_json is None

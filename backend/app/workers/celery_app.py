@@ -56,6 +56,10 @@ celery_app.conf.update(
         "app.workers.ai_tasks.*": {"queue": "ai"},
     },
     beat_schedule={
+        "drain-authentication-email-outbox": {
+            "task": "app.workers.email_tasks.drain_auth_email_outbox",
+            "schedule": 60.0,
+        },
         "expire-material-stock-reservations": {
             "task": "app.workers.payment_tasks.expire_stock_reservations_task",
             "schedule": 30.0,

@@ -54,6 +54,10 @@ class AuthService:
             role=role,
         )
         self.users.add(user)
+        self.db.flush()
+        from app.services.auth_email_outbox_service import AuthEmailOutboxService
+        token = create_email_verification_token(str(user.id))
+        AuthEmailOutboxService(self.db).enqueue(user=user, kind="verification", token=token)
         self.db.commit()
         self.db.refresh(user)
 
@@ -68,12 +72,7 @@ class AuthService:
             except (ValidationAppError, ConflictError):
                 pass
 
-        # Fire-and-forget: actual sending happens in a background worker
-        # (see workers/email_tasks.py) so signup stays fast.
-        from app.workers.email_tasks import send_verification_email_task
-        token = create_email_verification_token(str(user.id))
-        send_verification_email_task.delay(user_email=user.email, token=token)
-
+        self._dispatch_pending_auth_email()
         return user
 
     def log_in(self, *, email: str, password: str, user_agent: Optional[str], ip_address: Optional[str]) -> dict:
@@ -159,9 +158,11 @@ class AuthService:
         if not user:
             # Do not reveal whether the email exists.
             return
-        from app.workers.email_tasks import send_password_reset_email_task
+        from app.services.auth_email_outbox_service import AuthEmailOutboxService
         token = create_password_reset_token(str(user.id), user.hashed_password)
-        send_password_reset_email_task.delay(user_email=user.email, token=token)
+        AuthEmailOutboxService(self.db).enqueue(user=user, kind="password_reset", token=token)
+        self.db.commit()
+        self._dispatch_pending_auth_email()
 
     def reset_password(self, *, token: str, new_password: str) -> None:
         try:
@@ -178,6 +179,19 @@ class AuthService:
         user.hashed_password = hash_password(new_password)
         self.db.query(RefreshSession).filter(RefreshSession.user_id == user.id).update({"revoked": True})
         self.db.commit()
+
+    @staticmethod
+    def _dispatch_pending_auth_email() -> None:
+        # The notification is already durable in PostgreSQL. Broker failure
+        # must not turn a successful signup/reset into an HTTP 500.
+        if settings.APP_ENV == "test":
+            return
+        try:
+            from app.workers.email_tasks import drain_auth_email_outbox
+            drain_auth_email_outbox.delay()
+        except Exception:
+            from app.core.logging import get_logger
+            get_logger(__name__).warning("Auth email queued in DB; broker unavailable", exc_info=True)
 
     @staticmethod
     def _hash_token(token: str) -> str:
