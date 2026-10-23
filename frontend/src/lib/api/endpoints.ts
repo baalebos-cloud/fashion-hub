@@ -94,6 +94,13 @@ export const endpoints = {
 
   deliveries: {
     details: (id: string) => `/deliveries/${id}`,
+    pickedUp: (id: string) => `/deliveries/${id}/picked-up`,
+    delivered: (id: string) => `/deliveries/${id}/delivered`,
+  },
+  deliveryRequests: {
+    available: "/delivery-requests/available",
+    forOrder: (id: string) => `/delivery-requests/orders/${id}`,
+    accept: (id: string) => `/delivery-requests/${id}/accept`,
   },
 
   tracking: {

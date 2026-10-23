@@ -6,8 +6,9 @@ import { formatCurrency } from "@/lib/formatters/currency";
 
 export default function DeliveryDetails() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
-  const { delivery, isLoading } = useDelivery(deliveryId);
+  const { delivery, isLoading, error } = useDelivery(deliveryId);
 
+  if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !delivery) return <LoadingScreen label="Loading delivery…" />;
 
   return (

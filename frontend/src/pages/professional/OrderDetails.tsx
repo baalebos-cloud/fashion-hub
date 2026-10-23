@@ -1,4 +1,8 @@
 import { useParams } from "react-router-dom";
+import { useState } from "react";
+import { deliveryRequestsApi } from "@/api/delivery-requests.api";
+import { Button } from "@/components/ui/button";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { useOrder } from "@/hooks/use-order";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderItems } from "@/components/orders/OrderItems";
@@ -12,6 +16,23 @@ import type { CustomerOrderStatus } from "@/types/order";
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
   const { order, timeline, isLoading, accept, startProduction, markReady, ship, markReceived } = useOrder(orderId);
+  const [dispatching, setDispatching] = useState(false);
+  const [dispatchResult, setDispatchResult] = useState<string | null>(null);
+  const [dispatchError, setDispatchError] = useState<string | null>(null);
+
+  async function dispatch() {
+    if (!orderId) return;
+    setDispatching(true);
+    setDispatchError(null);
+    try {
+      const request = await deliveryRequestsApi.requestForOrder(orderId);
+      setDispatchResult("Courier request " + request.status + ". Verified couriers can claim it in their dashboard.");
+    } catch (err) {
+      setDispatchError(getDisplayErrorMessage(err));
+    } finally {
+      setDispatching(false);
+    }
+  }
 
   if (isLoading || !order) return <LoadingScreen label="Loading order…" />;
 
@@ -36,7 +57,16 @@ export default function OrderDetails() {
         onMarkReceived={async () => { await markReceived(); }}
       />
 
-      <OrderItems items={[]} currency={order.currency} />
+      <OrderItems items={order.items} currency={order.currency} />
+      {order.order_type === "customer_order" && ["ready_for_delivery", "shipped"].includes(order.status) && (
+        <div className="flex flex-col gap-2">
+          <Button className="self-start" disabled={dispatching} isLoading={dispatching} onClick={() => void dispatch()}>
+            Request internal courier
+          </Button>
+          {dispatchResult && <p role="status" className="text-sm text-ink-soft">{dispatchResult}</p>}
+          {dispatchError && <p role="alert" className="text-sm text-thread">{dispatchError}</p>}
+        </div>
+      )
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Timeline</h2>
