@@ -66,7 +66,7 @@ export default function OrderDetails() {
           {dispatchResult && <p role="status" className="text-sm text-ink-soft">{dispatchResult}</p>}
           {dispatchError && <p role="alert" className="text-sm text-thread">{dispatchError}</p>}
         </div>
-      )
+      )}
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Timeline</h2>
