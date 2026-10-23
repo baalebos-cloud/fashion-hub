@@ -14,7 +14,7 @@ function setup(refreshFails = false) {
   const refreshClient = axios.create();
   const refresh = vi.fn(async (config: InternalAxiosRequestConfig) => {
     if (refreshFails) unauthorized(config);
-    return { data: { access_token: "new-access" }, status: 200, statusText: "OK", headers: {}, config };
+    return { data: { access_token: "new-access", refresh_token: "rotated-refresh" }, status: 200, statusText: "OK", headers: {}, config };
   });
   refreshClient.defaults.adapter = refresh;
   vi.spyOn(axios, "create").mockReturnValueOnce(refreshClient);
@@ -40,6 +40,7 @@ describe("session refresh", () => {
     expect(responses.every((response) => response.data.ok)).toBe(true);
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(getAccessToken()).toBe("new-access");
+    expect(getRefreshToken()).toBe("rotated-refresh");
   });
   it("rejects an expired refresh without deadlocking and clears credentials", async () => {
     const { client, refresh } = setup(true);

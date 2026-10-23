@@ -102,28 +102,38 @@ class AuthService:
 
         return {"access_token": access_token, "refresh_token": refresh_token, "token_type": "bearer", "user": user}
 
-    def refresh_access_token(self, refresh_token: str) -> str:
+    def refresh_access_token(self, refresh_token: str) -> dict:
+        """Consume a refresh token once and rotate its server-side session."""
         try:
             payload = decode_token(refresh_token, expected_type="refresh")
         except (JWTError, ValueError):
             raise UnauthorizedError("Invalid or expired refresh token.")
 
-        token_hash = self._hash_token(refresh_token)
-        session = (
-            self.db.query(RefreshSession)
-            .filter(RefreshSession.refresh_token_hash == token_hash, RefreshSession.revoked.is_(False))
-            .first()
-        )
-        if not session:
+        session = (self.db.query(RefreshSession)
+                   .filter(RefreshSession.refresh_token_hash == self._hash_token(refresh_token))
+                   .with_for_update().populate_existing().first())
+        if not session or session.revoked:
             raise UnauthorizedError("Refresh token has been revoked or does not exist.")
         if session.expires_at <= datetime.utcnow() or str(session.user_id) != payload.get("sub"):
             raise UnauthorizedError("Invalid or expired refresh session.")
-
         user = self.users.get_by_id(payload["sub"])
         if not user or not user.is_active:
             raise UnauthorizedError("User not found or inactive.")
 
-        return create_access_token(str(user.id), user.role, {"password_version": password_version(user.hashed_password)})
+        new_refresh = create_refresh_token(str(user.id))
+        session.revoked = True
+        self.db.add(RefreshSession(
+            user_id=user.id, refresh_token_hash=self._hash_token(new_refresh),
+            user_agent=session.user_agent, ip_address=session.ip_address,
+            expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
+        ))
+        self.db.commit()
+        return {
+            "access_token": create_access_token(str(user.id), user.role, {
+                "password_version": password_version(user.hashed_password)
+            }),
+            "refresh_token": new_refresh, "token_type": "bearer",
+        }
 
     def log_out(self, refresh_token: str) -> None:
         token_hash = self._hash_token(refresh_token)

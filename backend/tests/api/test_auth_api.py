@@ -37,6 +37,9 @@ def test_signup_and_login_flow(client, db):
     refreshed = client.post('/api/v1/auth/refresh', json={'refresh_token': tokens['refresh_token']})
     assert refreshed.status_code == 200, refreshed.text
     assert client.get('/api/v1/orders', headers={'Authorization': 'Bearer ' + refreshed.json()['access_token']}).status_code == 200
+    assert refreshed.json()['refresh_token'] != tokens['refresh_token']
+    assert client.post('/api/v1/auth/refresh', json={'refresh_token': tokens['refresh_token']}).status_code == 401
+    assert client.post('/api/v1/auth/refresh', json={'refresh_token': refreshed.json()['refresh_token']}).status_code == 200
 
 
 def test_vendor_signup_login_and_authenticated_identity(client, db):
