@@ -19,7 +19,7 @@ export function TrackingMap({ tracking }: { tracking: TrackingSnapshot | null })
       {tracking?.is_stale && <span role="status">GPS updates are delayed. Showing the last known location.</span>}
       {!error && isReady && hasPosition && (
         <span>
-          Live position: {tracking.current_latitude.toFixed(4)}, {tracking.current_longitude?.toFixed(4)}
+          Last reported position: {tracking?.current_latitude?.toFixed(4)}, {tracking?.current_longitude?.toFixed(4)}
         </span>
       )}
       {!error && isReady && !hasPosition && "Waiting for the first location update…"}
