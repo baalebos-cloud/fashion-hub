@@ -1,9 +1,9 @@
-fastapi==0.143.5
+fastapi==0.159.1
 uvicorn[standard]==0.54.0
 gunicorn==26.2.0
 
 # Database
-sqlalchemy==2.1.4
+sqlalchemy==2.1.6
 alembic==1.20.0
 psycopg[binary]==3.3.6
 geoalchemy2==0.20.0
@@ -23,7 +23,7 @@ python-multipart==0.0.32
 
 # Validation / settings
 pydantic==2.14.1
-pydantic-settings==2.16.0
+pydantic-settings==2.16.1
 email-validator==2.3.0
 
 # Rate limiting
@@ -36,7 +36,7 @@ httpx==0.28.1
 anthropic==1.14.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
-boto3==1.43.114
+boto3==1.43.117
 
 # Testing
 pytest==9.1.1
@@ -46,5 +46,5 @@ httpx==0.28.1
 faker==33.1.0
 
 # Dev tooling
-ruff==0.17.0
+ruff==0.17.1
 mypy==1.14.0
