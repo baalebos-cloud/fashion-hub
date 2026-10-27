@@ -1,4 +1,5 @@
 """Order-bound messaging: only the buyer or seller can access a conversation."""
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
@@ -40,7 +41,7 @@ class MessageResponse(BaseModel):
     sender_user_id: UUID
     body: str
     is_read: bool
-    created_at: str
+    created_at: datetime
 
 
 def _owned_conversation(db: Session, conversation_id: UUID, user: User) -> Conversation:
