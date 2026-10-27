@@ -62,7 +62,16 @@ def drain_auth_email_outbox(limit: int = 20):
     with SessionLocal() as db:
         service = AuthEmailOutboxService(db)
         for _ in range(min(max(1, limit), 50)):
-            if not service.process_one():
+            try:
+                if not service.process_one():
+                    break
+            except Exception as exc:
+                from app.core.exceptions import ExternalProviderError
+                if not isinstance(exc, ExternalProviderError):
+                    raise
+                db.rollback()
+                from app.core.logging import get_logger
+                get_logger(__name__).warning("Auth mail remains queued until the configured provider accepts delivery.")
                 break
             processed += 1
     return processed
