@@ -125,7 +125,50 @@ class NotificationService:
         )
         self.db.commit()
 
-    def send_scheduled_reminders(self):
-        """E.g. remind a tailor of an order accepted-but-not-started for
-        >48h, or a customer of an unread delivered order for >24h."""
-        raise NotImplementedError("Define reminder rules and query accordingly.")
+    def send_scheduled_reminders(self) -> int:
+        """Send at most one reminder per order, recipient and type every 24 hours.
+
+        Only persisted customer orders enter this workflow. It never changes
+        fulfillment state and uses in-app notifications, not unconfigured SMS.
+        The caller's transaction commits the notifications atomically.
+        """
+        from datetime import timedelta
+        from app.core.timezone import utcnow
+        from app.models.order import Order
+        from app.models.notification import Notification
+
+        now = utcnow()
+        cutoff = now - timedelta(hours=24)
+        sent = 0
+        rules = (
+            ("accepted", "accepted_at", 48, "reminder.production_start",
+             "Production is still awaiting a start",
+             "Please review this accepted order and update its production status.", "seller_user_id"),
+            ("delivered", "delivered_at", 24, "reminder.order_received",
+             "Your delivered order awaits confirmation",
+             "Please check your delivery and confirm receipt if everything is correct.", "buyer_user_id"),
+        )
+        for status, timestamp, hours, event_type, title, body, owner in rules:
+            orders = (self.db.query(Order)
+                      .filter(Order.order_type == "customer_order", Order.status == status,
+                              getattr(Order, timestamp).isnot(None),
+                              getattr(Order, timestamp) <= now - timedelta(hours=hours))
+                      .order_by(Order.id).limit(100).all())
+            for order in orders:
+                recipient = getattr(order, owner)
+                existing = (self.db.query(Notification.id)
+                            .filter(Notification.recipient_user_id == recipient,
+                                    Notification.event_type == event_type,
+                                    Notification.created_at >= cutoff,
+                                    Notification.metadata_json.contains({"order_id": str(order.id)}))
+                            .first())
+                if existing:
+                    continue
+                self.db.add(Notification(
+                    recipient_user_id=recipient, channel="in_app",
+                    event_type=event_type, title=title, body=body,
+                    metadata_json={"order_id": str(order.id)},
+                ))
+                sent += 1
+        return sent
+
