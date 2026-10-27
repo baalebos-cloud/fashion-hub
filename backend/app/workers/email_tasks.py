@@ -9,7 +9,7 @@ def send_verification_email_task(self, user_email: str, token: str):
     from app.core.exceptions import ExternalProviderError
     from app.integrations.notifications.email import send_email
 
-    verify_url = f"{settings.APP_URL}/verify-email?token={token}"
+    verify_url = f"{settings.FRONTEND_URL}/verify-email?token={token}"
     try:
         send_email(
             to_address=user_email,
@@ -26,7 +26,7 @@ def send_password_reset_email_task(self, user_email: str, token: str):
     from app.core.exceptions import ExternalProviderError
     from app.integrations.notifications.email import send_email
 
-    reset_url = f"{settings.APP_URL}/reset-password?token={token}"
+    reset_url = f"{settings.FRONTEND_URL}/reset-password?token={token}"
     try:
         send_email(
             to_address=user_email,

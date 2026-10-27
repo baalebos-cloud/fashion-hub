@@ -78,10 +78,16 @@ def verify_profile(professional_id: UUID, user: User = Depends(require_roles(Rol
 
 @router.get("/{professional_id}", response_model=ProfessionalResponse)
 def get_professional(professional_id: UUID, db: Session = Depends(get_db)):
-    professional = db.get(Professional, professional_id)
-    if not professional:
+    # Individual profiles follow exactly the same eligibility rules as the
+    # public search/listing endpoint. A guessed UUID must not bypass KYB review.
+    from app.models.user import User
+    profile = (db.query(Professional).join(User, User.id == Professional.user_id)
+               .filter(Professional.id == professional_id,
+                       Professional.is_verified.is_(True),
+                       User.is_active.is_(True)).first())
+    if profile is None:
         raise NotFoundError("Professional not found.")
-    return professional
+    return profile
 
 
 @router.patch("/me/location", response_model=ProfessionalResponse)
