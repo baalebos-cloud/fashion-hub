@@ -37,6 +37,8 @@ class PaymentService:
         self.provider = get_payment_provider()
 
     def initialize_payment_for_order(self, *, order_id, customer_email: str, callback_url: str, buyer_user_id) -> dict:
+        if settings.is_production and not settings.PAYMENTS_ENABLED:
+            raise ConflictError("Payment checkout is temporarily disabled until provider verification is complete.")
         order = self.orders.get_by_id(order_id)
         if not order:
             raise NotFoundError("Order not found.")

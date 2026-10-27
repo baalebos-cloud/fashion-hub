@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # --- Payments ---
     VENDOR_RESERVATION_TTL_MINUTES: int = Field(15, ge=1, le=120)
     PAYMENT_PROVIDER: str = "paystack"  # paystack | flutterwave
+    PAYMENTS_ENABLED: bool = False  # explicit production release gate
     PAYMENT_SECRET_KEY: Optional[str] = None
     PAYMENT_PUBLIC_KEY: Optional[str] = None
     PAYMENT_WEBHOOK_SECRET: Optional[str] = None
