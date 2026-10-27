@@ -87,3 +87,62 @@ class RefundService:
         refund.status = "rejected"
         self.db.commit()
         return refund
+
+    def record_paystack_event(self, *, event_type: str, payload: dict) -> bool:
+        """Reconcile only a uniquely identifiable approved refund with a signed webhook.
+
+        Never credit an order based on an email, a guessed amount, or an
+        unmatched callback. Duplicate notifications are idempotent.
+        """
+        from app.core.timezone import utcnow
+        from app.core.policies import money_to_minor_units
+
+        reference = payload.get("transaction_reference")
+        status = event_type.removeprefix("refund.")
+        if not isinstance(reference, str) or not reference or status not in {
+            "pending", "processing", "needs-attention", "failed", "processed"
+        }:
+            return False
+        payment = (self.db.query(Payment)
+                   .filter(Payment.provider == "paystack",
+                           Payment.provider_reference == reference)
+                   .with_for_update().first())
+        if not payment or payload.get("currency") != payment.currency:
+            return False
+        try:
+            minor = int(str(payload.get("amount", "")))
+        except (ValueError, TypeError):
+            return False
+        if minor <= 0:
+            return False
+        candidates = (self.db.query(Refund)
+                      .filter(Refund.payment_id == payment.id,
+                              Refund.status.in_({
+                                  "approved", "processing", "pending", "needs_attention",
+                                  "manual_review", "processed",
+                              }))
+                      .with_for_update().all())
+        candidates = [r for r in candidates if money_to_minor_units(r.amount) == minor]
+        refund_id = payload.get("id")
+        if refund_id is not None:
+            matched = [r for r in candidates if r.provider_refund_reference == str(refund_id)]
+            if matched:
+                candidates = matched
+            else:
+                candidates = [r for r in candidates if r.provider_refund_reference is None]
+        if len(candidates) != 1:
+            return False
+        refund = candidates[0]
+        target = "needs_attention" if status == "needs-attention" else status
+        # A delayed pending notification cannot regress a processed refund.
+        if refund.status == "processed":
+            return True
+        if refund.status == "failed" or refund.status == "requested":
+            return False
+        refund.status = target
+        if refund_id is not None and refund.provider_refund_reference is None:
+            refund.provider_refund_reference = str(refund_id)[:128]
+        if target == "processed":
+            refund.processed_at = utcnow()
+        self.db.commit()
+        return True

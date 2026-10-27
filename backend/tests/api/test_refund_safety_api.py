@@ -99,3 +99,28 @@ def test_refund_api_scopes_customer_and_seller_views(db, make_user):
             assert http.post(f"/api/v1/refunds/{rid}/approve").status_code == 409
     finally:
         app.dependency_overrides.clear()
+
+
+def test_signed_refund_events_reconcile_only_matching_refund(db, make_user):
+    buyer, seller = make_user(), make_user(role="tailor")
+    order, payment = seed_payment(db, buyer, seller)
+    service = RefundService(db)
+    refund = service.request_refund(
+        order_id=order.id, requested_by=buyer, amount=Decimal("25.00"),
+        reason="Partial correction",
+    )
+    refund.status = "processing"
+    db.commit()
+    data = {"transaction_reference": payment.provider_reference, "amount": 2500,
+            "currency": "NGN", "id": 1234}
+    assert not service.record_paystack_event(event_type="refund.processed",
+                                              payload={**data, "currency": "USD"})
+    assert service.record_paystack_event(event_type="refund.pending", payload=data)
+    db.refresh(refund)
+    assert refund.status == "pending" and refund.provider_refund_reference == "1234"
+    assert service.record_paystack_event(event_type="refund.processed", payload=data)
+    db.refresh(refund)
+    assert refund.status == "processed" and refund.processed_at is not None
+    assert service.record_paystack_event(event_type="refund.pending", payload=data)
+    db.refresh(refund)
+    assert refund.status == "processed"

@@ -31,6 +31,15 @@ async def _receive(request: Request, signature: str, provider: str, db: Session)
         if not isinstance(body, dict):
             raise ValueError
         event = body.get("event", "unknown")
+        if provider == "paystack" and event in {"refund.pending", "refund.processing",
+                                                  "refund.needs-attention", "refund.failed",
+                                                  "refund.processed"}:
+            if not isinstance(body.get("data"), dict):
+                raise ValueError
+            from app.services.refund_service import RefundService
+            matched = await run_in_threadpool(RefundService(db).record_paystack_event,
+                                             event_type=event, payload=body["data"])
+            return {"received": True, "reconciled": bool(matched)}
         if event not in {"charge.success", "charge.failed", "payment.successful", "payment.failed"}:
             return {"received": True, "ignored": True}
         data = body["data"]
