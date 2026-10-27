@@ -3,6 +3,11 @@ import { endpoints } from "@/lib/api/endpoints";
 import type { ChatMessage, Conversation } from "@/types/message";
 
 export const messagesApi = {
+  async startConversation(orderId: string): Promise<Conversation> {
+    const response = await apiClient.post<Conversation>(endpoints.messages.conversations, { order_id: orderId });
+    return response.data;
+  },
+
   async listConversations(): Promise<Conversation[]> {
     const response = await apiClient.get<Conversation[]>(endpoints.messages.conversations);
     return response.data;
