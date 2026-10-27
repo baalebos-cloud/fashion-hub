@@ -8,6 +8,7 @@ class SetAvailabilityRequest(BaseModel):
 
 class DeliveryPartnerResponse(BaseModel):
     id: uuid.UUID
+    user_id: uuid.UUID
     vehicle_type: str | None = None
     is_verified: bool
     is_available: bool
