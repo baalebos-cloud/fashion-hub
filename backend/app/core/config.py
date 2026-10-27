@@ -65,6 +65,8 @@ class Settings(BaseSettings):
     PAYMENT_SECRET_KEY: Optional[str] = None
     PAYMENT_PUBLIC_KEY: Optional[str] = None
     PAYMENT_WEBHOOK_SECRET: Optional[str] = None
+    # Financial operations require explicit provider onboarding and sandbox verification.
+    REFUND_EXECUTION_ENABLED: bool = False
 
     # --- Maps / Geocoding ---
     MAP_PROVIDER: str = "google_maps"  # google_maps | mapbox
