@@ -60,6 +60,7 @@ class AuthEmailOutboxService:
         send_email(
             to_address=user.email, subject=subject,
             html_body=f'<p>Use this secure link to continue: <a href="{escape(url, quote=True)}">Open link</a></p>',
+            idempotency_key=f"auth-email-{job.id}",
         )
         job.sent_at, job.metadata_json = utcnow(), None
         self.db.commit()
