@@ -1,5 +1,5 @@
 """Catalog-grounded budget guidance. No generative price or availability claims."""
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
@@ -38,13 +38,23 @@ def recommend_products(
         ]
         if not variants:
             continue
-        # Rank by real in-stock variant prices, not base or AI-estimated price.
-        priced = sorted(variants, key=lambda row: Decimal(str(row["price"])))
+        # Skip malformed prices instead of failing the entire response.
+        priced = []
+        for variant in variants:
+            try:
+                value = Decimal(str(variant["price"]))
+                if value.is_finite() and value > 0 and value.as_tuple().exponent >= -2:
+                    priced.append((value, variant))
+            except (KeyError, ValueError, TypeError, InvalidOperation):
+                continue
+        if not priced:
+            continue
+        priced.sort(key=lambda pair: pair[0])
         records.append({
             "id": str(product["id"]),
             "title": product["name"],
             "category": str(product.get("category_id") or "uncategorized"),
-            "price_ngn": priced[0]["price"],
+            "price_ngn": priced[0][0],
             "available_units": sum(v["quantity_available"] for v in variants),
             "is_published": product["is_active"],
         })
