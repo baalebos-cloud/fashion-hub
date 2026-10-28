@@ -134,10 +134,7 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
               {...register(`values.${name}`, {
                 setValueAs: (value: string) => value === "" ? undefined : Number(value),
               })}
-              onChange={(event) => {
-                register(`values.${name}`).onChange(event);
-                setStep("measure");
-              }}
+              onInput={() => setStep("measure")}
               aria-invalid={Boolean(errors.values?.[name])} />
             {errors.values?.[name] && <span role="alert" className="text-xs text-thread">{errors.values[name]?.message}</span>}
           </label>
