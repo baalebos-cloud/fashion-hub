@@ -15,7 +15,7 @@ def redirect_for_interswitch_return(*, txnref: str = "",
                                    txn_ref: str = "",
                                    transactionreference: str = "",
                                    reference: str = "") -> str:
-    candidates = [v for v in (txnref, txn_ref, transactionreference, reference) if v]
+    candidates = [v for v in (txnref, txn_ref, transactionreference, reference)\n                  if isinstance(v, str) and v]
     params = {"provider": "interswitch"}
     # Never trust conflicting references from an untrusted provider/browser callback.
     if len(set(candidates)) == 1 and REFERENCE_PATTERN.fullmatch(candidates[0]):
