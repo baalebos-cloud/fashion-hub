@@ -5,6 +5,9 @@ partner, the two parties to an order); everyone else gets a
 truncated/approximate location (e.g. rounded to ~1km) via `to_public_view`.
 """
 from sqlalchemy.orm import Session
+from sqlalchemy import func
+
+from app.services.spatial_discovery import validated_search
 
 
 class LocationService:
@@ -14,7 +17,12 @@ class LocationService:
     def create_location(self, *, latitude: float, longitude: float, location_type: str, **address_fields):
         from app.models.location import Location
 
-        location = Location(latitude=latitude, longitude=longitude, location_type=location_type, **address_fields)
+        lat, lon, _, _, _ = validated_search(latitude=latitude, longitude=longitude)
+        location = Location(
+            latitude=lat, longitude=lon, location_type=location_type,
+            geom=func.ST_GeogFromText(f"SRID=4326;POINT({lon} {lat})"),
+            **address_fields,
+        )
         self.db.add(location)
         self.db.commit()
         self.db.refresh(location)
