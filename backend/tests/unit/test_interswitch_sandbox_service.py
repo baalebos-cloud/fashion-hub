@@ -124,3 +124,17 @@ def test_browser_return_cannot_mark_an_order_paid():
     assert redirect.status_code == 303
     assert "provider=interswitch" in redirect.headers["location"]
     assert "reference=seam_test" in redirect.headers["location"]
+
+
+def test_vendor_orders_are_outside_customer_demo_scope(enabled):
+    order = _order()
+    order.order_type = "vendor_order"
+    service = _service(order)
+    from app.services import catalog_order_service
+    from unittest.mock import patch
+    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None):
+        with pytest.raises(ConflictError, match="customer fashion orders"):
+            service.initialize_checkout(order_id=order.id,
+                                        buyer_user_id=order.buyer_user_id,
+                                        customer_email="buyer@example.com")
+    service.db.add.assert_not_called()
