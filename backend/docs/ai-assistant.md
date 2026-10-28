@@ -38,3 +38,35 @@ the navigation assistant.
 given suggestion actually helped, via `AINavigationService.record_feedback`
 — use this to audit and improve `ROLE_APP_MAP`/prompts over time, directly
 addressing the "AI gives an incorrect navigation instruction" edge case.
+
+
+## Google Cloud Vertex AI express mode
+
+Seam can use AI_PROVIDER=vertex_ai with Google Cloud Vertex AI **express
+mode** instead of the previous n8n configuration. Set the following private
+environment variables only on the Fashion Hub Railway backend service:
+
+    AI_PROVIDER=vertex_ai
+    AI_MODEL=gemini-3-flash-preview
+    VERTEX_AI_API_KEY=<Google Cloud Vertex AI express-mode API key>
+
+The provider uses the Google Vertex express-mode generateContent endpoint at
+https://aiplatform.googleapis.com and the x-goog-api-key header.
+It requires an express-mode API key; a Gemini API key from AI Studio and
+a standard Google Cloud IAM service-account credential use different
+authentication and cannot be substituted.
+
+Never paste API keys into chat, the GitHub repository, or Vercel VITE_
+variables. An n8n API_URL/API_KEY cannot authenticate to Google's API.
+Keep AI_API_KEY for Anthropic if needed; Vertex uses VERTEX_AI_API_KEY.
+
+Service-account/ADC-based Vertex AI on a standard GCP project is a different
+setup not enabled by this express-mode adapter. To use standard Vertex AI,
+add the supported Google Cloud authentication library and a dedicated
+least-privileged IAM identity, then integrate its OAuth flow separately.
+
+Seam still limits the model prompt to the signed-in role's app map and
+cannot perform payments or order transitions. If the AI endpoint is down or
+unconfigured, it gives fixed role-specific navigation hints and does not
+show internal error messages to end users. Provider calls have bounded
+output tokens and HTTP timeouts.
