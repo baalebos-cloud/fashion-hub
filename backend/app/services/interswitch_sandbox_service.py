@@ -63,19 +63,10 @@ class InterswitchSandboxService(PaymentService):
             raise ConflictError("Order is not payable through Interswitch.")
         from app.services.catalog_order_service import assert_catalog_order_payable
         assert_catalog_order_payable(order)
-        if order.order_type == "vendor_order":
-            from app.services.stock_reservation_service import SOURCE, StockReservationService
-            stock = StockReservationService(self.db)
-            if (order.pricing_source != SOURCE or not order.delivery_address_snapshot
-                    or not stock.active(order)):
-                raise ConflictError("Material stock reservation is unavailable or expired.")
-            subtotal = sum((item.line_total for item in order.items), Decimal("0.00"))
-            if (any(item.quantity < 1 or item.unit_price <= 0
-                    or item.line_total != item.unit_price * item.quantity
-                    for item in order.items) or subtotal != order.subtotal
-                    or subtotal + order.delivery_fee + order.tax_amount
-                    - order.discount_amount != order.total_amount):
-                raise ConflictError("Material order total requires review.")
+        # Scope the proof of concept to customer fashion orders. Vendor
+        # material-order redirects require a separate, role-specific flow.
+        if order.order_type != "customer_order":
+            raise ConflictError("Sandbox currently supports customer fashion orders only.")
         existing = self.db.query(Payment).filter(Payment.order_id == order.id).first()
         if existing:
             self._assert_provider(existing)
