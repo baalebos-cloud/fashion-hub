@@ -63,6 +63,23 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         # Answer only from this role's fixed navigation map during outages;
         # never guess order status, promise actions, or leak provider details.
         question = user_question.casefold()
+        if any(phrase in question for phrase in (
+            "what can you do", "what can you so", "your capabilities", "how can you help",
+        )):
+            if user_role in {"tailor", "designer"}:
+                scope = "I can guide you through incoming orders, materials, your portfolio, and verification."
+            elif user_role == "vendor":
+                scope = "I can help locate products, inventory, and your received orders."
+            elif user_role == "customer":
+                scope = "I can help find tailors, orders, delivery tracking, measurements, and favorites."
+            elif user_role == "delivery_partner":
+                scope = "I can guide you to delivery requests and active deliveries."
+            else:
+                scope = "I can help navigate the available Fashion Hub pages."
+            return (
+                scope + " I do not accept orders, update deliveries, approve accounts "
+                "or move payments on your behalf. Live Gemini answers are temporarily unavailable."
+            )
         if user_role in {"tailor", "designer"} and "accept" in question and "order" in question:
             return (
                 "Seam's AI connection is temporarily unavailable. "
