@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     admin,
+    ai_commerce,
     addresses,
     ai,
     ai_navigation,
@@ -96,6 +97,7 @@ api_router.include_router(ratings.router)
 api_router.include_router(notifications.router)
 api_router.include_router(messages.router)
 api_router.include_router(ai.router)
+api_router.include_router(ai_commerce.router)
 api_router.include_router(ai_navigation.router)
 api_router.include_router(kyc.router)
 api_router.include_router(kyb.router)
