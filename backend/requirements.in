@@ -15,8 +15,8 @@ celery==5.6.3
 # Auth / security
 # Passlib/bcrypt verify existing hashes only; new passwords use Argon2id.
 passlib[bcrypt]==1.7.4
-# Passlib 1.7.4's backend self-test is incompatible with bcrypt 5.x.
-bcrypt==5.0.0
+# Passlib 1.7.4 legacy verification requires bcrypt <5; new password hashes use Argon2id.
+bcrypt==4.3.0
 PyJWT[crypto]==2.15.1
 argon2-cffi==25.1.0
 python-multipart==0.0.32
