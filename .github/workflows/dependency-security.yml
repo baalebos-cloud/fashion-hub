@@ -63,13 +63,13 @@ jobs:
       - name: Scan tracked source files for potential credentials
         run: |
           detect-secrets scan --all-files \
-            --exclude-files '(^backend/tests/|^frontend/tests/|^docker-compose\.test\.yml$|(^|/)(package-lock\.json|requirements\.txt|\.env\.example)$)' > /tmp/seam-secret-scan.json
+            --exclude-files '(^\.git/|^backend/tests/|^frontend/tests/|^docker-compose\.test\.yml$|(^|/)(package-lock\.json|requirements\.txt|\.env\.example)$)' > /tmp/seam-secret-scan.json
           python - <<'PY'
           import json
           from pathlib import Path
           results = json.loads(Path('/tmp/seam-secret-scan.json').read_text()).get('results', {})
           if results:
-              print('Potential secrets found in:', ', '.join(sorted(results)))
+              print('Potential secret candidates (type/line, never values):')\n              for path, findings in sorted(results.items()):\n                  for finding in findings:\n                      print(path, finding.get('type'), finding.get('line_number'))
               raise SystemExit(1)
           print('No potential secrets detected in scanned source files.')
           PY
