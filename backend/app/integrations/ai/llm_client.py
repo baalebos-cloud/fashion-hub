@@ -1,11 +1,14 @@
 """Provider-isolated chat completions for Seam."""
 import re
+from app.core.logging import get_logger
 from dataclasses import dataclass
 
 import httpx
 
 from app.core.config import settings
 from app.core.exceptions import ExternalProviderError
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -69,10 +72,27 @@ class LLMClient:
                 json=payload,
                 timeout=20.0,
             )
-        except httpx.RequestError:
+        except httpx.RequestError as exc:
+            logger.warning("seam_vertex_transport_failure", extra={
+                "provider": "vertex_ai", "error_type": type(exc).__name__,
+            })
             raise ExternalProviderError("Vertex AI is currently unreachable. Please retry.") from None
         if response.status_code not in {200, 201}:
-            # Provider bodies may contain personal data and must never be sent to clients.
+            # Never log provider response bodies, headers, keys or user prompts.
+            allowed = {
+                "INVALID_ARGUMENT", "UNAUTHENTICATED", "PERMISSION_DENIED",
+                "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION", "NOT_FOUND",
+                "UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL",
+            }
+            try:
+                code = response.json().get("error", {}).get("status")
+            except (ValueError, TypeError, AttributeError):
+                code = None
+            logger.warning("seam_vertex_api_failure", extra={
+                "provider": "vertex_ai",
+                "http_status": response.status_code,
+                "provider_code": code if code in allowed else "UNKNOWN",
+            })
             raise ExternalProviderError(f"Vertex AI request failed (HTTP {response.status_code}).")
         try:
             data = response.json()
