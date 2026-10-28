@@ -1,7 +1,5 @@
 """Opt-in Interswitch sandbox checkout, authoritative verification and redirect."""
-import re
 import uuid
-from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form
 from fastapi.responses import RedirectResponse
@@ -15,6 +13,7 @@ from app.models.payment_outbox import PaymentOutbox
 from app.models.user import User
 from app.schemas.payment import PaymentResponse
 from app.services.interswitch_sandbox_service import InterswitchSandboxService
+from app.services.interswitch_return import redirect_for_interswitch_return
 
 router = APIRouter(prefix="/interswitch", tags=["Interswitch sandbox"])
 
@@ -54,17 +53,26 @@ def verify_checkout(provider_reference: str,
 
 
 @router.post("/return")
-def browser_return(txnref: str = Form(default="")):
-    # This POST is an untrusted browser notification, NEVER a settlement event.
-    # Send the buyer to an authenticated page that independently requeries.
-    params = {"provider": "interswitch"}
-    if re.fullmatch(r"[A-Za-z0-9_-]{1,128}", txnref):
-        params["reference"] = txnref
-    destination = f"{settings.FRONTEND_URL.rstrip('/')}/app/customer/payment/success"
-    return RedirectResponse(url=f"{destination}?{urlencode(params)}", status_code=303)
+def browser_return(txnref: str = Form(default=""), txn_ref: str = Form(default=""),
+                   transactionreference: str = Form(default=""),
+                   reference: str = Form(default="")):
+    # Navigation only. The authenticated buyer must verify via server requery.
+    return RedirectResponse(
+        url=redirect_for_interswitch_return(
+            txnref=txnref, txn_ref=txn_ref,
+            transactionreference=transactionreference, reference=reference,
+        ),
+        status_code=303,
+    )
 
 
 @router.get("/return")
-def browser_return_get(txnref: str = ""):
-    """Compatibility path if a hosted checkout sends a browser GET return."""
-    return browser_return(txnref=txnref)
+def browser_return_get(txnref: str = "", txn_ref: str = "",
+                       transactionreference: str = "", reference: str = ""):
+    return RedirectResponse(
+        url=redirect_for_interswitch_return(
+            txnref=txnref, txn_ref=txn_ref,
+            transactionreference=transactionreference, reference=reference,
+        ),
+        status_code=303,
+    )
