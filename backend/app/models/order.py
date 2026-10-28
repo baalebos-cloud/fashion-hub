@@ -65,5 +65,9 @@ class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         "OrderItem", lazy="selectin", order_by="OrderItem.id",
     )
 
+    parent_customer_order_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("orders.id", ondelete="RESTRICT"), nullable=True, index=True,
+    )
+
     source_cart_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("carts.id"), nullable=True)
     reservation_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
