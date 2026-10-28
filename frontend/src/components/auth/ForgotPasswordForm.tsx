@@ -7,18 +7,21 @@ export function ForgotPasswordForm() {
   const [email, setEmail] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSent, setIsSent] = useState(false);
+  const [error, setError] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(false);
     try {
       await authApi.forgotPassword(email);
+      setIsSent(true);
+    } catch {
+      // A network outage is not successful delivery; use the same message
+      // regardless of whether this email belongs to an account.
+      setError(true);
     } finally {
       setIsSubmitting(false);
-      // Always show the same confirmation regardless of outcome — the
-      // backend deliberately doesn't reveal whether the email exists
-      // (see backend/docs/authentication.md), so the frontend shouldn't either.
-      setIsSent(true);
     }
   }
 
@@ -33,6 +36,7 @@ export function ForgotPasswordForm() {
         <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">Email</label>
         <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
       </div>
+      {error && <p role="alert" className="text-sm text-thread">Unable to request a reset link right now. Please try again.</p>}
       <Button type="submit" isLoading={isSubmitting} className="w-full">Send reset link</Button>
     </form>
   );

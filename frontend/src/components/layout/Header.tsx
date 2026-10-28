@@ -8,7 +8,7 @@ import { ROLE_HOME_PATH } from "@/constants/roles";
 
 export function Header() {
   const { user, logOut } = useAuth();
-  const { unreadCount } = useNotifications();
+  const { unreadCount } = useNotifications(Boolean(user));
 
   return (
     <header

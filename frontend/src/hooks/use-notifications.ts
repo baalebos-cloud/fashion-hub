@@ -1,12 +1,13 @@
 import { useEffect } from "react";
 import { useNotificationStore } from "@/store/notification.store";
 
-export function useNotifications() {
-  const { items, unreadCount, isLoading, fetchAll, markRead } = useNotificationStore();
+/** Avoid querying private notifications before authentication has completed. */
+export function useNotifications(enabled = true) {
+  const { items, unreadCount, isLoading, error, fetchAll, markRead } = useNotificationStore();
 
   useEffect(() => {
-    fetchAll();
-  }, [fetchAll]);
+    if (enabled) void fetchAll();
+  }, [enabled, fetchAll]);
 
-  return { items, unreadCount, isLoading, markRead, refetch: fetchAll };
+  return { items, unreadCount, isLoading, error, markRead, refetch: fetchAll };
 }
