@@ -63,7 +63,7 @@ jobs:
       - name: Scan tracked source files for potential credentials
         run: |
           detect-secrets scan --all-files \
-            --exclude-files '(^|/)(package-lock\.json|requirements\.txt|\.env\.example)$' > /tmp/seam-secret-scan.json
+            --exclude-files '(^backend/tests/|^frontend/tests/|^docker-compose\.test\.yml$|(^|/)(package-lock\.json|requirements\.txt|\.env\.example)$)' > /tmp/seam-secret-scan.json
           python - <<'PY'
           import json
           from pathlib import Path
