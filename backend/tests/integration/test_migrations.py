@@ -311,3 +311,41 @@ def test_material_order_parent_link_is_constrained_and_downgrade_preserves_links
             command.downgrade(config, "-1")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0011"
+
+
+def test_saga_audit_ledger_immutable_and_rollback_rejects_history(migration_database):
+    from sqlalchemy.exc import DBAPIError
+
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    order_id = uuid.uuid4()
+    with engine.begin() as conn:
+        conn.execute(text(
+            "INSERT INTO orders (id,order_number,order_type,buyer_user_id,seller_user_id,"
+            "status,subtotal,delivery_fee,tax_amount,discount_amount,total_amount,currency)"
+            " VALUES (:id,:number,'customer_order',:buyer,:seller,'pending',100,0,0,0,100,'NGN')"
+        ), {"id": order_id, "number": "LED-" + uuid.uuid4().hex[:16],
+            "buyer": uuid.uuid4(), "seller": uuid.uuid4()})
+        conn.execute(text(
+            "INSERT INTO saga_step_log (id,order_id,step_name,status,payload)"
+            " VALUES (:id,:order_id,'PENDING_PAYMENT','completed','{}'::jsonb)"
+        ), {"id": uuid.uuid4(), "order_id": order_id})
+        for account, direction in (("sandbox_receivable", "debit"), ("sandbox_liability", "credit")):
+            conn.execute(text(
+                "INSERT INTO ledger_entries (id,order_id,event_key,account,direction,amount_minor)"
+                " VALUES (:id,:order_id,'test-event',:account,:direction,10000)"
+            ), {"id": uuid.uuid4(), "order_id": order_id,
+                "account": account, "direction": direction})
+    with pytest.raises(DBAPIError):
+        with engine.begin() as conn:
+            conn.execute(text("DELETE FROM ledger_entries WHERE order_id=:id"), {"id": order_id})
+    with pytest.raises(DBAPIError):
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE saga_step_log SET status='failed' WHERE order_id=:id"), {"id": order_id})
+    with pytest.raises(RuntimeError, match="audit records"):
+        with engine.begin() as conn:
+            config.attributes["connection"] = conn
+            command.downgrade(config, "-1")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0011"
+        assert conn.execute(text("SELECT count(*) FROM ledger_entries")).scalar_one() == 2
