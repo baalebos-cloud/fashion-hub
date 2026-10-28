@@ -14,6 +14,8 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column("refunds", sa.Column("idempotency_key", sa.String(128), nullable=True))
+    op.create_unique_constraint("uq_refunds_idempotency_key", "refunds", ["idempotency_key"])
     op.create_table(
         "saga_step_log",
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
@@ -68,3 +70,7 @@ def downgrade():
     op.drop_index("ix_saga_log_order_created", table_name="saga_step_log")
     op.drop_table("saga_step_log")
     op.execute("DROP FUNCTION seam_prevent_audit_mutation()")
+    if bind.execute(sa.text("SELECT 1 FROM refunds WHERE idempotency_key IS NOT NULL LIMIT 1")).first():
+        raise RuntimeError("Idempotent refunds exist: refuse to discard financial keys.")
+    op.drop_constraint("uq_refunds_idempotency_key", "refunds", type_="unique")
+    op.drop_column("refunds", "idempotency_key")
