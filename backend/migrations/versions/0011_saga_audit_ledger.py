@@ -42,6 +42,21 @@ def upgrade():
     )
     op.create_index("ix_ledger_order_created", "ledger_entries", ["order_id", "created_at"])
 
+    op.execute("""
+        CREATE FUNCTION seam_prevent_audit_mutation() RETURNS trigger AS $
+        BEGIN
+            RAISE EXCEPTION 'Audit and ledger rows are immutable';
+        END;
+        $ LANGUAGE plpgsql;
+    """)
+    for table in ("ledger_entries", "saga_step_log"):
+        op.execute(
+            f"CREATE TRIGGER trg_{table}_immutable "
+            f"BEFORE UPDATE OR DELETE ON {table} "
+            "FOR EACH ROW EXECUTE FUNCTION seam_prevent_audit_mutation()"
+        )
+
+
 
 def downgrade():
     bind = op.get_bind()
@@ -52,3 +67,4 @@ def downgrade():
     op.drop_table("ledger_entries")
     op.drop_index("ix_saga_log_order_created", table_name="saga_step_log")
     op.drop_table("saga_step_log")
+    op.execute("DROP FUNCTION seam_prevent_audit_mutation()")
