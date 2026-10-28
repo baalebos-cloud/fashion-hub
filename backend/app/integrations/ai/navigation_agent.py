@@ -80,6 +80,39 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
                 scope + " I do not accept orders, update deliveries, approve accounts "
                 "or move payments on your behalf. Live Gemini answers are temporarily unavailable."
             )
+        if user_role in {"tailor", "designer"}:
+            if "verif" in question or "kyc" in question or "kyb" in question:
+                return (
+                    "Open Verification (/app/professional/verification) to check "
+                    "the identity-verification instructions and available status. "
+                    "Identity verification and business verification are separate. "
+                    "The business-verification (KYB) API is not fully implemented, "
+                    "so do not assume that submitting the screen completes approval. "
+                    "Contact support if you need an official verification decision."
+                )
+            if any(term in question for term in (
+                "material", "fabric", "supplier", "marketplace"
+            )):
+                if user_role == "designer":
+                    return (
+                        "Material shopping routes are not currently confirmed for "
+                        "the designer role. Use your visible navigation or contact "
+                        "support rather than following an unverified link."
+                    )
+                return (
+                    "Open Vendor Marketplace (/app/professional/vendor-marketplace) "
+                    "to browse available materials. Select a product to review its "
+                    "details, then add it to your cart if that option is available. "
+                    "Open Cart (/app/professional/cart) to review your selections "
+                    "before proceeding with any supported checkout steps. "
+                    "Availability and purchases are not confirmed by Seam."
+                )
+            if "portfolio" in question:
+                return (
+                    "Open Portfolio (/app/professional/portfolio) to manage "
+                    "the work samples and details available in your account. "
+                    "Seam cannot publish or edit portfolio entries for you."
+                )
         if user_role in {"tailor", "designer"} and "accept" in question and "order" in question:
             return (
                 "Seam's AI connection is temporarily unavailable. "
