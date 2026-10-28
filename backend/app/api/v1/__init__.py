@@ -25,6 +25,7 @@ from app.api.v1 import (
     favorites,
     geocoding,
     invoices,
+    interswitch,
     kyb,
     kyc,
     locations,
@@ -73,6 +74,7 @@ api_router.include_router(orders.router)
 api_router.include_router(order_items.router)
 api_router.include_router(order_timeline.router)
 api_router.include_router(payments.router)
+api_router.include_router(interswitch.router)
 api_router.include_router(payment_webhooks.router)
 api_router.include_router(refunds.router)
 api_router.include_router(invoices.router)
