@@ -310,3 +310,23 @@ def cancel_order(
     required by the cancellation edge case; not in the minimal spec list)."""
     service = OrderService(db)
     return service.cancel(order_id=order_id, actor=current_user, reason=payload.note)
+
+
+@router.post("/{customer_order_id}/material-orders/{material_order_id}/link", response_model=OrderResponse)
+def link_material_purchase(
+    customer_order_id: uuid.UUID,
+    material_order_id: uuid.UUID,
+    current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    db: Session = Depends(get_db),
+):
+    """Link this professional's own material purchase to their clothing order.
+
+    This is metadata only; it does not pay vendors, assign couriers or move money.
+    """
+    from app.services.material_order_link_service import MaterialOrderLinkService
+
+    return MaterialOrderLinkService(db).attach(
+        customer_order_id=customer_order_id,
+        material_order_id=material_order_id,
+        actor=current_user,
+    )
