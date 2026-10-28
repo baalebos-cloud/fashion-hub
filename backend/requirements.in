@@ -33,7 +33,7 @@ slowapi==0.1.10
 httpx==0.28.1
 
 # AI provider SDK
-anthropic==1.14.0
+anthropic==2.3.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
 boto3==1.43.114
