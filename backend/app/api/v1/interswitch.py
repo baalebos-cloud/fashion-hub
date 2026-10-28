@@ -62,3 +62,9 @@ def browser_return(txnref: str = Form(default="")):
         params["reference"] = txnref
     destination = f"{settings.FRONTEND_URL.rstrip('/')}/app/customer/payment/success"
     return RedirectResponse(url=f"{destination}?{urlencode(params)}", status_code=303)
+
+
+@router.get("/return")
+def browser_return_get(txnref: str = ""):
+    """Compatibility path if a hosted checkout sends a browser GET return."""
+    return browser_return(txnref=txnref)
