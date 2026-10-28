@@ -66,8 +66,10 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         if any(phrase in question for phrase in (
             "what can you do", "what can you so", "your capabilities", "how can you help",
         )):
-            if user_role in {"tailor", "designer"}:
+            if user_role == "tailor":
                 scope = "I can guide you through incoming orders, materials, your portfolio, and verification."
+            elif user_role == "designer":
+                scope = "I can guide you through incoming orders, your portfolio, and verification."
             elif user_role == "vendor":
                 scope = "I can help locate products, inventory, and your received orders."
             elif user_role == "customer":
