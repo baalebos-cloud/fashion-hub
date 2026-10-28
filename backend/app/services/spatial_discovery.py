@@ -13,6 +13,9 @@ from app.models.location import Location
 from app.models.professional import Professional
 from app.models.vendor import Vendor
 from app.models.vendor_product import VendorProduct
+from app.models.product_variant import ProductVariant
+from app.models.inventory import Inventory
+from app.models.user import User
 
 
 def validated_search(*, latitude=None, longitude=None, radius_m=10000,
@@ -58,7 +61,9 @@ def nearby_professionals(db: Session, *, latitude=None, longitude=None, radius_m
     stmt = (select(Professional.id, Professional.business_name,
                    (distance if distance is not None else func.cast(None, Location.latitude.type)).label("distance_m"))
             .join(Location, Location.id == Professional.location_id)
-            .where(Professional.is_verified.is_(True),
+            .join(User, User.id == Professional.user_id)
+            .where(User.is_active.is_(True),
+                   Professional.is_verified.is_(True),
                    Professional.accepts_new_orders.is_(True),
                    *filters))
     stmt = stmt.order_by(distance, Professional.id) if distance is not None else stmt.order_by(Professional.id)
@@ -83,7 +88,12 @@ def nearby_material_vendors(db: Session, *, fabric: str, latitude=None, longitud
                    (distance if distance is not None else func.cast(None, Location.latitude.type)).label("distance_m"))
             .join(Location, Location.id == Vendor.warehouse_location_id)
             .join(VendorProduct, VendorProduct.vendor_id == Vendor.id)
-            .where(Vendor.is_verified.is_(True), VendorProduct.is_active.is_(True),
+            .join(ProductVariant, ProductVariant.product_id == VendorProduct.id)
+            .join(Inventory, Inventory.product_variant_id == ProductVariant.id)
+            .join(User, User.id == Vendor.user_id)
+            .where(User.is_active.is_(True), User.role == "vendor",
+                   Inventory.quantity_available > 0,
+                   Vendor.is_verified.is_(True), VendorProduct.is_active.is_(True),
                    VendorProduct.name.ilike(f"%{term}%", escape="\\"), *filters)
             .distinct())
     stmt = stmt.order_by(distance, Vendor.id) if distance is not None else stmt.order_by(Vendor.id)
@@ -105,7 +115,9 @@ def nearby_available_couriers(db: Session, *, latitude=None, longitude=None,
     stmt = (select(DeliveryPartner.id,
                    (distance if distance is not None else func.cast(None, Location.latitude.type)).label("distance_m"))
             .join(Location, Location.id == DeliveryPartner.current_location_id)
-            .where(DeliveryPartner.is_verified.is_(True),
+            .join(User, User.id == DeliveryPartner.user_id)
+            .where(User.is_active.is_(True),
+                   DeliveryPartner.is_verified.is_(True),
                    DeliveryPartner.is_available.is_(True), *filters))
     stmt = stmt.order_by(distance, DeliveryPartner.id) if distance is not None else stmt.order_by(DeliveryPartner.id)
     return [{"id": str(r[0]),
