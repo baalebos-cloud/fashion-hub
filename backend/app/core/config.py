@@ -66,6 +66,10 @@ class Settings(BaseSettings):
     PAYMENT_SECRET_KEY: Optional[str] = None
     PAYMENT_PUBLIC_KEY: Optional[str] = None
     PAYMENT_WEBHOOK_SECRET: Optional[str] = None
+    # Isolated Interswitch test-environment gate. Never enabled in production.
+    INTERSWITCH_SANDBOX_ENABLED: bool = False
+    INTERSWITCH_MERCHANT_CODE: Optional[str] = None
+    INTERSWITCH_PAY_ITEM_ID: Optional[str] = None
     # Financial operations require explicit provider onboarding and sandbox verification.
     REFUND_EXECUTION_ENABLED: bool = False
 
