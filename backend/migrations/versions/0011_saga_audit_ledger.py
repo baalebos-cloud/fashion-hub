@@ -45,11 +45,11 @@ def upgrade():
     op.create_index("ix_ledger_order_created", "ledger_entries", ["order_id", "created_at"])
 
     op.get_bind().exec_driver_sql("""
-        CREATE FUNCTION seam_prevent_audit_mutation() RETURNS trigger AS $
+        CREATE FUNCTION seam_prevent_audit_mutation() RETURNS trigger AS $seam_audit$
         BEGIN
             RAISE EXCEPTION 'Audit and ledger rows are immutable';
         END;
-        $ LANGUAGE plpgsql;
+        $seam_audit$ LANGUAGE plpgsql;
     """)
     for table in ("ledger_entries", "saga_step_log"):
         op.execute(
