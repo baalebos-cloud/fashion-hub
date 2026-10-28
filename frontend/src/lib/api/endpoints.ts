@@ -184,6 +184,8 @@ export const endpoints = {
     products: "/search/vendor-products",
   },
 
+  adminCommerce: { summary: "/admin/commerce-summary" },
+
   dashboard: {
     summary: "/dashboard",
   },
