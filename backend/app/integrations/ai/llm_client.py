@@ -96,11 +96,23 @@ class LLMClient:
             raise ExternalProviderError(f"Vertex AI request failed (HTTP {response.status_code}).")
         try:
             data = response.json()
-            parts = data["candidates"][0]["content"]["parts"]
-            answer = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+            candidate = data["candidates"][0]
+            parts = candidate["content"]["parts"]
+            answer = "".join(
+                p.get("text", "") for p in parts
+                if isinstance(p, dict) and not p.get("thought", False)
+            ).strip()
         except (ValueError, TypeError, IndexError, KeyError, AttributeError):
+            logger.warning("seam_vertex_invalid_response", extra={"provider": "vertex_ai"})
             raise ExternalProviderError("Vertex AI returned an invalid response.") from None
         if not answer:
+            reason = str(candidate.get("finishReason", ""))
+            reason = reason if reason in {
+                "MAX_TOKENS", "STOP", "SAFETY", "RECITATION", "OTHER",
+            } else "UNKNOWN"
+            logger.warning("seam_vertex_empty_response", extra={
+                "provider": "vertex_ai", "finish_reason": reason,
+            })
             raise ExternalProviderError("Vertex AI did not return an answer.")
         return ChatCompletionResult(content=answer, raw_response=data)
 
