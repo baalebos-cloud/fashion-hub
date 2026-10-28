@@ -59,7 +59,8 @@ def test_vertex_converts_assistant_turns_to_model_role(monkeypatch):
     assert result.content == "First response"
     payload = sender.call_args.kwargs["json"]
     assert [turn["role"] for turn in payload["contents"]] == ["user", "model", "user"]
-    assert payload["generationConfig"]["maxOutputTokens"] == 128
+    assert payload["generationConfig"]["maxOutputTokens"] == 1024
+    assert payload["generationConfig"]["thinkingConfig"] == {"thinkingLevel": "LOW"}
 
 
 def test_vertex_missing_credentials_and_invalid_model_fail_closed(monkeypatch):
@@ -107,3 +108,45 @@ def test_seam_navigation_fallback_if_old_n8n_config_or_google_outage(monkeypatch
         user_role="customer", user_question="Where are admin tools?"
     )
     assert "/app/admin" not in other
+
+
+def test_vertex_rejection_diagnostics_are_safe(monkeypatch, caplog):
+    import logging
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: SimpleNamespace(
+        status_code=403,
+        json=lambda: {"error": {"status": "PERMISSION_DENIED", "message": "Provider diagnostic detail"}},
+    ))
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ExternalProviderError, match="403"):
+            LLMClient().complete([ChatMessage("user", "How do I accept an order?")])
+    assert "seam_vertex_api_failure" in caplog.text
+    assert "PERMISSION_DENIED" in caplog.text
+    assert "Provider diagnostic detail" not in caplog.text
+    assert "test-express-key" not in caplog.text
+
+
+def test_empty_gemini_response_logs_safe_finish_reason(monkeypatch, caplog):
+    import logging
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: SimpleNamespace(
+        status_code=200, json=lambda: {"candidates": [{
+            "finishReason": "MAX_TOKENS",
+            "content": {"parts": [{"thought": True, "text": "internal model text"}]},
+        }]},
+    ))
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(ExternalProviderError, match="did not return an answer"):
+            LLMClient().complete([ChatMessage("user", "Where are my orders?")])
+    assert "seam_vertex_empty_response" in caplog.text
+    assert "MAX_TOKENS" in caplog.text
+    assert "internal model text" not in caplog.text
+
+
+def test_capabilities_fallback_is_role_scoped(monkeypatch):
+    monkeypatch.setattr(settings, "AI_PROVIDER", "n8n")
+    response = build_navigation_response(
+        user_role="tailor", user_question="What can you do as an AI assistant?"
+    )
+    assert "incoming orders" in response
+    assert "materials" in response
+    assert "do not accept orders" in response
+    assert "/app/admin" not in response
