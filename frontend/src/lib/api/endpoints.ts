@@ -86,6 +86,11 @@ export const endpoints = {
     cancel: (id: string) => `/orders/${id}/cancel`,
   },
 
+  interswitch: {
+    initialize: "/interswitch/checkout",
+    verify: (reference: string) => `/interswitch/${encodeURIComponent(reference)}/verify`,
+  },
+
   payments: {
     initialize: "/payments",
     verify: (reference: string) => `/payments/${encodeURIComponent(reference)}/verify`,
