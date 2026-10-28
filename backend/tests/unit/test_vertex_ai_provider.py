@@ -172,3 +172,13 @@ def test_grounded_offline_help_is_role_scoped(monkeypatch, role, question, expec
     answer = build_navigation_response(user_role=role, user_question=question)
     assert expected in answer
     assert "/app/admin" not in answer
+
+
+def test_designer_capabilities_do_not_advertise_unavailable_materials(monkeypatch):
+    monkeypatch.setattr(settings, "AI_PROVIDER", "n8n")
+    answer = build_navigation_response(
+        user_role="designer", user_question="What can you do?"
+    )
+    assert "portfolio" in answer
+    assert "materials" not in answer
+    assert "/app/professional/vendor-marketplace" not in answer
