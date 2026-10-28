@@ -153,6 +153,10 @@ export const endpoints = {
     inConversation: (conversationId: string) => `/messages/conversations/${conversationId}/messages`,
   },
 
+  commerce: {
+    recommendations: "/ai/commerce/recommendations",
+  },
+
   ai: {
     sendMessage: "/ai/navigation/messages",
     conversations: "/ai/navigation/conversations",
