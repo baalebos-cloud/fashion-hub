@@ -50,10 +50,11 @@ class LLMClient:
         ]
         if not contents or contents[-1]["role"] != "user":
             raise ExternalProviderError("Seam requires a user message.")
-        payload = {
-            "contents": contents,
-            "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.2},
-        }
+        generation_config = {"maxOutputTokens": max(max_tokens, 1024), "temperature": 0.2}
+        # Gemini 3 normally uses HIGH thinking, which can exhaust 512 tokens.
+        if self.model.startswith("gemini-3"):
+            generation_config["thinkingConfig"] = {"thinkingLevel": "LOW"}
+        payload = {"contents": contents, "generationConfig": generation_config}
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
         # Fixed Google API origin and strictly constrained model path prevent SSRF.
