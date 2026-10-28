@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { SandboxSagaStatus } from "@/components/orders/SandboxSagaStatus";
 import { useOrder } from "@/hooks/use-order";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
@@ -36,6 +37,7 @@ export default function OrderDetails() {
       </ul>}
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
+      <SandboxSagaStatus orderId={order.id} />
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
       {order.order_type === "customer_order" && order.status === "completed" && (
         <section>

@@ -2,6 +2,7 @@
 from decimal import Decimal
 
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
@@ -19,7 +20,8 @@ class RefundService:
     def __init__(self, db: Session):
         self.db = db
 
-    def request_refund(self, *, order_id, requested_by: User, amount, reason: str) -> Refund:
+    def request_refund(self, *, order_id, requested_by: User, amount, reason: str,
+                       idempotency_key: str | None = None) -> Refund:
         order = self.db.get(Order, order_id)
         if not order:
             raise NotFoundError("Order not found.")
@@ -38,6 +40,14 @@ class RefundService:
             raise ValidationAppError("Refund amount must be a positive two-decimal value.") from None
         if not reason or len(reason.strip()) < 5 or len(reason) > 2000:
             raise ValidationAppError("Provide a refund reason between 5 and 2000 characters.")
+        if idempotency_key:
+            existing = (self.db.query(Refund).filter(Refund.idempotency_key == idempotency_key)
+                        .with_for_update().first())
+            if existing:
+                if (existing.order_id != order.id or existing.requested_by_user_id != requested_by.id
+                    or Decimal(str(existing.amount)) != amount or existing.reason != reason.strip()):
+                    raise ConflictError("Idempotency key belongs to a different refund request.")
+                return existing
         already_reserved = sum((
             Decimal(str(row.amount)) for row in
             self.db.query(Refund).filter(Refund.payment_id == payment.id,
@@ -48,10 +58,21 @@ class RefundService:
         refund = Refund(
             payment_id=payment.id, order_id=order.id,
             requested_by_user_id=requested_by.id, amount=amount,
-            reason=reason.strip(), status="requested",
+            reason=reason.strip(), status="requested", idempotency_key=idempotency_key,
         )
         self.db.add(refund)
-        self.db.commit()
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            if idempotency_key:
+                previous = self.db.query(Refund).filter(Refund.idempotency_key == idempotency_key).first()
+                if previous and (previous.order_id == order.id
+                                 and previous.requested_by_user_id == requested_by.id
+                                 and Decimal(str(previous.amount)) == amount
+                                 and previous.reason == reason.strip()):
+                    return previous
+            raise ConflictError("Concurrent refund request: retry using the original idempotency key.") from None
         self.db.refresh(refund)
         return refund
 

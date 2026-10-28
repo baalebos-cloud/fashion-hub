@@ -235,8 +235,8 @@ def test_http_catalog_cart_checkout_payment_and_invoice(db, make_user):
             delivery = address(db, buyer)
             body = dict(cart_id=summary['cart_id'], cart_revision=summary['revision'], vendor_id=vendor_id,
                         delivery_address_id=str(delivery.id), idempotency_key=uuid.uuid4().hex)
-            assert client.post('/api/v1/checkout', json={**body, 'total_amount': 1}).status_code == 422
-            created = client.post('/api/v1/checkout', json=body)
+            assert client.post('/api/v1/checkout', json={**body, 'total_amount': 1}, headers={'Idempotency-Key': body['idempotency_key']}).status_code == 422
+            created = client.post('/api/v1/checkout', json=body, headers={'Idempotency-Key': body['idempotency_key']})
             assert created.status_code == 201, created.text
             order = created.json()
             assert order['total_amount'] == 50.06 and order['seller_user_id'] == str(vendor_user.id)

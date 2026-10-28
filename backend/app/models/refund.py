@@ -20,5 +20,6 @@ class Refund(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="requested", index=True)
+    idempotency_key: Mapped[str | None] = mapped_column(String(128), nullable=True, unique=True)
     provider_refund_reference: Mapped[str | None] = mapped_column(String(128), nullable=True)
     processed_at: Mapped[datetime | None] = mapped_column(nullable=True)

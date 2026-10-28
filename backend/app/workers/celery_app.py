@@ -28,6 +28,7 @@ celery_app = Celery(
         "app.workers.kyc_tasks",
         "app.workers.image_tasks",
         "app.workers.ai_tasks",
+        "app.workers.order_tasks",
     ],
 )
 
@@ -42,6 +43,7 @@ celery_app.conf.update(
     task_default_retry_delay=30,
     task_routes={
         "app.workers.payment_tasks.*": {"queue": "payments"},
+        "app.workers.order_tasks.*": {"queue": "delivery"},
         "app.workers.payment_outbox_tasks.*": {"queue": "payments"},
         "app.workers.delivery_tasks.*": {"queue": "delivery"},
         "app.workers.tracking_tasks.*": {"queue": "delivery"},
@@ -56,6 +58,10 @@ celery_app.conf.update(
         "app.workers.ai_tasks.*": {"queue": "ai"},
     },
     beat_schedule={
+        "sweep-sandbox-saga-orders": {
+            "task": "app.workers.order_tasks.sweep_stale_saga_orders",
+            "schedule": 300.0,
+        },
         "drain-authentication-email-outbox": {
             "task": "app.workers.email_tasks.drain_auth_email_outbox",
             "schedule": 60.0,

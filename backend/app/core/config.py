@@ -62,7 +62,8 @@ class Settings(BaseSettings):
     # --- Payments ---
     VENDOR_RESERVATION_TTL_MINUTES: int = Field(15, ge=1, le=120)
     PAYMENT_PROVIDER: str = "paystack"  # paystack | flutterwave
-    PAYMENTS_ENABLED: bool = False  # explicit production release gate
+    PAYMENTS_ENABLED: bool = False  # existing production release gate
+    ENABLE_PRODUCTION_PAYMENTS: bool = False  # additional hard-disabled Saga release gate
     PAYMENT_SECRET_KEY: Optional[str] = None
     PAYMENT_PUBLIC_KEY: Optional[str] = None
     PAYMENT_WEBHOOK_SECRET: Optional[str] = None
@@ -163,6 +164,8 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_deployment(self):
+        if self.ENABLE_PRODUCTION_PAYMENTS:
+            raise ValueError("Production Saga payments are not approved or implemented.")
         if self.APP_ENV in {"staging", "production"}:
             if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-env":
                 raise ValueError("Set a randomly generated SECRET_KEY of at least 32 characters")
