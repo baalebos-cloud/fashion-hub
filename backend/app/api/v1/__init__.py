@@ -45,6 +45,7 @@ from app.api.v1 import (
     receipts,
     referrals,
     refunds,
+    refund_idempotency,
     reviews,
     search,
     saga,
@@ -80,6 +81,7 @@ api_router.include_router(payments.router)
 api_router.include_router(interswitch.router)
 api_router.include_router(payment_webhooks.router)
 api_router.include_router(refunds.router)
+api_router.include_router(refund_idempotency.router)
 api_router.include_router(invoices.router)
 api_router.include_router(receipts.router)
 api_router.include_router(payment_consent.router)
