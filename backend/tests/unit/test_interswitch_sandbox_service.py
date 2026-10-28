@@ -138,3 +138,63 @@ def test_vendor_orders_are_outside_customer_demo_scope(enabled):
                                         buyer_user_id=order.buyer_user_id,
                                         customer_email="buyer@example.com")
     service.db.add.assert_not_called()
+
+
+def test_authoritative_matching_success_reaches_settlement(enabled, monkeypatch):
+    import app.services.interswitch_sandbox_service as mod
+    order = _order()
+    service = _service(order)
+    payment = SimpleNamespace(provider="interswitch", order_id=order.id,
+                              amount=Decimal("125.50"), currency="NGN",
+                              provider_reference="seam_test")
+    service._get_payment_by_reference = Mock(return_value=payment)
+    settled = object()
+    service._settle = Mock(return_value=settled)
+    monkeypatch.setattr(mod, "requery_transaction", lambda **kwargs: SimpleNamespace(
+        reference="seam_test", amount_minor=12550, currency="NGN", successful=True,
+    ))
+    assert service.verify_and_confirm("seam_test", buyer_user_id=order.buyer_user_id) is settled
+    args, kwargs = service._settle.call_args
+    assert args[1].status == "successful"
+    assert args[1].amount == Decimal("125.50")
+    assert args[-1] == order.buyer_user_id
+
+
+def test_failed_provider_response_never_claims_success(enabled, monkeypatch):
+    import app.services.interswitch_sandbox_service as mod
+    order = _order()
+    service = _service(order)
+    payment = SimpleNamespace(provider="interswitch", order_id=order.id,
+                              amount=Decimal("125.50"), currency="NGN",
+                              provider_reference="seam_test")
+    service._get_payment_by_reference = Mock(return_value=payment)
+    service._settle = Mock(return_value=payment)
+    monkeypatch.setattr(mod, "requery_transaction", lambda **kwargs: SimpleNamespace(
+        reference="seam_test", amount_minor=12550, currency="NGN", successful=False,
+    ))
+    service.verify_and_confirm("seam_test", buyer_user_id=order.buyer_user_id)
+    assert service._settle.call_args.args[1].status == "pending"
+
+
+def test_mismatched_requery_reference_never_reaches_settlement(enabled, monkeypatch):
+    import app.services.interswitch_sandbox_service as mod
+    order = _order()
+    service = _service(order)
+    payment = SimpleNamespace(provider="interswitch", order_id=order.id,
+                              amount=Decimal("125.50"), currency="NGN",
+                              provider_reference="seam_test")
+    service._get_payment_by_reference = Mock(return_value=payment)
+    service._settle = Mock()
+    monkeypatch.setattr(mod, "requery_transaction", lambda **kwargs: SimpleNamespace(
+        reference="another_ref", amount_minor=12550, currency="NGN", successful=True,
+    ))
+    with pytest.raises(PaymentError):
+        service.verify_and_confirm("seam_test", buyer_user_id=order.buyer_user_id)
+    service._settle.assert_not_called()
+
+
+def test_invalid_callback_reference_not_forwarded():
+    from app.api.v1.interswitch import browser_return
+    redirect = browser_return(txnref="../unsafe?code=00")
+    assert "reference=" not in redirect.headers["location"]
+    assert "provider=interswitch" in redirect.headers["location"]
