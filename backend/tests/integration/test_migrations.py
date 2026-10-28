@@ -235,3 +235,17 @@ def test_stock_migration_repairs_vendor_identity_and_preserves_history_on_downgr
     with engine.connect() as conn:
         assert conn.execute(text('SELECT count(*) FROM orders')).scalar_one() == 1
         assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0008'
+
+
+def test_latest_migration_can_rollback_one_revision_and_reapply(migration_database):
+    """Prove latest reversible schema operations on an isolated disposable DB."""
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    with engine.begin() as conn:
+        config.attributes["connection"] = conn
+        command.downgrade(config, "-1")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0007"
+    migrate(engine, config, "head")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
