@@ -57,6 +57,10 @@ export const endpoints = {
     list: "/categories",
   },
 
+  vendorCategories: {
+    list: "/vendor-categories",
+  },
+
   cart: {
     summary: "/carts/summary",
     items: "/carts/items",

@@ -12,4 +12,9 @@ export const categoriesApi = {
     const response = await apiClient.get<Category[]>(endpoints.categories.list);
     return response.data;
   },
+
+  async listVendor(): Promise<Category[]> {
+    const response = await apiClient.get<Category[]>(endpoints.vendorCategories.list);
+    return response.data;
+  },
 };

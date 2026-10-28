@@ -19,3 +19,16 @@ test("unknown route offers a usable home link instead of the default debug scree
   await page.getByRole("link", { name: "Go to homepage" }).click();
   await expect(page).toHaveURL("/");
 });
+
+
+test("public marketplace shows a retry message instead of throwing on API outages", async ({ page }) => {
+  const fatal: string[] = [];
+  page.on("pageerror", (error) => fatal.push(error.message));
+  await page.route("**/api/v1/**", (route) =>
+    route.fulfill({ status: 503, contentType: "application/json", body: '{"detail":"Temporarily unavailable"}' })
+  );
+  await page.goto("/marketplace");
+  await expect(page.getByRole("alert")).toContainText("marketplace information couldn't be loaded");
+  await expect(page.getByRole("button", { name: "Retry" })).toBeVisible();
+  expect(fatal).toEqual([]);
+});
