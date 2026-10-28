@@ -1,11 +1,14 @@
 """Provider-isolated chat completions for Seam."""
 import re
+from app.core.logging import get_logger
 from dataclasses import dataclass
 
 import httpx
 
 from app.core.config import settings
 from app.core.exceptions import ExternalProviderError
+
+logger = get_logger(__name__)
 
 
 @dataclass
@@ -50,10 +53,14 @@ class LLMClient:
         ]
         if not contents or contents[-1]["role"] != "user":
             raise ExternalProviderError("Seam requires a user message.")
-        payload = {
-            "contents": contents,
-            "generationConfig": {"maxOutputTokens": max_tokens, "temperature": 0.2},
-        }
+        generation_config = {"maxOutputTokens": max(max_tokens, 1024)}
+        # Gemini 3 defaults to HIGH reasoning, potentially consuming the
+        # entire response budget. Google's recommended temperature is 1.0.
+        if self.model.startswith("gemini-3"):
+            generation_config["thinkingConfig"] = {"thinkingLevel": "LOW"}
+        else:
+            generation_config["temperature"] = 0.2
+        payload = {"contents": contents, "generationConfig": generation_config}
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
         # Fixed Google API origin and strictly constrained model path prevent SSRF.
@@ -68,18 +75,47 @@ class LLMClient:
                 json=payload,
                 timeout=20.0,
             )
-        except httpx.RequestError:
+        except httpx.RequestError as exc:
+            logger.warning("seam_vertex_transport_failure", extra={
+                "provider": "vertex_ai", "error_type": type(exc).__name__,
+            })
             raise ExternalProviderError("Vertex AI is currently unreachable. Please retry.") from None
         if response.status_code not in {200, 201}:
-            # Provider bodies may contain personal data and must never be sent to clients.
+            # Never log provider response bodies, headers, keys or user prompts.
+            allowed = {
+                "INVALID_ARGUMENT", "UNAUTHENTICATED", "PERMISSION_DENIED",
+                "RESOURCE_EXHAUSTED", "FAILED_PRECONDITION", "NOT_FOUND",
+                "UNAVAILABLE", "DEADLINE_EXCEEDED", "INTERNAL",
+            }
+            try:
+                code = response.json().get("error", {}).get("status")
+            except (ValueError, TypeError, AttributeError):
+                code = None
+            logger.warning("seam_vertex_api_failure", extra={
+                "provider": "vertex_ai",
+                "http_status": response.status_code,
+                "provider_code": code if code in allowed else "UNKNOWN",
+            })
             raise ExternalProviderError(f"Vertex AI request failed (HTTP {response.status_code}).")
         try:
             data = response.json()
-            parts = data["candidates"][0]["content"]["parts"]
-            answer = "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+            candidate = data["candidates"][0]
+            parts = candidate["content"]["parts"]
+            answer = "".join(
+                p.get("text", "") for p in parts
+                if isinstance(p, dict) and not p.get("thought", False)
+            ).strip()
         except (ValueError, TypeError, IndexError, KeyError, AttributeError):
+            logger.warning("seam_vertex_invalid_response", extra={"provider": "vertex_ai"})
             raise ExternalProviderError("Vertex AI returned an invalid response.") from None
         if not answer:
+            reason = str(candidate.get("finishReason", ""))
+            reason = reason if reason in {
+                "MAX_TOKENS", "STOP", "SAFETY", "RECITATION", "OTHER",
+            } else "UNKNOWN"
+            logger.warning("seam_vertex_empty_response", extra={
+                "provider": "vertex_ai", "finish_reason": reason,
+            })
             raise ExternalProviderError("Vertex AI did not return an answer.")
         return ChatCompletionResult(content=answer, raw_response=data)
 
