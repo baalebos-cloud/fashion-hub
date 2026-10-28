@@ -53,10 +53,13 @@ class LLMClient:
         ]
         if not contents or contents[-1]["role"] != "user":
             raise ExternalProviderError("Seam requires a user message.")
-        generation_config = {"maxOutputTokens": max(max_tokens, 1024), "temperature": 0.2}
-        # Gemini 3 normally uses HIGH thinking, which can exhaust 512 tokens.
+        generation_config = {"maxOutputTokens": max(max_tokens, 1024)}
+        # Gemini 3 defaults to HIGH reasoning, potentially consuming the
+        # entire response budget. Google's recommended temperature is 1.0.
         if self.model.startswith("gemini-3"):
             generation_config["thinkingConfig"] = {"thinkingLevel": "LOW"}
+        else:
+            generation_config["temperature"] = 0.2
         payload = {"contents": contents, "generationConfig": generation_config}
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
