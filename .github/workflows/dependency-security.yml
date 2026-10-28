@@ -51,3 +51,25 @@ jobs:
           git diff --exit-code -- requirements.txt
       - name: Audit the complete locked backend environment
         run: pip-audit --strict --require-hashes -r requirements.txt --progress-spinner=off
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - run: python -m pip install detect-secrets==1.5.0
+      - name: Scan tracked source files for potential credentials
+        run: |
+          detect-secrets scan --all-files \
+            --exclude-files '(^|/)(package-lock\.json|requirements\.txt|\.env\.example)$' > /tmp/seam-secret-scan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          results = json.loads(Path('/tmp/seam-secret-scan.json').read_text()).get('results', {})
+          if results:
+              print('Potential secrets found in:', ', '.join(sorted(results)))
+              raise SystemExit(1)
+          print('No potential secrets detected in scanned source files.')
+          PY
