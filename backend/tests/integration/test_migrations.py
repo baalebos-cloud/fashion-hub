@@ -305,12 +305,17 @@ def test_material_order_parent_link_is_constrained_and_downgrade_preserves_links
         with engine.begin() as conn:
             conn.execute(text("UPDATE orders SET parent_customer_order_id=:parent WHERE id=:id"),
                          {"parent": vendor_id, "id": customer_id})
+    # New 0011 is an empty audit migration in this scenario and can be
+    # safely rolled back before testing the 0010 guarded parent removal.
+    with engine.begin() as conn:
+        config.attributes["connection"] = conn
+        command.downgrade(config, "0010")
     with pytest.raises(RuntimeError, match="Linked material orders"):
         with engine.begin() as conn:
             config.attributes["connection"] = conn
             command.downgrade(config, "-1")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0011"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
 
 
 def test_saga_audit_ledger_immutable_and_rollback_rejects_history(migration_database):
