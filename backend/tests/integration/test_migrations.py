@@ -249,3 +249,16 @@ def test_latest_migration_can_rollback_one_revision_and_reapply(migration_databa
     migrate(engine, config, "head")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+
+
+def test_locations_have_a_gist_spatial_index_after_migrations(migration_database):
+    """Spatial proximity must be indexable, not a full-table scan."""
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    with engine.connect() as conn:
+        indexes = conn.execute(text(
+            "SELECT indexdef FROM pg_indexes "
+            "WHERE schemaname = current_schema() AND tablename = 'locations'"
+        )).scalars().all()
+    assert any("USING gist" in definition.lower() and "geom" in definition.lower()
+               for definition in indexes)
