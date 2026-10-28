@@ -69,7 +69,10 @@ jobs:
           from pathlib import Path
           results = json.loads(Path('/tmp/seam-secret-scan.json').read_text()).get('results', {})
           if results:
-              print('Potential secret candidates (type/line, never values):')\n              for path, findings in sorted(results.items()):\n                  for finding in findings:\n                      print(path, finding.get('type'), finding.get('line_number'))
+              print('Potential secret candidates (type/line, never values):')
+              for path, findings in sorted(results.items()):
+                  for finding in findings:
+                      print(path, finding.get('type'), finding.get('line_number'))
               raise SystemExit(1)
           print('No potential secrets detected in scanned source files.')
           PY
