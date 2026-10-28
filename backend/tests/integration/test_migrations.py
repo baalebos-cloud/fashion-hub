@@ -245,7 +245,7 @@ def test_latest_migration_can_rollback_one_revision_and_reapply(migration_databa
         config.attributes["connection"] = conn
         command.downgrade(config, "-1")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
     migrate(engine, config, "head")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
