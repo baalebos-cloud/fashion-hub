@@ -25,3 +25,12 @@ def test_return_does_not_trust_success_claims():
     link = redirect_for_interswitch_return(txnref="seam_test")
     assert "successful" not in link
     assert "paid" not in link
+
+
+def test_direct_route_invocation_with_fastapi_form_defaults():
+    # Regression: calling a FastAPI handler directly retains Form objects in
+    # unprovided parameters. These must not count as conflicting references.
+    from app.api.v1.interswitch import browser_return
+    redirect = browser_return(txnref="seam_test")
+    assert redirect.status_code == 303
+    assert "reference=seam_test" in redirect.headers["location"]
