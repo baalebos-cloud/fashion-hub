@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Mapped
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from datetime import datetime
 """
 Customer clothing order AND vendor material order share this table via
@@ -15,6 +15,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
+
+if TYPE_CHECKING:
+    from app.models.order_item import OrderItem
 
 
 class Order(Base, UUIDPrimaryKeyMixin, TimestampMixin):
