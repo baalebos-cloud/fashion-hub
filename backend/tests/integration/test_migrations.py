@@ -60,7 +60,7 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
                 conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
         assert {"users", "payouts", "referrals", "payment_outbox", "addresses"} <= set(inspect(conn).get_table_names())
         assert "eta_minutes" in {c["name"] for c in inspect(conn).get_columns("delivery_tracking")}
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
@@ -133,7 +133,7 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
             command.downgrade(config, "2ab23f38e9c6")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
 
 
 def test_orphan_line_items_abort_without_removing_records(migration_database):
@@ -245,10 +245,10 @@ def test_latest_migration_can_rollback_one_revision_and_reapply(migration_databa
         config.attributes["connection"] = conn
         command.downgrade(config, "-1")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0007"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
 
 
 def test_locations_have_a_gist_spatial_index_after_migrations(migration_database):
@@ -262,3 +262,19 @@ def test_locations_have_a_gist_spatial_index_after_migrations(migration_database
         )).scalars().all()
     assert any("using gist" in definition.lower() and "geom" in definition.lower()
                for definition in indexes)
+
+
+def test_order_status_check_rejects_incorrect_type_and_state(migration_database):
+    """Database rejects direct invalid state writes even outside application APIs."""
+    from sqlalchemy.exc import IntegrityError
+
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    with pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(text(
+                "INSERT INTO orders (id,order_number,order_type,buyer_user_id,seller_user_id,"
+                "status,subtotal,delivery_fee,tax_amount,discount_amount,total_amount,currency) "
+                "VALUES (:id,:number,'customer_order',:buyer,:seller,'in_transit',10,0,0,0,10,'NGN')"
+            ), {"id": uuid.uuid4(), "number": "BAD-" + uuid.uuid4().hex[:16],
+                "buyer": uuid.uuid4(), "seller": uuid.uuid4()})
