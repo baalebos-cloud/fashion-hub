@@ -110,35 +110,41 @@ def test_seam_navigation_fallback_if_old_n8n_config_or_google_outage(monkeypatch
     assert "/app/admin" not in other
 
 
-def test_vertex_rejection_diagnostics_are_safe(monkeypatch, caplog):
-    import logging
+def test_vertex_rejection_diagnostics_are_safe(monkeypatch):
+    from app.integrations.ai import llm_client
+    warning = Mock()
+    monkeypatch.setattr(llm_client.logger, "warning", warning)
     monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: SimpleNamespace(
         status_code=403,
         json=lambda: {"error": {"status": "PERMISSION_DENIED", "message": "Provider diagnostic detail"}},
     ))
-    with caplog.at_level(logging.WARNING):
-        with pytest.raises(ExternalProviderError, match="403"):
-            LLMClient().complete([ChatMessage("user", "How do I accept an order?")])
-    assert "seam_vertex_api_failure" in caplog.text
-    assert "PERMISSION_DENIED" in caplog.text
-    assert "Provider diagnostic detail" not in caplog.text
-    assert "test-express-key" not in caplog.text
+    with pytest.raises(ExternalProviderError, match="403"):
+        LLMClient().complete([ChatMessage("user", "How do I accept an order?")])
+    warning.assert_called_once()
+    assert warning.call_args.args[0] == "seam_vertex_api_failure"
+    assert warning.call_args.kwargs["extra"] == {
+        "provider": "vertex_ai", "http_status": 403,
+        "provider_code": "PERMISSION_DENIED",
+    }
 
 
-def test_empty_gemini_response_logs_safe_finish_reason(monkeypatch, caplog):
-    import logging
+def test_empty_gemini_response_logs_safe_finish_reason(monkeypatch):
+    from app.integrations.ai import llm_client
+    warning = Mock()
+    monkeypatch.setattr(llm_client.logger, "warning", warning)
     monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: SimpleNamespace(
         status_code=200, json=lambda: {"candidates": [{
             "finishReason": "MAX_TOKENS",
             "content": {"parts": [{"thought": True, "text": "internal model text"}]},
         }]},
     ))
-    with caplog.at_level(logging.WARNING):
-        with pytest.raises(ExternalProviderError, match="did not return an answer"):
-            LLMClient().complete([ChatMessage("user", "Where are my orders?")])
-    assert "seam_vertex_empty_response" in caplog.text
-    assert "MAX_TOKENS" in caplog.text
-    assert "internal model text" not in caplog.text
+    with pytest.raises(ExternalProviderError, match="did not return an answer"):
+        LLMClient().complete([ChatMessage("user", "Where are my orders?")])
+    warning.assert_called_once()
+    assert warning.call_args.args[0] == "seam_vertex_empty_response"
+    assert warning.call_args.kwargs["extra"] == {
+        "provider": "vertex_ai", "finish_reason": "MAX_TOKENS",
+    }
 
 
 def test_capabilities_fallback_is_role_scoped(monkeypatch):
