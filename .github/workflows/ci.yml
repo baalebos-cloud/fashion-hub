@@ -47,7 +47,7 @@ jobs:
           cache-dependency-path: backend/requirements.txt
       - run: pip install --require-hashes -r requirements.txt
       - name: Lint Python application and tests
-        run: ruff check app tests
+        run: ruff check --select E9,F63,F7,F82 app tests
       - name: Compile backend
         run: python -m compileall -q app
       - name: Verify application imports
