@@ -156,3 +156,19 @@ def test_capabilities_fallback_is_role_scoped(monkeypatch):
     assert "materials" in response
     assert "do not accept orders" in response
     assert "/app/admin" not in response
+
+
+@pytest.mark.parametrize(
+    "role, question, expected",
+    [
+        ("tailor", "How does verification work?", "business-verification (KYB) API is not fully implemented"),
+        ("tailor", "Guide me through materials", "/app/professional/vendor-marketplace"),
+        ("tailor", "How do I manage my portfolio?", "/app/professional/portfolio"),
+        ("designer", "Guide me through materials", "not currently confirmed for the designer role"),
+    ],
+)
+def test_grounded_offline_help_is_role_scoped(monkeypatch, role, question, expected):
+    monkeypatch.setattr(settings, "AI_PROVIDER", "n8n")
+    answer = build_navigation_response(user_role=role, user_question=question)
+    assert expected in answer
+    assert "/app/admin" not in answer
