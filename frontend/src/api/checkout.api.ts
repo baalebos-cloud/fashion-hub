@@ -13,6 +13,6 @@ export interface MaterialCheckout {
 /** One order/payment per vendor. Keep the same payload and key on retry. */
 export const checkoutApi = {
   async submit(payload: MaterialCheckout): Promise<Order> {
-    return (await apiClient.post<Order>(endpoints.checkout.submit, payload)).data;
+    return (await apiClient.post<Order>(endpoints.checkout.submit, payload, { headers: { "Idempotency-Key": payload.idempotency_key } })).data;
   },
 };
