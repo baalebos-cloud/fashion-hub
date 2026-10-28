@@ -87,6 +87,7 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "anthropic"
     AI_API_KEY: Optional[str] = None
     AI_MODEL: str = "claude-sonnet-4-6"
+    VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
 
     # --- Notifications ---
     EMAIL_PROVIDER: str = "smtp"

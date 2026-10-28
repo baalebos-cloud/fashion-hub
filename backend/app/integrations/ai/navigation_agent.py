@@ -3,6 +3,7 @@ Builds the navigation-assistant response: injects only role-appropriate app
 map context (pages/actions available to THIS user's role) into the prompt,
 so the model can't hallucinate admin-only routes for a customer, etc.
 """
+from app.core.exceptions import ExternalProviderError
 from app.integrations.ai.llm_client import ChatMessage, LLMClient
 from app.integrations.ai.prompts import NAVIGATION_ASSISTANT_SYSTEM_PROMPT
 
@@ -55,5 +56,35 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         ),
         ChatMessage(role="user", content=user_question),
     ]
-    result = llm_client.complete(messages)
-    return result.content
+    try:
+        result = llm_client.complete(messages)
+        return result.content
+    except ExternalProviderError:
+        # Answer only from this role's fixed navigation map during outages;
+        # never guess order status, promise actions, or leak provider details.
+        question = user_question.casefold()
+        if user_role in {"tailor", "designer"} and "accept" in question and "order" in question:
+            return (
+                "Seam's AI connection is temporarily unavailable. "
+                "Open Incoming Orders (/app/professional/orders), select your pending "
+                "customer order, then choose Accept if available. "
+                "Only eligible orders assigned to you can be accepted."
+            )
+        if user_role == "vendor" and "order" in question:
+            return (
+                "Seam's AI connection is temporarily unavailable. "
+                "Open Orders (/app/vendor/orders), select an order, "
+                "and review its available fulfillment actions."
+            )
+        if user_role == "customer" and "order" in question:
+            return (
+                "Seam's AI connection is temporarily unavailable. "
+                "Open Orders (/app/customer/orders) to review or track your orders."
+            )
+        pages = list(app_map.items())[:3]
+        directory = "; ".join(f"{name}: {route}" for name, route in pages)
+        return (
+            "Seam's AI connection is temporarily unavailable. "
+            + (f"You can still use these pages: {directory}." if directory
+               else "Please use the navigation menu or contact support.")
+        )
