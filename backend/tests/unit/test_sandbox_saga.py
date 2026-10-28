@@ -21,7 +21,7 @@ def test_rejects_skipped_forward_and_unconfirmed_refunds(monkeypatch):
                             seller_user_id="tailor-1", total_amount=100, currency="NGN")
     actor = SimpleNamespace(id="buyer-1", role="customer")
     db.query.return_value.filter.return_value.with_for_update.return_value.first.return_value = order
-    db.query.return_value.filter.return_value.first.side_effect = [None, order]
+    db.query.return_value.filter.return_value.first.side_effect = [None, order, None, order]
     db.query.return_value.filter.return_value.order_by.return_value.first.return_value = None
     service = SandboxSagaService(db)
     with pytest.raises(ConflictError):
