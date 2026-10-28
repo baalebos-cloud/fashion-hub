@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { router } from "@/router";
 import { AIAssistant } from "@/components/ai/AIAssistant";
@@ -8,6 +9,10 @@ import { ToastProvider } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth.store";
 import { authRoutes } from "@/config/routes.config";
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { staleTime: 1000 * 60 * 5, retry: 1, refetchOnWindowFocus: false } },
+});
 
 const AUTH_PATHS: string[] = Object.values(authRoutes);
 
@@ -33,10 +38,12 @@ export default function App() {
   return (
     <ErrorBoundary>
       {/* All routed pages, dialogs and portal-mounted assistant share this provider. */}
+      <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <RouterProvider router={router} />
         <GlobalAssistant />
       </ToastProvider>
+      </QueryClientProvider>
     </ErrorBoundary>
   );
 }
