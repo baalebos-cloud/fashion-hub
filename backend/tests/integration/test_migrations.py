@@ -60,7 +60,7 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
                 conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
         assert {"users", "payouts", "referrals", "payment_outbox", "addresses"} <= set(inspect(conn).get_table_names())
         assert "eta_minutes" in {c["name"] for c in inspect(conn).get_columns("delivery_tracking")}
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
@@ -133,7 +133,7 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
             command.downgrade(config, "2ab23f38e9c6")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
 
 
 def test_orphan_line_items_abort_without_removing_records(migration_database):
@@ -174,7 +174,7 @@ def test_downgrade_preserves_new_checkout_records(migration_database, saved_reco
             config.attributes['connection'] = conn
             command.downgrade(config, '0003')
     with engine.connect() as conn:
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0009'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0010'
         table = 'orders' if saved_record == 'order' else 'addresses'
         assert conn.execute(text(f'SELECT count(*) FROM {table}')).scalar_one() == 1
 
@@ -234,7 +234,7 @@ def test_stock_migration_repairs_vendor_identity_and_preserves_history_on_downgr
             command.downgrade(config, '0004')
     with engine.connect() as conn:
         assert conn.execute(text('SELECT count(*) FROM orders')).scalar_one() == 1
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0009'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0010'
 
 
 def test_latest_migration_can_rollback_one_revision_and_reapply(migration_database):
@@ -248,7 +248,7 @@ def test_latest_migration_can_rollback_one_revision_and_reapply(migration_databa
         assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0008"
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0009"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
 
 
 def test_locations_have_a_gist_spatial_index_after_migrations(migration_database):
@@ -278,3 +278,36 @@ def test_order_status_check_rejects_incorrect_type_and_state(migration_database)
                 "VALUES (:id,:number,'customer_order',:buyer,:seller,'in_transit',10,0,0,0,10,'NGN')"
             ), {"id": uuid.uuid4(), "number": "BAD-" + uuid.uuid4().hex[:16],
                 "buyer": uuid.uuid4(), "seller": uuid.uuid4()})
+
+
+def test_material_order_parent_link_is_constrained_and_downgrade_preserves_links(migration_database):
+    """Material linkage cannot be assigned to a clothing order or silently dropped."""
+    from sqlalchemy.exc import IntegrityError
+
+    engine, config = migration_database
+    migrate(engine, config, "head")
+    with engine.begin() as conn:
+        customer_id = uuid.uuid4()
+        vendor_id = uuid.uuid4()
+        for id_, number, kind, status in [
+            (customer_id, "SAGA-" + uuid.uuid4().hex[:16], "customer_order", "paid"),
+            (vendor_id, "SAGA-" + uuid.uuid4().hex[:16], "vendor_order", "checkout"),
+        ]:
+            conn.execute(text(
+                "INSERT INTO orders (id,order_number,order_type,buyer_user_id,seller_user_id,"
+                "status,subtotal,delivery_fee,tax_amount,discount_amount,total_amount,currency) "
+                "VALUES (:id,:number,:kind,:buyer,:seller,:status,10,0,0,0,10,'NGN')"
+            ), {"id": id_, "number": number, "kind": kind, "status": status,
+                "buyer": uuid.uuid4(), "seller": uuid.uuid4()})
+        conn.execute(text("UPDATE orders SET parent_customer_order_id=:parent WHERE id=:material"),
+                     {"parent": customer_id, "material": vendor_id})
+    with pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(text("UPDATE orders SET parent_customer_order_id=:parent WHERE id=:id"),
+                         {"parent": vendor_id, "id": customer_id})
+    with pytest.raises(RuntimeError, match="Linked material orders"):
+        with engine.begin() as conn:
+            config.attributes["connection"] = conn
+            command.downgrade(config, "-1")
+    with engine.connect() as conn:
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0010"
