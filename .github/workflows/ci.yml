@@ -46,6 +46,8 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements.txt
       - run: pip install --require-hashes -r requirements.txt
+      - name: Lint Python application and tests
+        run: ruff check app tests
       - name: Compile backend
         run: python -m compileall -q app
       - name: Verify application imports
@@ -71,6 +73,8 @@ jobs:
       - run: npm run lint
       - run: npm test
         if: ${{ !cancelled() }}
+      - name: Strict TypeScript checking
+        run: npx tsc --noEmit
       - run: npm run build
         if: ${{ !cancelled() }}
       - name: Install browser for theme regression checks
@@ -88,8 +92,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - name: Build backend image with locked dependencies
-        run: docker build --tag fashion-hub:ci backend
+      - uses: docker/setup-buildx-action@v3
+      - name: Build backend image with cache and locked dependencies
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          push: false
+          load: true
+          tags: fashion-hub:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
       - name: Verify non-root startup with a provider-style database URL
         run: |
           docker run --detach --name fashion-hub-ci --publish 127.0.0.1:8005:8005 \
