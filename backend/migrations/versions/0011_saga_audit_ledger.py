@@ -44,7 +44,7 @@ def upgrade():
     )
     op.create_index("ix_ledger_order_created", "ledger_entries", ["order_id", "created_at"])
 
-    op.execute("""
+    op.get_bind().exec_driver_sql("""
         CREATE FUNCTION seam_prevent_audit_mutation() RETURNS trigger AS $
         BEGIN
             RAISE EXCEPTION 'Audit and ledger rows are immutable';
