@@ -9,6 +9,7 @@ import type { Payment } from "@/types/payment";
 export function VerifiedPaymentReturn({ ordersPath }: { ordersPath: string }) {
   const [params] = useSearchParams();
   const reference = params.get("reference") || params.get("trxref") || params.get("tx_ref");
+  const isInterswitch = params.get("provider") === "interswitch";
   const [result, setResult] = useState<{ reference: string; payment: Payment } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -19,13 +20,13 @@ export function VerifiedPaymentReturn({ ordersPath }: { ordersPath: string }) {
     setResult(null);
     if (reference) {
       setIsVerifying(true);
-      paymentsApi.verify(reference)
+      (isInterswitch ? paymentsApi.verifyInterswitch(reference) : paymentsApi.verify(reference))
         .then((payment) => { if (active) setResult({ reference, payment }); })
         .catch((err) => { if (active) setError(getDisplayErrorMessage(err)); })
         .finally(() => { if (active) setIsVerifying(false); });
     }
     return () => { active = false; };
-  }, [reference, attempt]);
+  }, [reference, attempt, isInterswitch]);
   if (reference && result?.reference === reference && result.payment.status === "successful" && !result.payment.requires_review) {
     return <PaymentSuccessComponent ordersPath={ordersPath} />;
   }
