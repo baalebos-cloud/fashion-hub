@@ -4,6 +4,7 @@ import { router } from "@/router";
 import { AIAssistant } from "@/components/ai/AIAssistant";
 import { AIPublicTeaser } from "@/components/ai/AIPublicTeaser";
 import { ErrorBoundary } from "@/components/common/ErrorBoundary";
+import { ToastProvider } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth.store";
 import { authRoutes } from "@/config/routes.config";
@@ -31,10 +32,11 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      {/* Moving GlobalAssistant inside RouterProvider context if your setup allows custom layouts, 
-          or wrapping it right alongside using the standard layout pipeline */}
-      <RouterProvider router={router} />
-      <GlobalAssistant />
+      {/* All routed pages, dialogs and portal-mounted assistant share this provider. */}
+      <ToastProvider>
+        <RouterProvider router={router} />
+        <GlobalAssistant />
+      </ToastProvider>
     </ErrorBoundary>
   );
 }
