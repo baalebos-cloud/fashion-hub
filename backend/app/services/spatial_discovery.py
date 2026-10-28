@@ -41,7 +41,9 @@ def _geo_filters(location, lat, lon, radius, city, state):
 
 
 def _public_rows(db: Session, statement, *, max_results):
-    return db.execute(statement.limit(min(max_results, 25))).all()
+    if isinstance(max_results, bool) or not isinstance(max_results, int) or not 1 <= max_results <= 25:
+        raise ValueError("Result limit must be between 1 and 25.")
+    return db.execute(statement.limit(max_results)).all()
 
 
 def nearby_professionals(db: Session, *, latitude=None, longitude=None, radius_m=10000,
