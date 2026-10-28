@@ -86,6 +86,11 @@ export const endpoints = {
     cancel: (id: string) => `/orders/${id}/cancel`,
   },
 
+  interswitch: {
+    initialize: "/interswitch/checkout",
+    verify: (reference: string) => `/interswitch/${encodeURIComponent(reference)}/verify`,
+  },
+
   payments: {
     initialize: "/payments",
     verify: (reference: string) => `/payments/${encodeURIComponent(reference)}/verify`,
@@ -148,6 +153,10 @@ export const endpoints = {
     inConversation: (conversationId: string) => `/messages/conversations/${conversationId}/messages`,
   },
 
+  commerce: {
+    recommendations: "/ai/commerce/recommendations",
+  },
+
   ai: {
     sendMessage: "/ai/navigation/messages",
     conversations: "/ai/navigation/conversations",
@@ -174,6 +183,8 @@ export const endpoints = {
     designs: "/search/designs",
     products: "/search/vendor-products",
   },
+
+  adminCommerce: { summary: "/admin/commerce-summary" },
 
   dashboard: {
     summary: "/dashboard",

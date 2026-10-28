@@ -3,6 +3,7 @@ import { productsApi } from "@/api/products.api";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 import { ProductGrid } from "@/components/marketplace/ProductGrid";
+import { CatalogBudgetGuide } from "@/components/marketplace/CatalogBudgetGuide";
 import { professionalRoutes } from "@/config/routes.config";
 import type { VendorProduct } from "@/types/product";
 
@@ -25,6 +26,7 @@ export default function VendorMarketplace() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Vendor marketplace</h1>
+      <CatalogBudgetGuide />
       {error && <p role="alert">{error}</p>}
       <ProductGrid products={products} isLoading={isLoading} detailsPathFor={professionalRoutes.vendorProductDetails} />
       <div className="flex gap-4"><Button disabled={isLoading || page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {page}</span><Button disabled={isLoading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>Next</Button></div>

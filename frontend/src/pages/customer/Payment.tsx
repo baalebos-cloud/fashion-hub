@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { InterswitchSandboxButton } from "@/components/payments/InterswitchSandboxButton";
 import { PaymentSummary } from "@/components/payments/PaymentSummary";
 import { PaymentConsent } from "@/components/payments/PaymentConsent";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
@@ -25,6 +26,9 @@ export default function Payment() {
       <PaymentSummary orderNumber={order.order_number} amount={order.total_amount} currency={order.currency} />
       <PaymentConsent checked={hasConsented} onChange={setHasConsented} />
       <PaymentButton orderId={order.id} callbackUrl={callbackUrl} disabled={!hasConsented} />
+      {import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
+        <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented} />
+      )}
     </div>
   );
 }

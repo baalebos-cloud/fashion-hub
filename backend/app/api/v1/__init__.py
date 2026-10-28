@@ -6,6 +6,7 @@ from fastapi import APIRouter
 
 from app.api.v1 import (
     admin,
+    ai_commerce,
     addresses,
     ai,
     ai_navigation,
@@ -25,6 +26,7 @@ from app.api.v1 import (
     favorites,
     geocoding,
     invoices,
+    interswitch,
     kyb,
     kyc,
     locations,
@@ -73,6 +75,7 @@ api_router.include_router(orders.router)
 api_router.include_router(order_items.router)
 api_router.include_router(order_timeline.router)
 api_router.include_router(payments.router)
+api_router.include_router(interswitch.router)
 api_router.include_router(payment_webhooks.router)
 api_router.include_router(refunds.router)
 api_router.include_router(invoices.router)
@@ -94,6 +97,7 @@ api_router.include_router(ratings.router)
 api_router.include_router(notifications.router)
 api_router.include_router(messages.router)
 api_router.include_router(ai.router)
+api_router.include_router(ai_commerce.router)
 api_router.include_router(ai_navigation.router)
 api_router.include_router(kyc.router)
 api_router.include_router(kyb.router)
