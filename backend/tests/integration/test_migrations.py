@@ -174,7 +174,7 @@ def test_downgrade_preserves_new_checkout_records(migration_database, saved_reco
             config.attributes['connection'] = conn
             command.downgrade(config, '0003')
     with engine.connect() as conn:
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0008'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0009'
         table = 'orders' if saved_record == 'order' else 'addresses'
         assert conn.execute(text(f'SELECT count(*) FROM {table}')).scalar_one() == 1
 
@@ -227,14 +227,14 @@ def test_stock_migration_repairs_vendor_identity_and_preserves_history_on_downgr
         assert conn.execute(text('SELECT revision FROM carts')).scalar_one() == 0
     with engine.begin() as conn:
         payment_id = insert_payment(conn)
-        conn.execute(text("UPDATE orders SET pricing_source='vendor_catalog_v1',order_type='vendor_order' WHERE id=(SELECT order_id FROM payments WHERE id=:id)"), {'id': payment_id})
+        conn.execute(text("UPDATE orders SET pricing_source='vendor_catalog_v1',order_type='vendor_order',status='checkout' WHERE id=(SELECT order_id FROM payments WHERE id=:id)"), {'id': payment_id})
     with pytest.raises(RuntimeError, match='history exists'):
         with engine.begin() as conn:
             config.attributes['connection'] = conn
             command.downgrade(config, '0004')
     with engine.connect() as conn:
         assert conn.execute(text('SELECT count(*) FROM orders')).scalar_one() == 1
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0008'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0009'
 
 
 def test_latest_migration_can_rollback_one_revision_and_reapply(migration_database):
