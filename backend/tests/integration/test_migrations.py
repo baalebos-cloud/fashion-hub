@@ -260,5 +260,5 @@ def test_locations_have_a_gist_spatial_index_after_migrations(migration_database
             "SELECT indexdef FROM pg_indexes "
             "WHERE schemaname = current_schema() AND tablename = 'locations'"
         )).scalars().all()
-    assert any("USING gist" in definition.lower() and "geom" in definition.lower()
+    assert any("using gist" in definition.lower() and "geom" in definition.lower()
                for definition in indexes)
