@@ -5,6 +5,7 @@ import { VerificationStatus } from "./VerificationStatus";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import { isApiError } from "@/lib/api/errors";
 
 export function KYBForm() {
   const { status, isLoading, submit } = useKYB();
@@ -12,15 +13,19 @@ export function KYBForm() {
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProviderError, setIsProviderError] = useState(false);
 
   async function handleSubmit() {
     if (!documentUrl || !registrationNumber) return;
     setIsSubmitting(true);
     setError(null);
+    setIsProviderError(false);
     try {
       await submit(registrationNumber, [documentUrl]);
     } catch (err) {
-      setError(getDisplayErrorMessage(err));
+      const isProvider = isApiError(err) && err.code === "external_provider_error";
+      setIsProviderError(isProvider);
+      setError(getDisplayErrorMessage(err, "Couldn't submit for business verification. Check your details and try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -37,10 +42,34 @@ export function KYBForm() {
       {status?.status === "rejected" && (
         <p className="text-sm text-thread">Your previous submission was rejected{status.rejection_reason ? `: ${status.rejection_reason}` : "."} Please resubmit.</p>
       )}
-      <Input placeholder="Business registration number" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} />
+      <label htmlFor="kyb-reg" className="flex flex-col gap-1 text-sm font-medium text-ink">
+        Business registration number
+        <Input
+          id="kyb-reg"
+          placeholder="e.g. RC-1234567"
+          value={registrationNumber}
+          onChange={(e) => setRegistrationNumber(e.target.value)}
+        />
+      </label>
       <DocumentUpload label="Upload registration certificate" purpose="kyb" onUploaded={setDocumentUrl} />
-      {error && <p className="text-sm text-thread">{error}</p>}
-      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || !registrationNumber}>Submit for review</Button>
+      {error && (
+        <div
+          role="alert"
+          className={`rounded-card border p-3 text-sm ${
+            isProviderError
+              ? "border-[#eac9c2] bg-[#fbecea] text-thread"
+              : "border-line bg-muslin text-thread"
+          }`}
+        >
+          {error}
+          {isProviderError && (
+            <p className="mt-1 text-xs text-ink-soft">
+              This is a configuration issue — retrying will not help. Contact support.
+            </p>
+          )}
+        </div>
+      )}
+      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || !registrationNumber || isProviderError}>Submit for review</Button>
     </div>
   );
 }
