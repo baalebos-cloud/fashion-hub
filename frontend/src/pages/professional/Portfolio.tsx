@@ -10,7 +10,7 @@ export default function Portfolio() {
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Portfolio</h1>
       <ImageUploader
-        uploadEndpoint="/professionals/me/portfolio"
+        uploadEndpoint="/media/upload?purpose=portfolio"
         onUploaded={(url) => setImages((prev) => [...prev, { id: `local-${Date.now()}`, image_url: url }])}
         label="Add photo"
       />
