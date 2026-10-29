@@ -126,18 +126,51 @@ def test_browser_return_cannot_mark_an_order_paid():
     assert "reference=seam_test" in redirect.headers["location"]
 
 
-def test_vendor_orders_are_outside_customer_demo_scope(enabled):
+def test_material_order_can_initialize_in_sandbox_with_buyer_ownership(enabled):
     order = _order()
     order.order_type = "vendor_order"
+    order.status = "checkout"
+    order.pricing_source = "vendor_catalog_v1"
+    order.delivery_address_snapshot = {"city": "Lagos"}
+    order.items = [SimpleNamespace(quantity=1, unit_price=Decimal("125.50"), line_total=Decimal("125.50"))]
+    order.subtotal = Decimal("125.50")
+    order.delivery_fee = order.tax_amount = order.discount_amount = Decimal("0.00")
     service = _service(order)
     from app.services import catalog_order_service
     from unittest.mock import patch
-    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None):
-        with pytest.raises(ConflictError, match="customer fashion orders"):
-            service.initialize_checkout(order_id=order.id,
-                                        buyer_user_id=order.buyer_user_id,
-                                        customer_email="buyer@example.com")
+    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None), \
+         patch("app.services.stock_reservation_service.StockReservationService.active", return_value=True):
+        result = service.initialize_checkout(order_id=order.id,
+                                             buyer_user_id=order.buyer_user_id,
+                                             customer_email="buyer@example.com")
+    payment = service.db.add.call_args.args[0]
+    assert payment.order_id == order.id
+    assert payment.provider_reference.startswith("FH-MAT-")
+    assert result.fields["txn_ref"] == payment.provider_reference
+    assert result.fields["amount"] == "12550"
+    service.db.commit.assert_called_once()
+
+
+def test_material_order_cannot_be_paid_by_another_account(enabled):
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    service = _service(order)
+    with pytest.raises(ForbiddenError):
+        service.initialize_checkout(order_id=order.id,
+                                    buyer_user_id=uuid.uuid4(),
+                                    customer_email="stranger@example.com")
     service.db.add.assert_not_called()
+
+
+def test_customer_checkout_uses_fashion_reference(enabled, monkeypatch):
+    from app.services import catalog_order_service
+    monkeypatch.setattr(catalog_order_service, "assert_catalog_order_payable", lambda order: None)
+    order = _order()
+    service = _service(order)
+    service.initialize_checkout(order_id=order.id, buyer_user_id=order.buyer_user_id,
+                                customer_email="buyer@example.com")
+    assert service.db.add.call_args.args[0].provider_reference.startswith("FH-FAS-")
 
 
 def test_authoritative_matching_success_reaches_settlement(enabled, monkeypatch):
@@ -198,3 +231,38 @@ def test_invalid_callback_reference_not_forwarded():
     redirect = browser_return(txnref="../unsafe?code=00")
     assert "reference=" not in redirect.headers["location"]
     assert "provider=interswitch" in redirect.headers["location"]
+
+
+def test_expired_material_reservation_never_creates_payment(enabled):
+    from app.services import catalog_order_service
+    from unittest.mock import patch
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    order.pricing_source = "vendor_catalog_v1"
+    order.delivery_address_snapshot = {"city": "Lagos"}
+    service = _service(order)
+    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None), \
+         patch("app.services.stock_reservation_service.StockReservationService.active", return_value=False):
+        with pytest.raises(ConflictError, match="reservation has expired"):
+            service.initialize_checkout(order_id=order.id, buyer_user_id=order.buyer_user_id,
+                                        customer_email="buyer@example.com")
+    service.db.add.assert_not_called()
+
+
+def test_material_order_requery_uses_authoritative_provider_before_settlement(enabled, monkeypatch):
+    import app.services.interswitch_sandbox_service as mod
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    service = _service(order)
+    service._get_payment_by_reference = Mock(return_value=SimpleNamespace(
+        provider="interswitch", order_id=order.id, amount=Decimal("125.50"),
+        currency="NGN", provider_reference="FH-MAT-test"
+    ))
+    service._settle = Mock(return_value=object())
+    monkeypatch.setattr(mod, "requery_transaction", lambda **kw: SimpleNamespace(
+        reference="FH-MAT-test", amount_minor=12550, currency="NGN", successful=True))
+    service.verify_and_confirm("FH-MAT-test", buyer_user_id=order.buyer_user_id)
+    assert service._settle.call_args.args[1].status == "successful"
+    assert service._settle.call_args.args[1].amount == Decimal("125.50")

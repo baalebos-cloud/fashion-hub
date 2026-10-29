@@ -3,6 +3,8 @@ import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { OrderItems } from "@/components/orders/OrderItems";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
+import { InterswitchSandboxButton } from "@/components/payments/InterswitchSandboxButton";
+import { InterswitchLiveButton } from "@/components/payments/InterswitchLiveButton";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentConsent } from "@/components/payments/PaymentConsent";
 import { Button } from "@/components/ui/button";
@@ -44,7 +46,14 @@ export default function VendorOrderDetails() {
         {order.reservation_expires_at && <p>Stock hold ends: <DateTimeDisplay value={order.reservation_expires_at} /></p>}
         {expired ? <p role="status">The stock hold has expired. Create a new order from the marketplace; check any payment already made before paying again.</p> : <>
           <PaymentConsent checked={hasConsented} onChange={setHasConsented} />
-          <PaymentButton key={order.id} orderId={order.id} callbackUrl={`${window.location.origin}${professionalRoutes.vendorPaymentSuccess}`} disabled={!hasConsented || isCancelling} />
+          {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED === "true" ? (
+            <InterswitchLiveButton orderId={order.id} disabled={!hasConsented || isCancelling} />
+          ) : (
+            <PaymentButton key={order.id} orderId={order.id} callbackUrl={`${window.location.origin}${professionalRoutes.vendorPaymentSuccess}`} disabled={!hasConsented || isCancelling} />
+          )}
+          {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED !== "true" && import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
+            <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented || isCancelling} />
+          )}
         </>}
         <Button variant="secondary" onClick={() => { void cancelOrder(); }} isLoading={isCancelling}>Cancel unpaid order</Button>
       </>}
