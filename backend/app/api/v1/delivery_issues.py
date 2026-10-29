@@ -1,5 +1,8 @@
 """Authorized courier incident reports; modeled on Sage disruption intake."""
 import uuid
+import logging
+
+logger = logging.getLogger(__name__)
 from typing import Literal
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from pydantic import BaseModel, Field, model_validator
@@ -57,6 +60,12 @@ def create_delivery_issue(delivery_id: uuid.UUID, payload: IssueRequest,
     db.add(issue)
     db.commit()
     db.refresh(issue)
+    try:
+        from app.workers.delivery_tasks import notify_dispatch_issue_task
+        notify_dispatch_issue_task.delay(str(issue.id))
+    except Exception as exc:
+        # Durable issue reporting must not fail just because notifications are unavailable.
+        logger.error("dispatch_issue_notification_queue_failed type=%s issue_id=%s", type(exc).__name__, issue.id)
     return {"id": str(issue.id), "delivery_id": str(issue.delivery_id),
             "issue_type": issue.issue_type, "status": issue.status,
             "created_at": issue.created_at}
