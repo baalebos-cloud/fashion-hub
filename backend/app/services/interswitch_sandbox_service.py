@@ -73,6 +73,18 @@ class InterswitchSandboxService(PaymentService):
         assert_catalog_order_payable(order)
         if order.order_type not in {"customer_order", "vendor_order"}:
             raise ConflictError("Unsupported Interswitch order type.")
+        if order.order_type == "vendor_order":
+            from app.services.stock_reservation_service import SOURCE, StockReservationService
+            if order.pricing_source != SOURCE or not order.delivery_address_snapshot:
+                raise ConflictError("Recreate the material order before payment.")
+            if not StockReservationService(self.db).active(order):
+                raise ConflictError("Material stock reservation has expired.")
+            subtotal = sum((i.line_total for i in order.items), Decimal("0.00"))
+            if (not order.items or any(i.quantity < 1 or i.unit_price <= 0
+                    or i.line_total != i.unit_price * i.quantity for i in order.items)
+                    or subtotal != order.subtotal
+                    or subtotal + order.delivery_fee + order.tax_amount - order.discount_amount != order.total_amount):
+                raise ConflictError("Material order totals require review.")
         existing = self.db.query(Payment).filter(Payment.order_id == order.id).first()
         if existing:
             self._assert_provider(existing)
