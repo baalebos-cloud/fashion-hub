@@ -14,6 +14,7 @@ export default function AddProduct() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [stock, setStock] = useState(0);
+  const [unit, setUnit] = useState<"yard" | "meter" | "roll" | "piece">("yard");
   const [basePrice, setBasePrice] = useState("");
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -36,7 +37,7 @@ export default function AddProduct() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await productsApi.create({ name, description, base_price: Number(basePrice), initial_stock: stock, image_urls: images });
+      await productsApi.create({ name, description, base_price: Number(basePrice), initial_stock: stock, image_urls: images, unit_of_measure: unit });
       navigate(vendorRoutes.products);
     } catch (err) {
       setFormError(getDisplayErrorMessage(err));
@@ -95,6 +96,12 @@ export default function AddProduct() {
         <Input id="new-product-price" type="number" min="0.01" step="0.01" placeholder="Price" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} error={errors.basePrice} />
         {errors.basePrice && <p className="mt-1 text-xs text-thread">{errors.basePrice}</p>}
       </div>
+      <label htmlFor="product-unit">Unit of measure</label>
+      <select id="product-unit" className="min-h-11 rounded border border-line bg-paper p-2"
+        value={unit} onChange={e => setUnit(e.target.value as typeof unit)}>
+        <option value="yard">Per yard</option><option value="meter">Per meter</option>
+        <option value="roll">Per roll</option><option value="piece">Per piece</option>
+      </select>
       <label htmlFor="new-product-stock">Initial stock</label>
       <Input id="new-product-stock" type="number" min={0} max={1000000000} step={1} value={stock} onChange={(event) => setStock(Number(event.target.value))} />
       {formError && <p className="text-sm text-thread">{formError}</p>}
