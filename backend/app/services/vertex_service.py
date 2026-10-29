@@ -50,7 +50,7 @@ class VertexAIService:
     def _image_mime(image_bytes: bytes) -> str:
         if image_bytes.startswith(bytes.fromhex("ffd8ff")):
             return "image/jpeg"
-        if image_bytes.startswith(bytes.fromhex("89504e470d0a1a0a")):
+        if image_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
             return "image/png"
         if len(image_bytes) > 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
             return "image/webp"
