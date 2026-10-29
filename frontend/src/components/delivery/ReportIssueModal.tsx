@@ -12,6 +12,8 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
   const [description, setDescription] = useState("");
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pending, setPending] = useState(false);
+  const [evidenceKey, setEvidenceKey] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [complete, setComplete] = useState(false);
 
@@ -19,12 +21,29 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
     setPending(true);
     setError("");
     try {
-      await apiClient.post(`/deliveries/${deliveryId}/issues`, { issue_type: issueType, description, ...coords });
+      await apiClient.post(`/deliveries/${deliveryId}/issues`, { issue_type: issueType, description, photo_evidence_url: evidenceKey, ...coords });
       setComplete(true);
     } catch {
       setError("Issue submission failed. Check your connection and retry.");
     } finally {
       setPending(false);
+    }
+  }
+
+  async function uploadEvidence(file: File) {
+    setUploading(true);
+    setError("");
+    try {
+      const data = new FormData();
+      data.append("file", file);
+      const response = await apiClient.post<{ document_storage_key: string }>(
+        `/deliveries/${deliveryId}/issue-evidence`, data, { headers: { "Content-Type": undefined } },
+      );
+      setEvidenceKey(response.data.document_storage_key);
+    } catch {
+      setError("Evidence upload failed. Retry with a JPG, PNG or WebP image.");
+    } finally {
+      setUploading(false);
     }
   }
 
@@ -54,11 +73,20 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
             <textarea className="mt-1 block min-h-24 w-full rounded border border-line p-2"
               maxLength={3000} value={description} onChange={e => setDescription(e.target.value)} />
           </label>
+          <label className="text-sm">Photo evidence (optional)
+            <input type="file" accept="image/jpeg,image/png,image/webp"
+              className="mt-1 block w-full text-sm" onChange={e => {
+                const file = e.target.files?.[0];
+                if (file) void uploadEvidence(file);
+              }} />
+          </label>
+          {uploading && <p role="status">Uploading evidence securely…</p>}
+          {evidenceKey && <p role="status">Evidence attached.</p>}
           <Button variant="secondary" onClick={locate}>Attach current GPS (optional)</Button>
           {coords && <p role="status" className="text-xs">GPS coordinates attached.</p>}
           {error && <p role="alert" className="text-sm text-thread">{error}</p>}
           <div className="flex gap-2">
-            <Button onClick={() => { void submit(); }} disabled={pending || description.trim().length < 5} isLoading={pending}>Submit issue</Button>
+            <Button onClick={() => { void submit(); }} disabled={pending || uploading || description.trim().length < 5} isLoading={pending}>Submit issue</Button>
             <Button variant="secondary" onClick={onClose}>Cancel</Button>
           </div>
         </div>
