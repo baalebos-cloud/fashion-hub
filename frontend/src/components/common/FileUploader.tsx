@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { uploadFile } from "@/lib/storage/file-storage";
 import { Button } from "@/components/ui/button";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 
 export interface FileUploaderProps {
   uploadEndpoint: string;
@@ -25,10 +26,11 @@ export function FileUploader({ uploadEndpoint, accept, onUploaded, label = "Uplo
     try {
       const { url } = await uploadFile(uploadEndpoint, file);
       onUploaded(url);
-    } catch {
-      setError("Upload failed. Please try again.");
+    } catch (failure) {
+      setError(getDisplayErrorMessage(failure, "Upload failed. Check your connection, file type and storage settings."));
     } finally {
       setIsUploading(false);
+      event.target.value = "";
     }
   }
 
