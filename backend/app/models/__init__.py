@@ -31,6 +31,7 @@ from app.models.payment_consent import PaymentConsent
 from app.models.delivery_partner import DeliveryPartner
 from app.models.delivery_request import DeliveryRequest
 from app.models.delivery import Delivery
+from app.models.delivery_issue import DispatchIssueReport
 from app.models.delivery_tracking import DeliveryTracking
 from app.models.tracking_event import TrackingEvent
 from app.models.location import Location
@@ -61,7 +62,7 @@ __all__ = [
     "Vendor", "VendorCategory", "VendorProduct", "ProductVariant", "Inventory",
     "Cart", "CartItem", "Order", "OrderItem", "OrderStatusDefinition", "OrderTimelineEntry",
     "Payment", "PaymentOutbox", "PaymentTransaction", "Refund", "Invoice", "Receipt", "PaymentConsent",
-    "DeliveryPartner", "DeliveryRequest", "Delivery", "DeliveryTracking", "TrackingEvent",
+    "DeliveryPartner", "DeliveryRequest", "Delivery", "DispatchIssueReport", "DeliveryTracking", "TrackingEvent",
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",

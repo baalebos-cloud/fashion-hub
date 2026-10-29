@@ -77,4 +77,10 @@ async def upload_kyc_document(
     key = build_object_key(folder=f"kyc/{current_user.id}", filename=f"document.{extension}")
     storage = get_storage_provider()
     stored_key = storage.upload(key=key, file_bytes=raw, content_type=content_type, is_public=False)
-    return {"url": stored_key}
+    return {"url": stored_key, "document_storage_key": stored_key, "file_name": file.filename or "document", "status": "uploaded"}
+
+
+@router.post("/upload-id", status_code=201)
+async def upload_id_alias(file: UploadFile = File(...), current_user: User = Depends(get_current_user)):
+    """Compatibility endpoint with private document keys; never exposes ID photos publicly."""
+    return await upload_kyc_document(file=file, current_user=current_user)

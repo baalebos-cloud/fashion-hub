@@ -55,10 +55,10 @@ class S3CompatibleStorageProvider(StorageProvider):
                 Key=key,
                 Body=file_bytes,
                 ContentType=content_type,
-                ACL="public-read" if is_public else "private",
+
             )
         except Exception as exc:  # noqa: BLE001
-            raise ExternalProviderError(f"Object storage upload failed: {exc}") from exc
+            raise ExternalProviderError("Object storage upload failed. Verify bucket credentials and write access.") from exc
 
         if is_public and settings.STORAGE_PUBLIC_BASE_URL:
             return f"{settings.STORAGE_PUBLIC_BASE_URL.rstrip('/')}/{key}"
