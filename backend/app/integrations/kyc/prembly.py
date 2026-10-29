@@ -4,6 +4,9 @@ Only verified provider data can populate identity fields. Raw NINs, tokens,
 provider payloads and photos are never logged.
 """
 from datetime import datetime
+import logging
+
+logger = logging.getLogger(__name__)
 
 import httpx
 
@@ -32,7 +35,16 @@ class PremblyNINProvider(NINVerificationProvider):
             )
             response.raise_for_status()
             payload = response.json()
+        except httpx.HTTPStatusError as exc:
+            code = exc.response.status_code
+            logger.warning("nin_provider_http_error provider=prembly status=%d", code)
+            if code in (401, 403):
+                raise ExternalProviderError("NIN verification access rejected by provider. Contact support to check API credentials and product access.") from exc
+            if code == 429:
+                raise ExternalProviderError("NIN verification is rate-limited. Try again later.") from exc
+            raise ExternalProviderError("NIN verification provider is temporarily unavailable.") from exc
         except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("nin_provider_request_failed provider=prembly type=%s", type(exc).__name__)
             raise ExternalProviderError("NIN verification provider is temporarily unavailable.") from exc
 
         if not isinstance(payload, dict):
