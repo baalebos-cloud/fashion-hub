@@ -29,8 +29,23 @@ class VertexAIService:
             from google import genai
         except ImportError as exc:
             raise VertexUnavailable("Google Gen AI SDK not installed.") from exc
-        self.client = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID,
-                                   location=settings.GCP_REGION)
+        credentials = None
+        if settings.GCP_SERVICE_ACCOUNT_JSON:
+            try:
+                from google.oauth2 import service_account
+                info = json.loads(settings.GCP_SERVICE_ACCOUNT_JSON)
+                if not isinstance(info, dict) or info.get("type") != "service_account":
+                    raise ValueError("Invalid credential format")
+                credentials = service_account.Credentials.from_service_account_info(
+                    info, scopes=["https://www.googleapis.com/auth/cloud-platform"],
+                )
+            except (ValueError, TypeError, KeyError) as exc:
+                raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
+        try:
+            self.client = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID,
+                                       location=settings.GCP_REGION, credentials=credentials)
+        except Exception as exc:
+            raise VertexUnavailable("Could not initialize Vertex AI.") from exc
         return self.client
 
     def _structured(self, schema, contents):
