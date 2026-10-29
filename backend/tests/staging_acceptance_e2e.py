@@ -60,8 +60,8 @@ async def run():
             name = "STAGING_" + role.upper()
             email, password = os.getenv(name + "_EMAIL"), os.getenv(name + "_PASSWORD")
             if not email and os.getenv("STAGING_CREATE_SYNTHETIC_ACCOUNTS") == "true":
-                email = f"acceptance-{role}-{uuid.uuid4().hex[:12]}@example.invalid"
-                password = secrets.token_urlsafe(24)
+                email = f"acceptance-{role}-{uuid.uuid4().hex[:12]}@example.com"
+                password = "Staging9-" + secrets.token_urlsafe(24)
                 signup = await client.post("/api/v1/auth/signup", json={
                     "email": email, "password": password,
                     "full_name": f"Staging Acceptance {role.title()}",
