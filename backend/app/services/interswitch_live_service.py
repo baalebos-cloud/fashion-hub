@@ -36,8 +36,6 @@ class InterswitchLiveService(InterswitchSandboxService):
             live=True,
         )
 
-    def verify_and_confirm(self, provider_reference, *, buyer_user_id=None):
-        # Parent verification uses the live endpoint through _live_mode.
-        # The merchant code is swapped through a deliberately scoped settings
-        # adapter below instead of mutating process-global configuration.
-        raise NotImplementedError("Live settlement requires separate audited verification.")
+    @staticmethod
+    def _merchant_code() -> str:
+        return settings.INTERSWITCH_LIVE_MERCHANT_CODE or ""
