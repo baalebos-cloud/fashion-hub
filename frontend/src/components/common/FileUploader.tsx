@@ -16,6 +16,7 @@ export function FileUploader({ uploadEndpoint, accept, onUploaded, label = "Uplo
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
 
   async function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -26,6 +27,7 @@ export function FileUploader({ uploadEndpoint, accept, onUploaded, label = "Uplo
     try {
       const { url } = await uploadFile(uploadEndpoint, file);
       onUploaded(url);
+      setUploadedName(file.name);
     } catch (failure) {
       setError(getDisplayErrorMessage(failure, "Upload failed. Check your connection, file type and storage settings."));
     } finally {
@@ -40,7 +42,9 @@ export function FileUploader({ uploadEndpoint, accept, onUploaded, label = "Uplo
       <Button type="button" variant="secondary" size="sm" isLoading={isUploading} onClick={() => inputRef.current?.click()}>
         {label}
       </Button>
-      {error && <p className="mt-1 text-xs text-thread">{error}</p>}
+      {isUploading && <p role="status" className="mt-1 text-xs text-ink-soft">Uploading securely…</p>}
+      {uploadedName && !isUploading && <p role="status" className="mt-1 text-xs text-ink-soft">Uploaded: {uploadedName}</p>}
+      {error && <p role="alert" className="mt-1 text-xs text-thread">{error} Choose the file again to retry.</p>}
     </div>
   );
 }
