@@ -37,9 +37,9 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
     setError("");
     try {
       const response = await uploadFile(`/deliveries/${deliveryId}/issue-evidence`, file);
-      setEvidenceKey(response.document_storage_key);
-    } catch {
-      setError("Evidence upload failed. Retry with a JPG, PNG or WebP image.");
+      setEvidenceKey(response.document_storage_key ?? null);
+    } catch (failure) {
+      setError(getDisplayErrorMessage(failure, "Evidence upload failed. Retry with a JPG, PNG or WebP image."));
     } finally {
       setUploading(false);
     }
