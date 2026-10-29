@@ -18,8 +18,9 @@ export function loadMapSdk(): Promise<void> {
     // script with an empty key — that fails silently in the browser
     // console with a cryptic provider-side error instead of telling
     // whoever's debugging that VITE_MAPS_PUBLIC_KEY is unset.
+    console.warn("Google Maps disabled: VITE_MAPS_PUBLIC_KEY is missing.");
     loadPromise = Promise.reject(
-      new Error("VITE_MAPS_PUBLIC_KEY is not set — see .env.example for how to get one.")
+      new Error("Google Maps is unavailable. Enter your address manually.")
     );
     return loadPromise;
   }
@@ -29,8 +30,12 @@ export function loadMapSdk(): Promise<void> {
       const script = document.createElement("script");
       script.src = `https://maps.googleapis.com/maps/api/js?key=${mapConfig.publicKey}&libraries=places`;
       script.async = true;
-      script.onload = () => resolve();
-      script.onerror = () => reject(new Error("Failed to load Google Maps SDK — check that VITE_MAPS_PUBLIC_KEY is valid and the Maps JavaScript API is enabled."));
+      script.onload = () => {
+        if (!(window as Window & { google?: { maps?: { Map?: unknown } } }).google?.maps?.Map) {
+          reject(new Error("Google Maps failed to initialize. Check API access, allowed website origins and billing."));
+        } else resolve();
+      };
+      script.onerror = () => reject(new Error("Google Maps could not load. You can enter your address manually."));
       document.head.appendChild(script);
     } else {
       const script = document.createElement("script");
