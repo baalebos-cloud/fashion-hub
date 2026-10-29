@@ -158,3 +158,10 @@ def preview_verification_document(document_id: UUID, request: Request,
     _audit(db, admin, request, "verification.document_previewed", document.id)
     db.commit()
     return {"url": url, "expires_in_seconds": 120}
+
+
+@router.get("/interswitch-sandbox/readiness")
+def interswitch_sandbox_readiness(current_user: User = Depends(require_roles(Role.ADMIN))):
+    """No credentials or payment data included; sandbox readiness only."""
+    from app.services.interswitch_readiness import sandbox_readiness
+    return sandbox_readiness()
