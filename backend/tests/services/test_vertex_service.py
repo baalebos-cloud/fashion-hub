@@ -86,7 +86,7 @@ async def test_reject_injected_prompt_roles():
 
 @pytest.mark.parametrize(("image", "mime"), [
     (bytes.fromhex("ffd8ffe0") + b"fake", "image/jpeg"),
-    (bytes.fromhex("89504e470d0a1a0a") + b"fake", "image/png"),
+    (b"\x89PNG\r\n\x1a\n" + b"fake", "image/png"),
     (b"RIFF" + b"1234" + b"WEBP" + b"fake", "image/webp"),
 ])
 def test_image_mime_is_detected_from_bytes(image, mime):
