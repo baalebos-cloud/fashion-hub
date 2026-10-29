@@ -32,4 +32,4 @@ async def save_media(file: UploadFile, *, owner_id, purpose: str, public: bool =
     key = build_object_key(folder=f"{purpose}/{owner_id}", filename=f"attachment.{ext}")
     result = get_storage_provider().upload(key=key, file_bytes=raw, content_type=mime, is_public=public)
     return {"file_url": result, "url": result, "filename": file.filename or "attachment",
-            "content_type": mime, "status": "uploaded"}
+            "content_type": mime, "size_bytes": len(raw), "status": "uploaded"}
