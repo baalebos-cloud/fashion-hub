@@ -8,7 +8,7 @@ import type { Professional } from "@/types/professional";
 import type { SavedAddress } from "@/types/address";
 
 export function NearbyProfessionals({ detailsPathFor }: { detailsPathFor: (id: string) => string }) {
-  const { coordinates, locate, isLocating } = useGeolocation();
+  const { coordinates, locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const [city, setCity] = useState("");
   const [saved, setSaved] = useState<SavedAddress[]>([]);
   const [professionals, setProfessionals] = useState<Professional[]>([]);
@@ -63,6 +63,15 @@ export function NearbyProfessionals({ detailsPathFor }: { detailsPathFor: (id: s
         </label>
       )}
       <p className="text-xs text-ink-soft">Location access is optional. Browse verified professionals or search manually.</p>
+      {geolocationError && (
+        <p role="alert" className="text-sm text-thread">
+          {geolocationErrorCode === "PERMISSION_DENIED"
+            ? "Location permission was denied. Allow location access in your browser settings to search by proximity."
+            : geolocationErrorCode === "TIMEOUT"
+            ? "Location request timed out. Try again, or search by city above."
+            : "Your location could not be determined. Search by city above."}
+        </p>
+      )}
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={detailsPathFor} />
     </div>

@@ -60,7 +60,7 @@ export function AIChatWindow({ role }: { role: UserRole }) {
       id="ai-assistant-panel"
       role="dialog"
       aria-modal="false"
-      aria-label="Seam assistant"
+      aria-label="Tailora assistant"
       className="fixed bottom-6 right-6 z-[2147483000] flex h-[min(620px,calc(100vh-48px))] w-[380px] max-w-[calc(100vw-32px)] origin-bottom-right flex-col overflow-hidden rounded-[20px] border border-line bg-muslin shadow-[0_24px_60px_rgba(28,34,48,0.32)] transition-all duration-200 sm:max-w-[calc(100vw-24px)]"
       style={{
         transform: isOpen ? "scale(1) translateY(0)" : "scale(0.9) translateY(12px)",
@@ -73,7 +73,7 @@ export function AIChatWindow({ role }: { role: UserRole }) {
           {SPARKLE}
         </span>
         <div className="min-w-0 flex-1">
-          <div className="font-display text-[17px] font-semibold leading-tight">Seam</div>
+          <div className="font-display text-[17px] font-semibold leading-tight">Tailora</div>
           <div className="truncate text-xs text-paper/70">{ROLE_SUBTITLE[role]}</div>
         </div>
         <button
@@ -91,7 +91,7 @@ export function AIChatWindow({ role }: { role: UserRole }) {
           <div className="my-auto">
             <div className="font-display text-[19px] text-ink">Lost, or just curious?</div>
             <p className="mt-1.5 max-w-[30ch] text-[13.5px] leading-relaxed text-ink-soft">
-              Ask about an order, a tailor, or how something in Fashion Hub works. Seam only tells you where to go —
+              Ask about an order, a tailor, or how something in Fashion Hub works. Tailora only tells you where to go —
               it never moves money or changes an order for you.
             </p>
             <AIQuickActions role={role} onSelect={sendMessage} />
@@ -105,7 +105,7 @@ export function AIChatWindow({ role }: { role: UserRole }) {
         {isSending && (
           <div className="flex justify-start">
             <div className="rounded-2xl rounded-bl-md border border-line bg-paper px-3.5 py-3">
-              <span className="inline-flex gap-1" aria-label="Seam is typing">
+              <span aria-label="Tailora is typing">
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-soft [animation-delay:-0.3s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-soft [animation-delay:-0.15s]" />
                 <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-ink-soft" />

@@ -3,7 +3,7 @@
 React 19 + TypeScript + Vite frontend for the Fashion Hub marketplace,
 implementing dashboards for five roles (Customer, Tailor/Designer, Vendor,
 Delivery Partner, Admin) plus a public marketing site, all sharing one
-globally-available AI assistant, **Seam**.
+globally-available AI assistant, **Tailora**.
 
 Backend: **https://github.com/baalebos-cloud/fashion-hub** — see
 [`BACKEND.md`](./BACKEND.md) for how this frontend stays in sync with it.
@@ -58,7 +58,7 @@ docs/              Full documentation set — see docs/frontend-architecture.md
 - Auth flow (login/signup/forgot/reset/verify), token refresh, session bootstrap
 - The complete customer order lifecycle UI (list, detail, timeline, actions,
   the customer-only "Mark as Received" flow, tracking)
-- **Seam**, the global AI assistant (`components/ai/`) — mounted once,
+- **Tailora**, the global AI assistant (`components/ai/`) — mounted once,
   available on every authenticated screen, with a guard-respecting
   navigation boundary (see `docs/ai-assistant.md`)
 - The full API client layer (28 domain modules), all Zustand stores, all

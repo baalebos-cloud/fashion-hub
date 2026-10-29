@@ -60,7 +60,7 @@ export const useAIStore = create<AIState>((set, get) => ({
         turns: [...state.turns, { id: `assistant-${Date.now()}`, role: "assistant", content: result.answer }],
       }));
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "Seam couldn't respond just now." });
+      set({ error: err instanceof Error ? err.message : "Tailora couldn't respond just now." });
     } finally {
       set({ isSending: false });
     }

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useGeolocation } from "@/hooks/use-geolocation";
 import { apiClient } from "@/lib/api/client";
 import { uploadFile } from "@/lib/storage/file-storage";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -12,6 +13,7 @@ const categories = [
 export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; onClose: () => void }) {
   const [issueType, setIssueType] = useState<(typeof categories)[number]>("CUSTOMER_UNREACHABLE");
   const [description, setDescription] = useState("");
+  const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
   const [pending, setPending] = useState(false);
   const [evidenceKey, setEvidenceKey] = useState<string | null>(null);
@@ -45,12 +47,9 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
     }
   }
 
-  function locate() {
-    navigator.geolocation?.getCurrentPosition(
-      pos => setCoords({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-      () => setError("GPS unavailable. You can still report an issue without location."),
-      { enableHighAccuracy: false, timeout: 8000 },
-    );
+  async function handleLocate() {
+    const position = await locate();
+    if (position) setCoords({ latitude: position.latitude, longitude: position.longitude });
   }
 
   return (
@@ -80,8 +79,17 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
           </label>
           {uploading && <p role="status">Uploading evidence securely…</p>}
           {evidenceKey && <p role="status">Evidence attached.</p>}
-          <Button variant="secondary" onClick={locate}>Attach current GPS (optional)</Button>
+          <Button variant="secondary" onClick={() => { void handleLocate(); }} isLoading={isLocating}>Attach current GPS (optional)</Button>
           {coords && <p role="status" className="text-xs">GPS coordinates attached.</p>}
+          {geolocationError && (
+            <p role="alert" className="text-sm text-thread">
+              {geolocationErrorCode === "PERMISSION_DENIED"
+                ? "Location permission was denied. Allow location access in your browser settings, or submit without GPS."
+                : geolocationErrorCode === "TIMEOUT"
+                ? "Location request timed out. Try again, or submit without GPS."
+                : "GPS unavailable. You can still report an issue without location."}
+            </p>
+          )}
           {error && <p role="alert" className="text-sm text-thread">{error}</p>}
           <div className="flex gap-2">
             <Button onClick={() => { void submit(); }} disabled={pending || uploading || description.trim().length < 5} isLoading={pending}>Submit issue</Button>
