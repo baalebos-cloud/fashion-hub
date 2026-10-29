@@ -33,6 +33,42 @@ class LocalStorageProvider(StorageProvider):
             os.remove(path)
 
 
+
+class PostgresStorageProvider(StorageProvider):
+    """Small uploads stored in existing PostgreSQL. No S3 credentials required."""
+
+    def upload(self, *, key: str, file_bytes: bytes, content_type: str, is_public: bool) -> str:
+        import uuid
+        from sqlalchemy import insert
+        from app.core.database import engine
+        from app.models.stored_media import StoredMedia
+        try:
+            owner_id = uuid.UUID(key.split("/")[1])
+        except (ValueError, IndexError) as exc:
+            raise ExternalProviderError("Invalid media ownership key.") from exc
+        media_id = uuid.uuid4()
+        with engine.begin() as conn:
+            conn.execute(insert(StoredMedia).values(
+                id=media_id, owner_user_id=owner_id, storage_key=key,
+                content_type=content_type, is_public=is_public, content=file_bytes,
+            ))
+        if is_public:
+            return f"{settings.APP_URL.rstrip('/')}{settings.API_PREFIX}/media/files/{media_id}"
+        return key
+
+    def get_signed_url(self, key: str, expires_in_seconds: int = 300) -> str:
+        # Private records must be accessed by an authenticated API, not a
+        # public or unsigned link. Call the admin preview endpoint instead.
+        raise ExternalProviderError("Private database media requires authenticated preview.")
+
+    def delete(self, key: str) -> None:
+        from sqlalchemy import delete
+        from app.core.database import engine
+        from app.models.stored_media import StoredMedia
+        with engine.begin() as conn:
+            conn.execute(delete(StoredMedia).where(StoredMedia.storage_key == key))
+
+
 class S3CompatibleStorageProvider(StorageProvider):
     def __init__(self):
         try:
@@ -92,6 +128,8 @@ def build_object_key(*, folder: str, filename: str) -> str:
 
 
 def get_storage_provider() -> StorageProvider:
+    if settings.STORAGE_PROVIDER == "postgres":
+        return PostgresStorageProvider()
     if settings.STORAGE_PROVIDER == "local":
         return LocalStorageProvider()
     return S3CompatibleStorageProvider()
