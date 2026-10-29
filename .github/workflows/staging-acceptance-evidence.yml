@@ -1,0 +1,40 @@
+name: Staging acceptance evidence
+on:
+  workflow_dispatch:
+  push:
+    branches: [feature/staging-acceptance-evidence-20261028]
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+      - name: Install reviewed hash-pinned dependencies
+        working-directory: backend
+        run: python -m pip install --require-hashes -r requirements.txt
+      - name: Verify staging URL and collect acceptance outcomes
+        working-directory: backend
+        env:
+          STAGING_BASE_URL: https://fashion-hub-fashion-hub-staging.up.railway.app
+          STAGING_CREATE_SYNTHETIC_ACCOUNTS: 'true'
+        run: |
+          set +e
+          python tests/staging_acceptance_e2e.py > staging-certification-report.md
+          status=$?
+          cat staging-certification-report.md
+          if [ "$status" -ne 0 ] && [ "$status" -ne 2 ]; then
+            echo "Staging acceptance harness crashed; investigate before considering certification."
+            exit "$status"
+          fi
+          echo "CERTIFICATION_SCRIPT_EXIT=$status" >> "$GITHUB_ENV"
+      - name: Upload report (NOT CERTIFIED unless every scenario passes)
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-certification-evidence
+          path: backend/staging-certification-report.md
+          if-no-files-found: error
