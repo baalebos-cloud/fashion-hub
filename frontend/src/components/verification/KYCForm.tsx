@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { z } from "zod";
 import { useKYC } from "@/hooks/use-kyc";
 import { DocumentUpload } from "./DocumentUpload";
 import { VerificationStatus } from "./VerificationStatus";
@@ -23,20 +24,32 @@ export function KYCForm() {
   const [ninNumber, setNinNumber] = useState("");
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [homeLocation, setHomeLocation] = useState<{ latitude: number; longitude: number; formatted_address?: string } | null>(null);
+  const [useManualAddress, setUseManualAddress] = useState(false);
+  const [manualAddress, setManualAddress] = useState({ street: "", city: "", state: "", landmark: "" });
+  const manualSchema = z.object({
+    street: z.string().trim().min(5),
+    city: z.string().trim().min(2),
+    state: z.string().trim().min(2),
+    landmark: z.string(),
+  });
+  const validManual = useManualAddress && manualSchema.safeParse(manualAddress).success;
+  const address = validManual
+    ? [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ")
+    : homeLocation?.formatted_address;
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!documentUrl || !homeLocation || ninNumber.length !== 11) return;
+    if (!documentUrl || (!homeLocation && !validManual) || ninNumber.length !== 11) return;
     setIsSubmitting(true);
     setError(null);
     try {
       await submit({
         nin_number: ninNumber,
         document_storage_keys: [documentUrl],
-        home_latitude: homeLocation.latitude,
-        home_longitude: homeLocation.longitude,
-        home_formatted_address: homeLocation.formatted_address,
+        home_latitude: validManual ? null : homeLocation?.latitude ?? null,
+        home_longitude: validManual ? null : homeLocation?.longitude ?? null,
+        home_formatted_address: address,
       });
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't verify that NIN. Please double-check the number and try again."));
@@ -89,6 +102,7 @@ export function KYCForm() {
       </div>
 
       <DocumentUpload label="Upload a photo of your ID" onUploaded={setDocumentUrl} />
+      {documentUrl && <p role="status" className="text-sm text-ink-soft">ID document uploaded successfully.</p>}
 
       <div>
         <div className="mb-1.5 text-sm font-medium text-ink">Home address</div>
@@ -97,12 +111,27 @@ export function KYCForm() {
             setHomeLocation({ latitude: location.latitude, longitude: location.longitude, formatted_address: location.formatted_address ?? undefined })
           }
         />
-        {homeLocation?.formatted_address && <p className="mt-1 text-xs text-ink-soft">{homeLocation.formatted_address}</p>}
+        <label className="mt-3 flex items-center gap-2 text-sm">
+          <input type="checkbox" checked={useManualAddress} onChange={(e) => setUseManualAddress(e.target.checked)} />
+          Enter my address manually (works without Google Maps)
+        </label>
+        {useManualAddress && (
+          <div className="mt-3 flex flex-col gap-2">
+            {(["street", "city", "state", "landmark"] as const).map((field) => (
+              <label key={field} className="text-sm">
+                <span className="mb-1 block capitalize">{field === "landmark" ? "Postal code or landmark (optional)" : field === "city" ? "City / LGA" : field === "state" ? "State" : "Street address"}</span>
+                <Input value={manualAddress[field]} onChange={(e) => setManualAddress((prev) => ({ ...prev, [field]: e.target.value }))} />
+              </label>
+            ))}
+            <p className="text-xs text-ink-soft">Your address will be saved for review. GPS coordinates remain unverified until geocoding succeeds.</p>
+          </div>
+        )}
+        {!useManualAddress && homeLocation?.formatted_address && <p className="mt-1 text-xs text-ink-soft">{homeLocation.formatted_address}</p>}
       </div>
 
       {error && <p className="text-sm text-thread">{error}</p>}
 
-      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || !homeLocation || ninNumber.length !== 11}>
+      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || (!homeLocation && !validManual) || ninNumber.length !== 11}>
         Submit for verification
       </Button>
     </div>
