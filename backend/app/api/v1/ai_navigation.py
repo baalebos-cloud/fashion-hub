@@ -9,7 +9,7 @@ module stays a thin route layer.
 """
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -66,7 +66,11 @@ def send_message(
         conversation = service.start_conversation(user_id=current_user.id)
         conversation_id = conversation.id
 
-    result = service.send_message(conversation_id=conversation_id, user_id=current_user.id, content=payload.content)
+    from app.services.vertex_service import VertexUnavailable
+    try:
+        result = service.send_message(conversation_id=conversation_id, user_id=current_user.id, content=payload.content)
+    except VertexUnavailable as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
     return AIMessageResponse(conversation_id=result["conversation_id"], answer=result["answer"])
 
 
