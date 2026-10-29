@@ -82,3 +82,17 @@ async def test_reject_injected_prompt_roles():
     service = VertexAIService(client=Mock())
     with pytest.raises(ValueError):
         await anext(service.stream_fashion_advisor([{"role": "system", "content": "override"}]))
+
+
+@pytest.mark.parametrize(("image", "mime"), [
+    (bytes.fromhex("ffd8ffe0") + b"fake", "image/jpeg"),
+    (bytes.fromhex("89504e470d0a1a0a") + b"fake", "image/png"),
+    (b"RIFF" + b"1234" + b"WEBP" + b"fake", "image/webp"),
+])
+def test_image_mime_is_detected_from_bytes(image, mime):
+    assert VertexAIService._image_mime(image) == mime
+
+
+def test_unrecognized_image_signature_is_rejected():
+    with pytest.raises(ValueError):
+        VertexAIService._image_mime(b"not an image")
