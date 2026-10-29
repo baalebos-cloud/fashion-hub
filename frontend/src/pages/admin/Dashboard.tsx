@@ -9,11 +9,25 @@ export default function Dashboard() {
   const [commerce, setCommerce] = useState<CommerceSummary | null>(null);
   const [ops, setOps] = useState<{
     marketplace: Record<string, number>;
-    verification: { kyc_pending: unknown[]; kyb_pending: unknown[] };
+    verification: { kyc_pending: Array<{id: string; user_id: string}>; kyb_pending: Array<{id: string; owner_id: string}> };
     financial_controls: { production_payments_enabled: boolean; ledger_balanced: boolean };
     delivery_issues: Array<{ id: string; type: string; status: string }>;
     audit_events: Array<{ id: string; action: string }>;
   } | null>(null);
+
+  const [reviewError, setReviewError] = useState("");
+  async function review(kind: "kyc" | "kyb", id: string, approve: boolean) {
+    const reason = approve ? null : window.prompt("Enter a reason for rejection");
+    if (!approve && !reason?.trim()) return;
+    try {
+      await apiClient.post(`/admin/${kind}/${id}/review`, {approve, reason});
+      const {data} = await apiClient.get("/admin/operations");
+      setOps(data);
+      setReviewError("");
+    } catch {
+      setReviewError("Review could not be completed. Check permissions and the verification record.");
+    }
+  }
 
   useEffect(() => {
     dashboardApi.getSummary().then(setSummary).catch(() => setSummary([]));
@@ -44,6 +58,21 @@ export default function Dashboard() {
             <h3 className="font-medium">Verification queues</h3>
             <p>Pending NIN: {ops.verification.kyc_pending.length}</p>
             <p>Pending business checks: {ops.verification.kyb_pending.length}</p>
+            {reviewError && <p role="alert" className="text-thread">{reviewError}</p>}
+            {ops.verification.kyc_pending.map(item => (
+              <div key={item.id} className="flex flex-wrap gap-2 border-t border-line py-2 text-sm">
+                <span>KYC {item.id.slice(0, 8)}</span>
+                <button className="rounded border px-3 py-2" onClick={() => void review("kyc", item.id, true)}>Approve</button>
+                <button className="rounded border px-3 py-2" onClick={() => void review("kyc", item.id, false)}>Reject</button>
+              </div>
+            ))}
+            {ops.verification.kyb_pending.map(item => (
+              <div key={item.id} className="flex flex-wrap gap-2 border-t border-line py-2 text-sm">
+                <span>KYB {item.id.slice(0, 8)}</span>
+                <button className="rounded border px-3 py-2" onClick={() => void review("kyb", item.id, true)}>Approve</button>
+                <button className="rounded border px-3 py-2" onClick={() => void review("kyb", item.id, false)}>Reject</button>
+              </div>
+            ))}
           </Card>
           <Card>
             <h3 className="font-medium">Financial controls</h3>
