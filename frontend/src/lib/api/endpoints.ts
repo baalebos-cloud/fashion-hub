@@ -88,6 +88,8 @@ export const endpoints = {
 
   interswitch: {
     initialize: "/interswitch/checkout",
+    initializeLive: "/interswitch/live/checkout",
+    verifyLive: (reference: string) => `/interswitch/live/${encodeURIComponent(reference)}/verify`,
     verify: (reference: string) => `/interswitch/${encodeURIComponent(reference)}/verify`,
   },
 
