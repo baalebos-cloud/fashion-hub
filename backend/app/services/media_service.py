@@ -12,7 +12,7 @@ MIMES = {"image/jpeg": ("jpg", bytes((255,216,255))),
 
 
 async def save_media(file: UploadFile, *, owner_id, purpose: str, public: bool = False):
-    if purpose not in {"product", "kyc", "kyb", "delivery"}:
+    if purpose not in {"product", "kyc", "kyb", "delivery", "portfolio", "design"}:
         raise ValidationAppError("Unsupported media purpose.")
     if settings.APP_ENV in {"production", "staging"} and settings.STORAGE_PROVIDER == "local":
         raise ValidationAppError("Persistent storage is required.")
