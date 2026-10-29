@@ -17,6 +17,7 @@ from app.api.v1 import (
     customers,
     dashboard,
     delivery_partners,
+    delivery_issues,
     delivery_requests,
     delivery_tracking,
     delivery_webhooks,
@@ -87,6 +88,7 @@ api_router.include_router(receipts.router)
 api_router.include_router(payment_consent.router)
 api_router.include_router(deliveries.router)
 api_router.include_router(delivery_partners.router)
+api_router.include_router(delivery_issues.router)
 api_router.include_router(delivery_requests.router)
 api_router.include_router(delivery_tracking.router)
 api_router.include_router(delivery_webhooks.router)
