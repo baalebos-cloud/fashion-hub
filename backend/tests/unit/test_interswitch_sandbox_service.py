@@ -130,10 +130,16 @@ def test_material_order_can_initialize_in_sandbox_with_buyer_ownership(enabled):
     order = _order()
     order.order_type = "vendor_order"
     order.status = "checkout"
+    order.pricing_source = "vendor_catalog_v1"
+    order.delivery_address_snapshot = {"city": "Lagos"}
+    order.items = [SimpleNamespace(quantity=1, unit_price=Decimal("125.50"), line_total=Decimal("125.50"))]
+    order.subtotal = Decimal("125.50")
+    order.delivery_fee = order.tax_amount = order.discount_amount = Decimal("0.00")
     service = _service(order)
     from app.services import catalog_order_service
     from unittest.mock import patch
-    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None):
+    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None), \
+         patch("app.services.stock_reservation_service.StockReservationService.active", return_value=True):
         result = service.initialize_checkout(order_id=order.id,
                                              buyer_user_id=order.buyer_user_id,
                                              customer_email="buyer@example.com")
