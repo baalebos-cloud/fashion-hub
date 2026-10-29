@@ -1,6 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import { validateImageFile } from "@/lib/utils/image";
 import { uploadFile } from "@/lib/storage/file-storage";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 
 export interface ImageUploaderProps {
@@ -33,10 +34,11 @@ export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, lab
     try {
       const { url } = await uploadFile(uploadEndpoint, file);
       onUploaded(url);
-    } catch {
-      setError("Upload failed. Please try again.");
+    } catch (failure) {
+      setError(getDisplayErrorMessage(failure, "Image upload failed. Check the file and try again."));
     } finally {
       setIsUploading(false);
+      event.target.value = "";
     }
   }
 
@@ -44,7 +46,7 @@ export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, lab
     <div className="flex items-center gap-4">
       {currentImageUrl && <img src={currentImageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />}
       <div>
-        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
         <Button type="button" variant="secondary" size="sm" isLoading={isUploading} onClick={() => inputRef.current?.click()}>
           {label}
         </Button>

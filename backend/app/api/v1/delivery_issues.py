@@ -54,7 +54,7 @@ def create_delivery_issue(delivery_id: uuid.UUID, payload: IssueRequest,
                           user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
                           db: Session = Depends(get_db)):
     assigned_delivery(delivery_id, user, db, active_only=True)
-    if payload.photo_evidence_url and not payload.photo_evidence_url.startswith(f'delivery-issues/{delivery_id}/'):
+    if payload.photo_evidence_url and not payload.photo_evidence_url.startswith(f'delivery-issues/{user.id}/{delivery_id}/'):
         raise HTTPException(status_code=422, detail='Evidence must belong to this delivery.')
     issue = DispatchIssueReport(delivery_id=delivery_id, courier_id=user.id, **payload.model_dump())
     db.add(issue)
@@ -100,6 +100,6 @@ async def upload_issue_evidence(delivery_id: uuid.UUID, file: UploadFile = File(
         mime == "image/webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
     if not valid:
         raise HTTPException(422, detail="Image content does not match file type.")
-    key = build_object_key(folder=f"delivery-issues/{delivery_id}", filename=f"evidence.{ext}")
+    key = build_object_key(folder=f"delivery-issues/{user.id}/{delivery_id}", filename=f"evidence.{ext}")
     key = get_storage_provider().upload(key=key, file_bytes=data, content_type=mime, is_public=False)
     return {"document_storage_key": key, "status": "uploaded"}

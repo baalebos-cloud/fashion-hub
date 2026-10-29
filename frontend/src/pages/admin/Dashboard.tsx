@@ -18,8 +18,16 @@ export default function Dashboard() {
   const [reviewError, setReviewError] = useState("");
   async function previewDocument(id: string) {
     try {
-      const response = await apiClient.get<{url: string}>(`/admin/verification-documents/${id}/preview`);
-      window.open(response.data.url, "_blank", "noopener,noreferrer");
+      const response = await apiClient.get<Blob>(`/admin/verification-documents/${id}/content`, { responseType: "blob" });
+      const url = URL.createObjectURL(response.data);
+      const viewer = window.open(url, "_blank", "noopener,noreferrer");
+      if (!viewer) {
+        URL.revokeObjectURL(url);
+        setReviewError("Allow pop-ups to preview this document.");
+        return;
+      }
+      window.setTimeout(() => URL.revokeObjectURL(url), 60000);
+      setReviewError("");
     } catch {
       setReviewError("Unable to retrieve this private document preview.");
     }
