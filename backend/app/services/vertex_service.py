@@ -26,7 +26,7 @@ class VertexAIService:
     def _client(self):
         if self.client is not None:
             return self.client
-        if not settings.VERTEX_AI_ENABLED or (not settings.GCP_PROJECT_ID and not settings.GEMINI_API_KEY):
+        if not settings.VERTEX_AI_ENABLED or (not settings.GCP_PROJECT_ID and not (settings.GEMINI_API_KEY or settings.VERTEX_AI_API_KEY)):
             raise VertexUnavailable("Vertex AI is not configured.")
         try:
             from google import genai
@@ -62,6 +62,13 @@ class VertexAIService:
                         logger.error("seam_api_key_init_failed type=%s", type(key_exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         else:
+            if settings.VERTEX_AI_API_KEY:
+                try:
+                    self.client = genai.Client(vertexai=True, api_key=settings.VERTEX_AI_API_KEY)
+                    logger.info("seam_vertex_client_ready auth=express_api_key")
+                    return self.client
+                except Exception as key_exc:
+                    logger.error("seam_vertex_express_key_failed type=%s", type(key_exc).__name__)
             if settings.GEMINI_API_KEY:
                 try:
                     self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
