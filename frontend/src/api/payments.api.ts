@@ -11,6 +11,16 @@ export const paymentsApi = {
     );
     return response.data;
   },
+  async initializeLiveInterswitch(orderId: string): Promise<InterswitchCheckout> {
+    const response = await apiClient.post<InterswitchCheckout>(
+      endpoints.interswitch.initializeLive, { order_id: orderId },
+    );
+    return response.data;
+  },
+  async verifyLiveInterswitch(reference: string): Promise<Payment> {
+    const response = await apiClient.get<Payment>(endpoints.interswitch.verifyLive(reference));
+    return response.data;
+  },
   async verifyInterswitch(reference: string): Promise<Payment> {
     const response = await apiClient.get<Payment>(
       endpoints.interswitch.verify(reference),
