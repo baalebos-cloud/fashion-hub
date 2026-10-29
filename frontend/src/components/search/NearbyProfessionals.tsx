@@ -24,9 +24,11 @@ export function NearbyProfessionals({ detailsPathFor }: { detailsPathFor: (id: s
     let active = true;
     setIsLoading(true);
     setError("");
-    professionalsApi.list(coordinates
-      ? { latitude: coordinates.latitude, longitude: coordinates.longitude, radiusKm: 10 }
-      : { query: city.trim() || undefined })
+    professionalsApi.list(city.trim()
+      ? { query: city.trim() }
+      : coordinates
+        ? { latitude: coordinates.latitude, longitude: coordinates.longitude, radiusKm: 10 }
+        : {})
       .then(response => {
         if (!active) return;
         setProfessionals(response.items);
