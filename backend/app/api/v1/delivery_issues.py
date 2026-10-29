@@ -1,10 +1,13 @@
 """Authorized courier incident reports; modeled on Sage disruption intake."""
 import uuid
 from typing import Literal
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.config import settings
+from app.integrations.storage.object_storage import get_storage_provider, build_object_key
+from app.utils.file_upload import validate_upload, MAX_UPLOAD_SIZE_BYTES
 from app.core.exceptions import NotFoundError
 from app.core.permissions import Role, require_roles
 from app.models.delivery import Delivery
@@ -48,6 +51,8 @@ def create_delivery_issue(delivery_id: uuid.UUID, payload: IssueRequest,
                           user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
                           db: Session = Depends(get_db)):
     assigned_delivery(delivery_id, user, db, active_only=True)
+    if payload.photo_evidence_url and not payload.photo_evidence_url.startswith(f'delivery-issues/{delivery_id}/'):
+        raise HTTPException(status_code=422, detail='Evidence must belong to this delivery.')
     issue = DispatchIssueReport(delivery_id=delivery_id, courier_id=user.id, **payload.model_dump())
     db.add(issue)
     db.commit()
@@ -67,3 +72,25 @@ def list_delivery_issues(delivery_id: uuid.UUID,
                .order_by(DispatchIssueReport.created_at.desc()).limit(100).all())
     return [{"id": str(x.id), "issue_type": x.issue_type, "description": x.description,
              "status": x.status, "created_at": x.created_at} for x in reports]
+
+
+@router.post("/{delivery_id}/issue-evidence", status_code=201)
+async def upload_issue_evidence(delivery_id: uuid.UUID, file: UploadFile = File(...),
+                                user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+                                db: Session = Depends(get_db)):
+    assigned_delivery(delivery_id, user, db, active_only=True)
+    if settings.APP_ENV in {"staging", "production"} and settings.STORAGE_PROVIDER == "local":
+        raise HTTPException(503, detail="Persistent private storage is required.")
+    mime = (file.content_type or "").lower()
+    data = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
+    await file.close()
+    validate_upload(content_type=mime, size_bytes=len(data))
+    ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[mime]
+    valid = (mime == "image/jpeg" and data.startswith(bytes.fromhex("ffd8ff"))) or (
+        mime == "image/png" and data.startswith(bytes.fromhex("89504e470d0a1a0a"))) or (
+        mime == "image/webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
+    if not valid:
+        raise HTTPException(422, detail="Image content does not match file type.")
+    key = build_object_key(folder=f"delivery-issues/{delivery_id}", filename=f"evidence.{ext}")
+    key = get_storage_provider().upload(key=key, file_bytes=data, content_type=mime, is_public=False)
+    return {"document_storage_key": key, "status": "uploaded"}
