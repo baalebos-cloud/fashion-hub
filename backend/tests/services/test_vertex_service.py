@@ -48,7 +48,7 @@ def test_injected_provider_structured_response_is_validated(monkeypatch):
         '"recommended_materials":[{"name":"cotton","quantity_yards":2.4}],'
         '"assumptions":["standard width"],"requires_tailor_review":true}'
     )
-    service = VertexAIService(client=client, model="gemini-2.5-flash")
+    service = VertexAIService(client=client, model="gemini-3.8-flash")
     response = service.generate_tailoring_spec("Make a cotton shirt")
     assert response.estimated_fabric_yards == 2.4
     client.models.generate_content.assert_called_once()
