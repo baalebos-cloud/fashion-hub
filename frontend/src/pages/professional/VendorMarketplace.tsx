@@ -25,7 +25,7 @@ export default function VendorMarketplace() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="font-display text-xl text-ink">Vendor marketplace</h1>
+      <h1 className="font-display text-xl text-ink">Materials Marketplace</h1>
       <CatalogBudgetGuide />
       {error && <p role="alert">{error}</p>}
       <ProductGrid products={products} isLoading={isLoading} detailsPathFor={professionalRoutes.vendorProductDetails} />
