@@ -64,6 +64,13 @@ class VertexAIService:
             logger.info("seam_vertex_client_ready model=%s region=%s", self.model, settings.GCP_REGION)
         except Exception as exc:
             logger.error("seam_vertex_setup_failed stage=client_init exception_type=%s model=%s region=%s", type(exc).__name__, self.model, settings.GCP_REGION)
+            if settings.GEMINI_API_KEY:
+                try:
+                    self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                    logger.info("seam_genai_client_ready auth=api_key")
+                    return self.client
+                except Exception as fallback_exc:
+                    logger.error("seam_genai_api_key_init_failed type=%s", type(fallback_exc).__name__)
             raise VertexUnavailable("Could not initialize Vertex AI.") from exc
         return self.client
 
