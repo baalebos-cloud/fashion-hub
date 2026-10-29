@@ -31,7 +31,7 @@ export default function Payment() {
       ) : (
         <PaymentButton orderId={order.id} callbackUrl={callbackUrl} disabled={!hasConsented} />
       )}
-      {import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
+      {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED !== "true" && import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
         <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented} />
       )}
     </div>
