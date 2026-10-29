@@ -52,6 +52,7 @@ from app.models.ai_action import AIAction
 from app.models.kyc_verification import KYCVerification
 from app.models.kyb_verification import KYBVerification
 from app.models.verification_document import VerificationDocument
+from app.models.stored_media import StoredMedia
 from app.models.favorite import Favorite
 from app.models.audit_log import AuditLog
 from app.models.referral import Referral
