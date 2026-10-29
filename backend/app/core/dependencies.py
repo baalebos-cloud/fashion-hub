@@ -35,7 +35,12 @@ def get_current_user(
         )
 
     user_id = payload.get("sub")
-    user = db.get(User, user_id)
+    try:
+        import uuid as _uuid
+        user_pk = _uuid.UUID(user_id)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token identity.")
+    user = db.get(User, user_pk)
     if user is None or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive.")
     import hmac
