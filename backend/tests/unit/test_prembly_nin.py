@@ -37,3 +37,13 @@ def test_missing_credentials_fail_closed(monkeypatch):
     monkeypatch.setattr(settings, "NIN_API_KEY", None)
     with pytest.raises(ExternalProviderError):
         PremblyNINProvider().verify("12345678901")
+
+def test_permission_denied_has_safe_actionable_error():
+    import httpx
+    response = httpx.Response(403, request=httpx.Request("POST", "https://api.prembly.com/verification/vnin-basic"))
+    from unittest.mock import patch
+    with patch("app.integrations.kyc.prembly.httpx.post", return_value=response):
+        with pytest.raises(ExternalProviderError, match="product access") as error:
+            PremblyNINProvider(api_key="fake-test-key").verify("12345678901")
+    assert "12345678901" not in str(error.value)
+    assert "fake-test-key" not in str(error.value)
