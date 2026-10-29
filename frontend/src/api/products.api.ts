@@ -10,6 +10,7 @@ export interface ProductCreatePayload {
   category_id?: string;
   initial_stock?: number;
   image_urls: string[];
+  unit_of_measure: 'yard' | 'meter' | 'roll' | 'piece';
 }
 
 export const productsApi = {
