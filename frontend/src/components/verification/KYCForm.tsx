@@ -51,7 +51,7 @@ export function KYCForm() {
         document_storage_keys: [documentUrl],
         home_latitude: useManualAddress ? null : homeLocation?.latitude ?? null,
         home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
-        home_formatted_address: address ?? null,
+        home_formatted_address: address ?? undefined,
       });
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't verify that NIN. Please double-check the number and try again."));
