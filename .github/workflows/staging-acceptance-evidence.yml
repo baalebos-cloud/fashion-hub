@@ -21,6 +21,7 @@ jobs:
         working-directory: backend
         env:
           STAGING_BASE_URL: https://fashion-hub-fashion-hub-staging.up.railway.app
+          STAGING_CREATE_SYNTHETIC_ACCOUNTS: 'true'
         run: |
           set +e
           python tests/staging_acceptance_e2e.py > staging-certification-report.md
