@@ -46,7 +46,11 @@ class InterswitchSandboxService(PaymentService):
     def _return_url() -> str:
         url = f"{settings.APP_URL.rstrip('/')}{settings.API_PREFIX}/interswitch/return"
         parsed = urlsplit(url)
-        if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+        # Allow HTTP in development so local testing works without a tunnel.
+        if settings.APP_ENV not in {"development", "test"}:
+            if parsed.scheme != "https" or not parsed.netloc or parsed.username or parsed.password:
+                raise ConflictError("A public HTTPS backend callback URL is required.")
+        elif not parsed.netloc:
             raise ConflictError("A public HTTPS backend callback URL is required.")
         return url
 

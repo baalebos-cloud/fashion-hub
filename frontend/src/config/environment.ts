@@ -33,4 +33,6 @@ export const env = {
 
   enableAIAssistant: readBoolEnv("VITE_ENABLE_AI_ASSISTANT", true),
   enableMessaging: readBoolEnv("VITE_ENABLE_MESSAGING", true),
+  interswitchSandboxEnabled: readBoolEnv("VITE_INTERSWITCH_SANDBOX_UI_ENABLED", false),
+  interswitchLiveEnabled: readBoolEnv("VITE_INTERSWITCH_LIVE_UI_ENABLED", false),
 };

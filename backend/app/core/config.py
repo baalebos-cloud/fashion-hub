@@ -102,7 +102,7 @@ class Settings(BaseSettings):
     GCP_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)
     GEMINI_API_KEY: Optional[str] = Field(None, repr=False)
     GCP_REGION: str = "us-central1"
-    VERTEX_AI_MODEL_NAME: str = "gemini-3.8-flash"
+    VERTEX_AI_MODEL_NAME: str = "gemini-1.5-flash"
 
     # --- Notifications ---
     EMAIL_PROVIDER: str = "smtp"
