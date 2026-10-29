@@ -14,9 +14,11 @@ depends_on = None
 
 
 def upgrade():
+    op.add_column("vendor_products", sa.Column("unit_of_measure", sa.String(16), nullable=False, server_default="yard"))
     op.add_column("vendor_products", sa.Column("image_urls", JSONB(), nullable=False,
                                                server_default=sa.text("'[]'::jsonb")))
 
 
 def downgrade():
     op.drop_column("vendor_products", "image_urls")
+    op.drop_column("vendor_products", "unit_of_measure")
