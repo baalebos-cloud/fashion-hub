@@ -46,6 +46,16 @@ class VertexAIService:
             raise VertexUnavailable("Vertex AI returned no structured result.")
         return schema.model_validate_json(response.text)
 
+    @staticmethod
+    def _image_mime(image_bytes: bytes) -> str:
+        if image_bytes.startswith(bytes.fromhex("ffd8ff")):
+            return "image/jpeg"
+        if image_bytes.startswith(bytes.fromhex("89504e470d0a1a0a")):
+            return "image/png"
+        if len(image_bytes) > 12 and image_bytes[:4] == b"RIFF" and image_bytes[8:12] == b"WEBP":
+            return "image/webp"
+        raise ValueError("Invalid JPEG, PNG or WebP image data.")
+
     def extract_measurements_from_image(self, image_bytes: bytes) -> CustomerMeasurementSchema:
         if not 0 < len(image_bytes) <= 5_000_000:
             raise ValueError("Image must be between 1 byte and 5 MB.")
@@ -57,7 +67,7 @@ class VertexAIService:
                 "or tape measure. Do not infer body size from a person's appearance. "
                 "Use null for dimensions without readable scale. Explicitly require "
                 "manual confirmation; do not assign confidence above 0.5 to photo-only estimates."
-            )), types.Part.from_bytes(data=image_bytes, mime_type="image/jpeg")],
+            )), types.Part.from_bytes(data=image_bytes, mime_type=self._image_mime(image_bytes))],
         )
         return result.model_copy(update={"requires_manual_measurement": True})
 
@@ -71,7 +81,7 @@ class VertexAIService:
         parts = [types.Part.from_text(text=(
             "Draft a tailoring bill of materials. Estimate yardage conservatively and "
             "state assumptions. Tailor must confirm before pricing, ordering or payment. " + prompt
-        ))] + [types.Part.from_bytes(data=image, mime_type="image/jpeg") for image in imgs]
+        ))] + [types.Part.from_bytes(data=image, mime_type=self._image_mime(image)) for image in imgs]
         return self._structured(TailoringSpecSchema, parts)
 
     async def stream_fashion_advisor(self, messages: list[dict]) -> AsyncGenerator[str, None]:
