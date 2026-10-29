@@ -23,6 +23,14 @@ class InterswitchSandboxService(PaymentService):
     """Isolated sandbox checkout; no provider factory or live behavior change."""
 
     @staticmethod
+    def _live_mode() -> bool:
+        return False
+
+    @staticmethod
+    def _merchant_code() -> str:
+        return settings.INTERSWITCH_MERCHANT_CODE or ""
+
+    @staticmethod
     def _require_sandbox():
         if (settings.is_production or not settings.INTERSWITCH_SANDBOX_ENABLED
                 or not settings.INTERSWITCH_MERCHANT_CODE
@@ -47,7 +55,7 @@ class InterswitchSandboxService(PaymentService):
             merchant_code=settings.INTERSWITCH_MERCHANT_CODE,
             pay_item_id=settings.INTERSWITCH_PAY_ITEM_ID,
             reference=payment.provider_reference, amount=payment.amount,
-            customer_email=email, return_url=self._return_url(),
+            customer_email=email, return_url=self._return_url(), live=self._live_mode(),
         )
 
     def initialize_checkout(self, *, order_id, buyer_user_id, customer_email: str) -> CheckoutForm:
@@ -98,8 +106,9 @@ class InterswitchSandboxService(PaymentService):
         if buyer_user_id is None or str(order.buyer_user_id) != str(buyer_user_id):
             raise ForbiddenError("Only the order buyer may verify this payment.")
         result = requery_transaction(
-            merchant_code=settings.INTERSWITCH_MERCHANT_CODE,
+            merchant_code=self._merchant_code(),
             reference=provider_reference, expected_amount=payment.amount,
+            live=self._live_mode(),
         )
         verification = VerifyPaymentResult(
             provider_reference=result.reference,

@@ -71,6 +71,10 @@ class Settings(BaseSettings):
     INTERSWITCH_SANDBOX_ENABLED: bool = False
     INTERSWITCH_MERCHANT_CODE: Optional[str] = None
     INTERSWITCH_PAY_ITEM_ID: Optional[str] = None
+    # Isolated, opt-in hackathon live Web Checkout (never activate in staging).
+    INTERSWITCH_LIVE_ENABLED: bool = False
+    INTERSWITCH_LIVE_MERCHANT_CODE: Optional[str] = None
+    INTERSWITCH_LIVE_PAY_ITEM_ID: Optional[str] = None
     # Financial operations require explicit provider onboarding and sandbox verification.
     REFUND_EXECUTION_ENABLED: bool = False
 
@@ -172,7 +176,7 @@ class Settings(BaseSettings):
             raise ValueError("Production Saga payments are not approved or implemented.")
         if self.APP_ENV in {"staging", "production"}:
             if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-env":
-                raise ValueError("Set a randomly generated SECRET_KEY of at least 32 characters")
+                raise ValueError("Configure a randomly generated signing key of at least 32 characters")
             if self.DEBUG or self.DATABASE_ECHO:
                 raise ValueError("Disable DEBUG and DATABASE_ECHO in staging/production")
             if not self.FRONTEND_URL.startswith("https://"):
