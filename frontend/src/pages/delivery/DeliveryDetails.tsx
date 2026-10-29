@@ -1,3 +1,5 @@
+import { useState } from "react";
+import { ReportIssueModal } from "@/components/delivery/ReportIssueModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { deliveryRoutes } from "@/config/routes.config";
@@ -9,6 +11,7 @@ import { formatCurrency } from "@/lib/formatters/currency";
 export default function DeliveryDetails() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
   const navigate = useNavigate();
+  const [showIssue, setShowIssue] = useState(false);
   const { delivery, isLoading, error } = useDelivery(deliveryId);
 
   if (error) return <p role="alert" className="text-thread">{error}</p>;
@@ -20,6 +23,10 @@ export default function DeliveryDetails() {
         <h1 className="font-display text-xl text-ink">Order {delivery.order_id.slice(0, 8)}</h1>
         <DeliveryStatusBadge status={delivery.status} />
       </div>
+      {["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status) && (
+        <Button variant="secondary" onClick={() => setShowIssue(true)}>Report Issue</Button>
+      )}
+      {showIssue && <ReportIssueModal deliveryId={delivery.id} onClose={() => setShowIssue(false)} />}
       <div className="text-lg font-medium text-ink">{formatCurrency(delivery.delivery_fee)}</div>
       {delivery.status === "assigned" && (
         <Button className="self-start" onClick={() => navigate(deliveryRoutes.pickup(delivery.id))}>
