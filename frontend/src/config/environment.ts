@@ -20,7 +20,7 @@ function readBoolEnv(key: string, fallback: boolean): boolean {
 }
 
 export const env = {
-  apiBaseUrl: readEnv("VITE_API_BASE_URL", "/api/v1"),
+  apiBaseUrl: (readEnv("VITE_API_URL", readEnv("VITE_API_BASE_URL", "/api/v1")).replace(/\/+$/, "") + (readEnv("VITE_API_URL", readEnv("VITE_API_BASE_URL", "/api/v1")).replace(/\/+$/, "").endsWith("/v1") ? "" : "/v1")),
   appName: readEnv("VITE_APP_NAME", "Fashion Hub"),
   appEnv: readEnv("VITE_APP_ENV", "development") as "development" | "staging" | "production",
   isProduction: readEnv("VITE_APP_ENV", "development") === "production",
