@@ -25,7 +25,7 @@ type MarkerInstance = InstanceType<MapsApi["Marker"]>;
 
 export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
   const { isReady, error: mapError } = useMap();
-  const { locate, isLocating, error: geolocationError } = useGeolocation();
+  const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const elementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markerRef = useRef<MarkerInstance | null>(null);
@@ -120,7 +120,11 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
       {selectionError && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
       {geolocationError && (
         <p role="alert" className="text-sm text-thread">
-          Location access was unavailable or denied. Allow location permission in your browser, or tap the map to select an address manually.
+          {geolocationErrorCode === "PERMISSION_DENIED"
+            ? "Location permission was denied. Allow location access in your browser settings, or tap the map to select an address manually."
+            : geolocationErrorCode === "TIMEOUT"
+            ? "Location request timed out. Please try again, or tap the map to select an address manually."
+            : "Location access was unavailable. Tap the map to select an address manually."}
         </p>
       )}
     </div>
