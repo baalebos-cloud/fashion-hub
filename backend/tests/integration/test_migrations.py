@@ -181,17 +181,35 @@ def test_downgrade_preserves_new_checkout_records(migration_database, saved_reco
 
 def stock_legacy_seed(engine):
     from sqlalchemy.orm import Session
-    from tests.vendor_helpers import catalog, user, address
+    from tests.vendor_helpers import user, address
     from app.models.cart import Cart
     from app.models.cart_item import CartItem
     # ORM's new Cart.revision cannot be used before 0005; insert the old
     # cart shape explicitly while keeping catalog fixtures version-neutral.
     with Session(engine) as db:
-        _, vendor, product, variant, inv = catalog(db)
+        # Historical revision 0004 predates product image/unit columns.
+        # Seed the exact legacy schema rather than using the latest ORM model.
+        from app.models.vendor import Vendor
+        from app.models.product_variant import ProductVariant
+        from app.models.inventory import Inventory
+        seller = user(db, 'vendor')
+        vendor = Vendor(user_id=seller.id, business_name='Verified fabrics', is_verified=True)
+        db.add(vendor)
+        db.flush()
+        from sqlalchemy import text as sql_text
+        product_id = uuid.uuid4()
+        db.execute(sql_text("INSERT INTO vendor_products (id,vendor_id,name,description,base_price,currency,is_active) "
+                            "VALUES (:id,:vendor,'Navy cotton','Per yard',100.01,'NGN',true)"),
+                   {"id": product_id, "vendor": vendor.id})
+        variant = ProductVariant(product_id=product_id, sku='TEST-'+uuid.uuid4().hex, price=100.01)
+        db.add(variant)
+        db.flush()
+        inv = Inventory(product_variant_id=variant.id, quantity_available=10, quantity_reserved=0)
+        db.add(inv)
         buyer = user(db, 'tailor')
         db.commit()
         values = dict(cart=uuid.uuid4(), item=uuid.uuid4(), owner=buyer.id,
-                      variant=variant.id, vendor=vendor.id, product=product.id, inventory=inv.id)
+                      variant=variant.id, vendor=vendor.id, product=product_id, inventory=inv.id)
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO carts (id,owner_user_id,status) VALUES (:cart,:owner,'active')"), values)
         conn.execute(text("INSERT INTO cart_items (id,cart_id,product_variant_id,vendor_id,quantity,unit_price_snapshot) VALUES (:item,:cart,:variant,:product,2,100.01)"), values)
