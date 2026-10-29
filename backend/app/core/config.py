@@ -118,7 +118,7 @@ class Settings(BaseSettings):
     PUSH_PROVIDER: Optional[str] = None
 
     # --- Object storage ---
-    STORAGE_PROVIDER: str = "local"  # local | s3-compatible
+    STORAGE_PROVIDER: str = "local"  # local | postgres | s3-compatible
     STORAGE_BUCKET: Optional[str] = None
     STORAGE_ENDPOINT: Optional[str] = None
     STORAGE_ACCESS_KEY: Optional[str] = None
