@@ -5,7 +5,7 @@ import { useAIStore } from "@/store/ai.store";
  * AIQuickActions, AIHelpButton) reads from. Because it's backed by a
  * global Zustand store rather than component state, calling this hook
  * from two different places (e.g. the floating widget AND an inline
- * "Ask Seam" link on an order page) yields the same open/closed state and
+ * "Ask Tailora" link on an order page) yields the same open/closed state and
  * the same conversation — which is what makes the assistant one continuous
  * experience rather than a new chat every time it's opened.
  */

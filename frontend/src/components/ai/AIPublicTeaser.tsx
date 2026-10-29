@@ -9,7 +9,7 @@ const SPARKLE = (
 );
 
 /**
- * A visible-but-inert stand-in for Seam on public pages. It looks like
+ * A visible-but-inert stand-in for Tailora on public pages. It looks like
  * the real launcher (same mark, same corner) so the assistant doesn't
  * feel like it "appears out of nowhere" after signing in — but it can't
  * open a chat panel, because there's no authenticated user yet for the
@@ -24,11 +24,11 @@ export function AIPublicTeaser() {
   return createPortal(
     <a
       href={authRoutes.login}
-      aria-label="Sign in to chat with Seam, the Fashion Hub assistant"
+      aria-label="Sign in to chat with Tailora, the Fashion Hub assistant"
       className="fixed bottom-6 right-6 z-[2147483000] flex items-center gap-2.5 rounded-full border border-black/5 bg-ink px-[18px] py-3 pl-3.5 text-paper shadow-[0_10px_30px_rgba(28,34,48,0.28)] transition-all hover:-translate-y-0.5 hover:shadow-[0_14px_36px_rgba(28,34,48,0.34)]"
     >
       <span className="flex h-6.5 w-6.5 items-center justify-center rounded-full bg-brass text-ink">{SPARKLE}</span>
-      <span className="text-sm font-medium">Sign in to ask Seam</span>
+      <span className="text-sm font-medium">Sign in to ask Tailora</span>
     </a>,
     document.body
   );

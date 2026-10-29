@@ -12,7 +12,7 @@ import {
 /**
  * IMPORTANT — the boundary this component exists to enforce:
  *
- * Seam is only ever allowed to tell a person where to go and how a
+ * Tailora is only ever allowed to tell a person where to go and how a
  * feature works. It must never bypass frontend route guards or backend
  * authorization — see backend/app/integrations/ai/prompts.py's system
  * prompt, which instructs the model itself never to reveal or act on

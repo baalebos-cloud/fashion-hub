@@ -20,7 +20,7 @@ export default function Help() {
         ))}
       </div>
       <p className="mt-8 text-sm text-ink-soft">
-        Still stuck? <Link to={publicRoutes.contact} className="text-brass-deep hover:underline">Contact us</Link> or use the Ask Seam assistant once you're signed in.
+        Still stuck? <Link to={publicRoutes.contact} className="text-brass-deep hover:underline">Contact us</Link> or use the Ask Tailora assistant once you're signed in.
       </p>
     </div>
   );

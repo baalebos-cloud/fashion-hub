@@ -1,4 +1,4 @@
-# AI Assistant (Seam)
+# AI Assistant (Tailora)
 
 ## Mounted once, globally
 
@@ -42,7 +42,7 @@ adding similar router-aware-but-outside-the-tree components.
 |---|---|
 | `AIAssistant.tsx` | Mount point; renders the two pieces below via portal |
 | `AIPublicTeaser.tsx` | Pre-login stand-in that links to `/login` instead of opening chat |
-| `AIHelpButton.tsx` | The floating "Ask Seam" launcher |
+| `AIHelpButton.tsx` | The floating "Ask Tailora" launcher |
 | `AIChatWindow.tsx` | The expandable panel: header, thread, composer |
 | `AIMessage.tsx` | A single chat bubble |
 | `AIInput.tsx` | The composer textarea + send button |
