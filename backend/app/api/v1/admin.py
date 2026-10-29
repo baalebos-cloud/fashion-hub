@@ -128,3 +128,19 @@ def review_kyb(verification_id: UUID, payload: ReviewDecision, request: Request,
     _audit(db, admin, request, "kyb.approved" if payload.approve else "kyb.rejected", record.id)
     db.commit()
     return {"id": str(record.id), "status": record.status}
+
+
+@router.get("/verification-documents/{document_id}/preview")
+def preview_verification_document(document_id: UUID, request: Request,
+                                  db: Session = Depends(get_db),
+                                  admin: User = Depends(require_roles(Role.ADMIN))):
+    """Time-limited private preview; do not expose bucket keys in the API."""
+    from app.models.verification_document import VerificationDocument
+    from app.integrations.storage.object_storage import get_storage_provider
+    document = db.get(VerificationDocument, document_id)
+    if document is None or (document.kyc_verification_id is None and document.kyb_verification_id is None):
+        raise HTTPException(404, "Verification document not found.")
+    url = get_storage_provider().get_signed_url(document.storage_key, expires_in_seconds=120)
+    _audit(db, admin, request, "verification.document_previewed", document.id)
+    db.commit()
+    return {"url": url, "expires_in_seconds": 120}
