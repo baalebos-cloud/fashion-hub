@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { apiClient } from "@/lib/api/client";
+import { uploadFile } from "@/lib/storage/file-storage";
+import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 
 const categories = [
@@ -34,12 +36,8 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
     setUploading(true);
     setError("");
     try {
-      const data = new FormData();
-      data.append("file", file);
-      const response = await apiClient.post<{ document_storage_key: string }>(
-        `/deliveries/${deliveryId}/issue-evidence`, data, { headers: { "Content-Type": undefined } },
-      );
-      setEvidenceKey(response.data.document_storage_key);
+      const response = await uploadFile(`/deliveries/${deliveryId}/issue-evidence`, file);
+      setEvidenceKey(response.document_storage_key);
     } catch {
       setError("Evidence upload failed. Retry with a JPG, PNG or WebP image.");
     } finally {
