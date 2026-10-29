@@ -1,5 +1,5 @@
 import { FileUploader } from "@/components/common/FileUploader";
 
-export function DocumentUpload({ label, onUploaded }: { label: string; onUploaded: (url: string) => void }) {
-  return <FileUploader uploadEndpoint="/kyc/upload-id" accept="image/jpeg,image/png,image/webp,application/pdf" label={label} onUploaded={onUploaded} />;
+export function DocumentUpload({ label, onUploaded, purpose = "kyc" }: { label: string; onUploaded: (url: string) => void; purpose?: "kyc" | "kyb" }) {
+  return <FileUploader uploadEndpoint={`/media/upload?purpose=${purpose}`} accept="image/jpeg,image/png,image/webp,application/pdf" label={label} onUploaded={onUploaded} />;
 }
