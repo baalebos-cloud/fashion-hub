@@ -13,7 +13,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
   customer: "Customer",
   tailor: "Tailor",
   designer: "Fashion Designer",
-  vendor: "Vendor",
+  vendor: "Material Vendor",
   delivery_partner: "Delivery Partner",
   admin: "Admin",
 };
