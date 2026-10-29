@@ -62,6 +62,14 @@ class VertexAIService:
                         logger.error("seam_api_key_init_failed type=%s", type(key_exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         else:
+            if settings.GEMINI_API_KEY:
+                try:
+                    self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                    logger.info("seam_genai_client_ready auth=api_key")
+                    return self.client
+                except Exception as key_exc:
+                    logger.error("seam_api_key_init_failed type=%s", type(key_exc).__name__)
+                    raise VertexUnavailable("Google AI API key initialization failed.") from key_exc
             # Google Gen AI SDK uses Application Default Credentials; this
             # includes GOOGLE_APPLICATION_CREDENTIALS, workload identity, etc.
             logger.info("seam_vertex_auth source=application_default_credentials")
