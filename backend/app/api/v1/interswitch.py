@@ -13,6 +13,7 @@ from app.models.payment_outbox import PaymentOutbox
 from app.models.user import User
 from app.schemas.payment import PaymentResponse
 from app.services.interswitch_sandbox_service import InterswitchSandboxService
+from app.services.interswitch_live_service import InterswitchLiveService
 from app.services.interswitch_return import redirect_for_interswitch_return
 
 router = APIRouter(prefix="/interswitch", tags=["Interswitch sandbox"])
@@ -76,3 +77,28 @@ def browser_return_get(txnref: str = "", txn_ref: str = "",
         ),
         status_code=303,
     )
+
+@router.post("/live/checkout", response_model=InterswitchCheckoutResponse)
+def initialize_live_checkout(payload: InterswitchCheckoutRequest,
+                             current_user: User = Depends(get_current_user),
+                             db: Session = Depends(get_db)):
+    """Explicit live hosted checkout, disabled unless separately approved."""
+    result = InterswitchLiveService(db).initialize_checkout(
+        order_id=payload.order_id, buyer_user_id=current_user.id,
+        customer_email=current_user.email,
+    )
+    return InterswitchCheckoutResponse(action_url=result.action_url, fields=result.fields)
+
+
+@router.get("/live/{provider_reference}/verify", response_model=PaymentResponse)
+def verify_live_checkout(provider_reference: str,
+                         current_user: User = Depends(get_current_user),
+                         db: Session = Depends(get_db)):
+    payment = InterswitchLiveService(db).verify_and_confirm(
+        provider_reference, buyer_user_id=current_user.id,
+    )
+    result = PaymentResponse.model_validate(payment)
+    result.requires_review = db.query(PaymentOutbox.id).filter_by(
+        payment_id=payment.id, kind="payment.review",
+    ).first() is not None
+    return result
