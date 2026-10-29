@@ -38,16 +38,32 @@ class VertexAIService:
                 from google.oauth2 import service_account
                 info = json.loads(settings.GCP_SERVICE_ACCOUNT_JSON)
                 if not isinstance(info, dict) or info.get("type") != "service_account":
-                    raise ValueError("Invalid credential format")
+                    raise ValueError("Invalid credential type")
+                for field in ("private_key", "client_email", "project_id"):
+                    if not isinstance(info.get(field), str) or not info[field].strip():
+                        raise ValueError("Missing service account field")
+                # Support JSON exported with doubly-escaped PEM line endings.
+                if "\\n" in info["private_key"]:
+                    info["private_key"] = info["private_key"].replace("\\n", "\n")
                 credentials = service_account.Credentials.from_service_account_info(
                     info, scopes=["https://www.googleapis.com/auth/cloud-platform"],
                 )
-            except (ValueError, TypeError, KeyError) as exc:
+                logger.info("seam_vertex_auth source=inline_service_account")
+            except Exception as exc:
+                logger.error("seam_vertex_setup_failed stage=credential_parse exception_type=%s", type(exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
+        else:
+            # Google Gen AI SDK uses Application Default Credentials; this
+            # includes GOOGLE_APPLICATION_CREDENTIALS, workload identity, etc.
+            logger.info("seam_vertex_auth source=application_default_credentials")
         try:
-            self.client = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID,
-                                       location=settings.GCP_REGION, credentials=credentials)
+            self.client = genai.Client(
+                vertexai=True, project=settings.GCP_PROJECT_ID,
+                location=settings.GCP_REGION, credentials=credentials,
+            )
+            logger.info("seam_vertex_client_ready model=%s region=%s", self.model, settings.GCP_REGION)
         except Exception as exc:
+            logger.error("seam_vertex_setup_failed stage=client_init exception_type=%s", type(exc).__name__)
             raise VertexUnavailable("Could not initialize Vertex AI.") from exc
         return self.client
 
