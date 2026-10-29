@@ -24,7 +24,7 @@ export function KYCForm() {
   const [ninNumber, setNinNumber] = useState("");
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [homeLocation, setHomeLocation] = useState<{ latitude: number; longitude: number; formatted_address?: string } | null>(null);
-  const [useManualAddress, setUseManualAddress] = useState(false);
+  const [useManualAddress, setUseManualAddress] = useState(true);
   const [manualAddress, setManualAddress] = useState({ street: "", city: "", state: "", landmark: "" });
   const manualSchema = z.object({
     street: z.string().trim().min(5),
@@ -33,6 +33,8 @@ export function KYCForm() {
     landmark: z.string(),
   });
   const validManual = useManualAddress && manualSchema.safeParse(manualAddress).success;
+  const validNin = /^\d{11}$/.test(ninNumber);
+  const canSubmit = Boolean(documentUrl) && validNin && (validManual || (!useManualAddress && homeLocation !== null));
   const address = validManual
     ? [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ")
     : homeLocation?.formatted_address;
@@ -40,16 +42,16 @@ export function KYCForm() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!documentUrl || (!homeLocation && !validManual) || ninNumber.length !== 11) return;
+    if (!canSubmit || !documentUrl) return;
     setIsSubmitting(true);
     setError(null);
     try {
       await submit({
         nin_number: ninNumber,
         document_storage_keys: [documentUrl],
-        home_latitude: validManual ? null : homeLocation?.latitude ?? null,
-        home_longitude: validManual ? null : homeLocation?.longitude ?? null,
-        home_formatted_address: address,
+        home_latitude: useManualAddress ? null : homeLocation?.latitude ?? null,
+        home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
+        home_formatted_address: address ?? undefined,
       });
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't verify that NIN. Please double-check the number and try again."));
@@ -106,15 +108,29 @@ export function KYCForm() {
 
       <div>
         <div className="mb-1.5 text-sm font-medium text-ink">Home address</div>
-        <MapLocationPicker
-          onSelect={(location) =>
-            setHomeLocation({ latitude: location.latitude, longitude: location.longitude, formatted_address: location.formatted_address ?? undefined })
-          }
-        />
-        <label className="mt-3 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={useManualAddress} onChange={(e) => setUseManualAddress(e.target.checked)} />
-          Enter my address manually (works without Google Maps)
-        </label>
+        <fieldset className="mb-3">
+          <legend className="mb-2 text-sm text-ink-soft">Choose how to provide your home address</legend>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <button type="button" aria-pressed={useManualAddress}
+              className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${useManualAddress ? "border-ink bg-muslin font-semibold" : "border-line"}`}
+              onClick={() => { setUseManualAddress(true); setError(null); }}>
+              Enter address manually
+            </button>
+            <button type="button" aria-pressed={!useManualAddress}
+              className={`min-h-11 rounded-lg border px-3 py-2 text-sm ${!useManualAddress ? "border-ink bg-muslin font-semibold" : "border-line"}`}
+              onClick={() => { setUseManualAddress(false); setError(null); }}>
+              Choose on map
+            </button>
+          </div>
+        </fieldset>
+        {!useManualAddress && (
+          <MapLocationPicker
+            onSelect={(location) => setHomeLocation({
+              latitude: location.latitude, longitude: location.longitude,
+              formatted_address: location.formatted_address ?? undefined,
+            })}
+          />
+        )}
         {useManualAddress && (
           <div className="mt-3 flex flex-col gap-2">
             {(["street", "city", "state", "landmark"] as const).map((field) => (
@@ -131,7 +147,8 @@ export function KYCForm() {
 
       {error && <p className="text-sm text-thread">{error}</p>}
 
-      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || (!homeLocation && !validManual) || ninNumber.length !== 11}>
+      {!canSubmit && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the manual fields or map.</p>}
+      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting}>
         Submit for verification
       </Button>
     </div>

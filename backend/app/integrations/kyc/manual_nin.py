@@ -12,5 +12,5 @@ from app.integrations.kyc.nin_provider import NINVerificationProvider, NINVerifi
 class ManualNINProvider(NINVerificationProvider):
     def verify(self, nin_number: str) -> NINVerificationResult:
         raise ExternalProviderError(
-            "NIN verification is not configured on this server. Set NIN_PROVIDER and NIN_API_KEY."
+            "NIN verification is not configured on this server. Please contact support so your identity can be verified."
         )
