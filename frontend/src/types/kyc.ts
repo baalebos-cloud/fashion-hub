@@ -17,7 +17,7 @@ export interface KYCStatus {
 export interface SubmitKYCPayload {
   nin_number: string;
   document_storage_keys: string[];
-  home_latitude: number;
-  home_longitude: number;
+  home_latitude?: number | null;
+  home_longitude?: number | null;
   home_formatted_address?: string;
 }
