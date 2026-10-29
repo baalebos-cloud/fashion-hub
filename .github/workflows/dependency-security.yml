@@ -81,7 +81,7 @@ jobs:
               ('backend/.github/workflows/ci.yml', 'Secret Keyword', 37),
               ('backend/alembic.ini', 'Basic Auth Credentials', 4),
               ('backend/app/core/config.py', 'Basic Auth Credentials', 32),
-              ('backend/app/core/config.py', 'Secret Keyword', 170),
+              ('backend/app/core/config.py', 'Secret Keyword', 174),
               ('backend/deployment/railway.md', 'Basic Auth Credentials', 47),
               ('backend/docker-compose.yml', 'Secret Keyword', 9),
               ('backend/docker-compose.yml', 'Basic Auth Credentials', 40),
