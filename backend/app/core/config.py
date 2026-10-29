@@ -96,7 +96,7 @@ class Settings(BaseSettings):
     VERTEX_AI_ENABLED: bool = False
     GCP_PROJECT_ID: Optional[str] = None
     GCP_REGION: str = "us-central1"
-    VERTEX_AI_MODEL_NAME: str = "gemini-2.5-flash"
+    VERTEX_AI_MODEL_NAME: str = "gemini-3.8-flash"
 
     # --- Notifications ---
     EMAIL_PROVIDER: str = "smtp"
