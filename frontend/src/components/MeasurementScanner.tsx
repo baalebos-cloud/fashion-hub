@@ -40,7 +40,7 @@ export function MeasurementScanner({ accessToken, onConfirm }: Props) {
     {error && <p role="alert">{error}</p>}
     {value && <>
       <label>Units
-        <select value={value.unit} onChange={e => setValue({ ...value, unit: e.target.value as "cm" | "inches" })}>
+        <select value={value.unit} onChange={e => { const unit = e.target.value as "cm" | "inches"; const scale = unit === value.unit ? 1 : unit === "cm" ? 2.54 : 1 / 2.54; setValue({ ...value, unit, bust: value.bust === null ? null : +(value.bust * scale).toFixed(2), waist: value.waist === null ? null : +(value.waist * scale).toFixed(2), hips: value.hips === null ? null : +(value.hips * scale).toFixed(2), inseam: value.inseam === null ? null : +(value.inseam * scale).toFixed(2) }); }}>
           <option value="cm">cm</option><option value="inches">inches</option>
         </select>
       </label>
