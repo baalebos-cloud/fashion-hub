@@ -14,10 +14,6 @@ depends_on = None
 def upgrade():
     for name, column in (
         ("id_number_encrypted", sa.Column("id_number_encrypted", sa.Text(), nullable=True)),
-        ("nin_verified_full_name", sa.Column("nin_verified_full_name", sa.String(255), nullable=True)),
-        ("nin_verified_date_of_birth", sa.Column("nin_verified_date_of_birth", sa.Date(), nullable=True)),
-        ("nin_verified_gender", sa.Column("nin_verified_gender", sa.String(16), nullable=True)),
-        ("identity_match", sa.Column("identity_match", sa.Boolean(), nullable=True)),
         ("reviewed_by_user_id", sa.Column("reviewed_by_user_id", sa.UUID(), nullable=True)),
     ):
         op.add_column("kyc_verifications", column)
@@ -34,8 +30,7 @@ def downgrade():
     )).scalar_one()
     if count:
         raise RuntimeError("Cannot downgrade while encrypted KYC identity records exist.")
-    for name in ("reviewed_by_user_id", "identity_match", "nin_verified_gender",
-                 "nin_verified_date_of_birth", "nin_verified_full_name", "id_number_encrypted"):
+    for name in ("reviewed_by_user_id", "id_number_encrypted"):
         op.drop_column("kyc_verifications", name)
     op.alter_column("kyc_verifications", "id_type", existing_type=sa.String(32),
                     type_=sa.String(64), nullable=False)
