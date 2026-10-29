@@ -86,8 +86,8 @@ async def upload_issue_evidence(delivery_id: uuid.UUID, file: UploadFile = File(
     await file.close()
     validate_upload(content_type=mime, size_bytes=len(data))
     ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}[mime]
-    valid = (mime == "image/jpeg" and data.startswith(bytes.fromhex("ffd8ff"))) or (
-        mime == "image/png" and data.startswith(bytes.fromhex("89504e470d0a1a0a"))) or (
+    valid = (mime == "image/jpeg" and data.startswith(bytes((255, 216, 255)))) or (
+        mime == "image/png" and data.startswith(bytes((137, 80, 78, 71, 13, 10, 26, 10)))) or (
         mime == "image/webp" and data.startswith(b"RIFF") and data[8:12] == b"WEBP")
     if not valid:
         raise HTTPException(422, detail="Image content does not match file type.")
