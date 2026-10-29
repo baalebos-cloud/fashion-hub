@@ -99,7 +99,7 @@ class VendorCatalogService:
         product = VendorProduct(vendor_id=vendor.id, name=payload.name, description=payload.description,
                                 base_price=payload.base_price, currency='NGN', category_id=payload.category_id,
                                 image_urls=payload.image_urls, unit_of_measure=payload.unit_of_measure,
-                                primary_image_url=payload.image_urls[0])
+                                primary_image_url=payload.image_urls[0] if payload.image_urls else None)
         try:
             self.db.add(product)
             self.db.flush()
