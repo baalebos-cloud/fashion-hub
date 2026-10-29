@@ -31,6 +31,7 @@ class VertexAIService:
         try:
             from google import genai
         except ImportError as exc:
+            logger.error("seam_vertex_setup_failed stage=genai_import exception_type=%s", type(exc).__name__)
             raise VertexUnavailable("Google Gen AI SDK not installed.") from exc
         credentials = None
         if settings.GCP_SERVICE_ACCOUNT_JSON:
@@ -48,9 +49,8 @@ class VertexAIService:
                 credentials = service_account.Credentials.from_service_account_info(
                     info, scopes=["https://www.googleapis.com/auth/cloud-platform"],
                 )
-                logger.info("seam_vertex_auth source=inline_service_account")
-            except Exception as exc:
-                logger.error("seam_vertex_setup_failed stage=credential_parse exception_type=%s", type(exc).__name__)
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.error("seam_vertex_setup_failed stage=service_account_validation exception_type=%s", type(exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         else:
             # Google Gen AI SDK uses Application Default Credentials; this
@@ -63,7 +63,7 @@ class VertexAIService:
             )
             logger.info("seam_vertex_client_ready model=%s region=%s", self.model, settings.GCP_REGION)
         except Exception as exc:
-            logger.error("seam_vertex_setup_failed stage=client_init exception_type=%s", type(exc).__name__)
+            logger.error("seam_vertex_setup_failed stage=client_init exception_type=%s model=%s region=%s", type(exc).__name__, self.model, settings.GCP_REGION)
             raise VertexUnavailable("Could not initialize Vertex AI.") from exc
         return self.client
 
