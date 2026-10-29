@@ -9,6 +9,7 @@ pattern established in auth.py / orders.py (RBAC via require_roles,
 business rules delegated to a service, never inline in the route).
 """
 from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from uuid import UUID
 from app.core.timezone import utcnow
@@ -165,3 +166,22 @@ def interswitch_sandbox_readiness(current_user: User = Depends(require_roles(Rol
     """No credentials or payment data included; sandbox readiness only."""
     from app.services.interswitch_readiness import sandbox_readiness
     return sandbox_readiness()
+
+
+@router.get("/verification-documents/{document_id}/content")
+def fetch_verification_document_content(document_id: UUID, request: Request,
+                                        db: Session = Depends(get_db),
+                                        admin: User = Depends(require_roles(Role.ADMIN))):
+    """Authenticated PostgreSQL private document stream, not a public URL."""
+    from app.models.verification_document import VerificationDocument
+    from app.models.stored_media import StoredMedia
+    document = db.get(VerificationDocument, document_id)
+    if document is None or (document.kyc_verification_id is None and document.kyb_verification_id is None):
+        raise HTTPException(404, "Verification document not found.")
+    media = db.query(StoredMedia).filter(StoredMedia.storage_key == document.storage_key).first()
+    if media is None or media.is_public or not media.storage_key.startswith(("kyc/", "kyb/")):
+        raise HTTPException(404, "Private document not found.")
+    _audit(db, admin, request, "verification.document_previewed", document.id)
+    db.commit()
+    return Response(content=media.content, media_type=media.content_type,
+                    headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
