@@ -11,6 +11,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
+from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.config import settings
@@ -33,7 +34,12 @@ router = APIRouter(prefix="/designs", tags=["Designs"])
 def list_designs(professional_id: UUID | None = Query(None), db: Session = Depends(get_db)):
     if not professional_id:
         return []
-    return DesignRepository(db).list_for_professional(professional_id)
+    designs = DesignRepository(db).list_for_professional(professional_id)
+    images = db.query(DesignImage).filter(DesignImage.design_id.in_([d.id for d in designs])).order_by(DesignImage.sort_order).all() if designs else []
+    first_images = {}
+    for image in images:
+        first_images.setdefault(image.design_id, image.image_url)
+    return [DesignResponse.model_validate(d).model_copy(update={"image_url": first_images.get(d.id)}) for d in designs]
 
 
 @router.post("", response_model=DesignResponse, status_code=201)
