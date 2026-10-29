@@ -17,6 +17,6 @@ export async function uploadFile(
 }
 
 /** Unified media API. Private purposes return an opaque storage key. */
-export function uploadMedia(file: File, category: "design" | "portfolio" | "product" | "kyc" | "kyb" | "delivery") {
+export function uploadMedia(file: File, category: "design" | "portfolio" | "avatar" | "product" | "kyc" | "kyb" | "delivery") {
   return uploadFile(`/media/upload?purpose=${category}`, file);
 }
