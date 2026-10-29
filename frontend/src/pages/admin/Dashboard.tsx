@@ -9,13 +9,22 @@ export default function Dashboard() {
   const [commerce, setCommerce] = useState<CommerceSummary | null>(null);
   const [ops, setOps] = useState<{
     marketplace: Record<string, number>;
-    verification: { kyc_pending: Array<{id: string; user_id: string}>; kyb_pending: Array<{id: string; owner_id: string}> };
+    verification: { kyc_pending: Array<{id: string; user_id: string; documents: string[]}>; kyb_pending: Array<{id: string; owner_id: string; documents: string[]}> };
     financial_controls: { production_payments_enabled: boolean; ledger_balanced: boolean };
     delivery_issues: Array<{ id: string; type: string; status: string }>;
     audit_events: Array<{ id: string; action: string }>;
   } | null>(null);
 
   const [reviewError, setReviewError] = useState("");
+  async function previewDocument(id: string) {
+    try {
+      const response = await apiClient.get<{url: string}>(`/admin/verification-documents/${id}/preview`);
+      window.open(response.data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      setReviewError("Unable to retrieve this private document preview.");
+    }
+  }
+
   async function review(kind: "kyc" | "kyb", id: string, approve: boolean) {
     const reason = approve ? null : window.prompt("Enter a reason for rejection");
     if (!approve && !reason?.trim()) return;
@@ -62,6 +71,7 @@ export default function Dashboard() {
             {ops.verification.kyc_pending.map(item => (
               <div key={item.id} className="flex flex-wrap gap-2 border-t border-line py-2 text-sm">
                 <span>KYC {item.id.slice(0, 8)}</span>
+                {item.documents.map(id => <button key={id} className="rounded border px-3 py-2" onClick={() => void previewDocument(id)}>Preview ID</button>)}
                 <button className="rounded border px-3 py-2" onClick={() => void review("kyc", item.id, true)}>Approve</button>
                 <button className="rounded border px-3 py-2" onClick={() => void review("kyc", item.id, false)}>Reject</button>
               </div>
@@ -69,6 +79,7 @@ export default function Dashboard() {
             {ops.verification.kyb_pending.map(item => (
               <div key={item.id} className="flex flex-wrap gap-2 border-t border-line py-2 text-sm">
                 <span>KYB {item.id.slice(0, 8)}</span>
+                {item.documents.map(id => <button key={id} className="rounded border px-3 py-2" onClick={() => void previewDocument(id)}>Preview certificate</button>)}
                 <button className="rounded border px-3 py-2" onClick={() => void review("kyb", item.id, true)}>Approve</button>
                 <button className="rounded border px-3 py-2" onClick={() => void review("kyb", item.id, false)}>Reject</button>
               </div>
