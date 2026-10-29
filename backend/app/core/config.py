@@ -93,6 +93,10 @@ class Settings(BaseSettings):
     AI_API_KEY: Optional[str] = None
     AI_MODEL: str = "claude-sonnet-4-6"
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
+    GCP_PROJECT_ID: Optional[str] = None
+    GCP_REGION: str = "us-central1"
+    VERTEX_AI_MODEL_NAME: str = "gemini-2.5-flash"
+    VERTEX_AI_ENABLED: bool = False
 
     # --- Notifications ---
     EMAIL_PROVIDER: str = "smtp"
