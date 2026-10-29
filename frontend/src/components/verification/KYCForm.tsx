@@ -42,7 +42,7 @@ export function KYCForm() {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit() {
-    if (!canSubmit) return;
+    if (!canSubmit || !documentUrl) return;
     setIsSubmitting(true);
     setError(null);
     try {
@@ -51,7 +51,7 @@ export function KYCForm() {
         document_storage_keys: [documentUrl],
         home_latitude: useManualAddress ? null : homeLocation?.latitude ?? null,
         home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
-        home_formatted_address: address,
+        home_formatted_address: address ?? null,
       });
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't verify that NIN. Please double-check the number and try again."));
