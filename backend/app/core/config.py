@@ -176,7 +176,7 @@ class Settings(BaseSettings):
             raise ValueError("Production Saga payments are not approved or implemented.")
         if self.APP_ENV in {"staging", "production"}:
             if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-env":
-                raise ValueError("Configure a randomly generated signing key of at least 32 characters")
+                raise ValueError("Signing configuration must contain at least 32 random characters")
             if self.DEBUG or self.DATABASE_ECHO:
                 raise ValueError("Disable DEBUG and DATABASE_ECHO in staging/production")
             if not self.FRONTEND_URL.startswith("https://"):
