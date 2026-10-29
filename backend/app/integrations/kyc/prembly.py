@@ -1,16 +1,7 @@
-"""
-Prembly Identity Pass implementation of NINVerificationProvider.
-Docs: https://docs.prembly.com/identitypass/ (NIN verification endpoint) --
-verify the exact request/response shape against current Prembly docs
-before enabling in production; this reflects their documented pattern as
-of this scaffold's writing but identity-verification APIs iterate their
-contracts more often than most.
+"""Prembly NIN Basic verification (current public API contract).
 
-Alternatives with the same shape of API, if you'd rather not use Prembly:
-Youverify, QoreID, VerifyMe, Smile ID -- all offer NIN lookup for the
-Nigerian market. Swapping providers means writing one new class here and
-registering it in this folder's __init__.py; nothing else in the codebase
-changes.
+Only verified provider data can populate identity fields. Raw NINs, tokens,
+provider payloads and photos are never logged.
 """
 from datetime import datetime
 
@@ -20,7 +11,7 @@ from app.core.config import settings
 from app.core.exceptions import ExternalProviderError, NotFoundError
 from app.integrations.kyc.nin_provider import NINVerificationProvider, NINVerificationResult
 
-PREMBLY_BASE_URL = "https://api.prembly.com/identitypass/verification/vnin"
+PREMBLY_BASE_URL = "https://api.prembly.com/verification/vnin-basic"
 
 
 class PremblyNINProvider(NINVerificationProvider):
@@ -28,33 +19,42 @@ class PremblyNINProvider(NINVerificationProvider):
         self.api_key = api_key or settings.NIN_API_KEY
 
     def verify(self, nin_number: str) -> NINVerificationResult:
+        if not self.api_key:
+            raise ExternalProviderError("NIN verification is not configured. Contact support.")
+        if not nin_number.isascii() or len(nin_number) != 11 or not nin_number.isdecimal():
+            raise NotFoundError("Enter a valid 11-digit NIN.")
         try:
             response = httpx.post(
                 PREMBLY_BASE_URL,
-                headers={"x-api-key": self.api_key or "", "app-id": self.api_key or ""},
+                headers={"x-api-key": self.api_key, "accept": "application/json"},
                 json={"number": nin_number},
                 timeout=15.0,
             )
             response.raise_for_status()
-            data = response.json()
-        except httpx.HTTPError as exc:
-            raise ExternalProviderError(f"NIN verification request failed: {exc}") from exc
+            payload = response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            raise ExternalProviderError("NIN verification provider is temporarily unavailable.") from exc
 
-        if not data.get("status") or not data.get("nin_data"):
-            raise NotFoundError("No record found for this NIN. Please double-check the number and try again.")
-
-        record = data["nin_data"]
-        full_name = " ".join(filter(None, [record.get("firstname"), record.get("middlename"), record.get("surname")]))
-
+        if not isinstance(payload, dict):
+            raise ExternalProviderError("NIN verification response is invalid.")
+        if payload.get("status") is not True or payload.get("response_code") != "00":
+            raise NotFoundError("NIN could not be verified. Check your details or contact support.")
+        record = payload.get("data") or payload.get("nin_data")
+        if not isinstance(record, dict):
+            raise ExternalProviderError("NIN provider did not return identity details.")
+        full_name = " ".join(str(record.get(k) or "").strip() for k in
+                             ("firstname", "middlename", "surname")).strip()
+        date_raw = record.get("birthdate")
         try:
-            dob = datetime.strptime(record["birthdate"], "%d-%b-%Y").date()
-        except (KeyError, ValueError) as exc:
-            raise ExternalProviderError(f"Unexpected date format from NIN provider: {exc}") from exc
-
+            dob = datetime.strptime(date_raw, "%d-%m-%Y").date()
+        except (TypeError, ValueError) as exc:
+            raise ExternalProviderError("NIN provider returned an unsupported date format.") from exc
+        if not full_name or not record.get("firstname") or not record.get("surname"):
+            raise ExternalProviderError("NIN provider returned incomplete identity details.")
         return NINVerificationResult(
             nin=nin_number,
             full_name=full_name,
             date_of_birth=dob,
-            gender=record.get("gender", "").upper(),
+            gender=str(record.get("gender") or "").upper(),
             photo_base64=record.get("photo"),
         )
