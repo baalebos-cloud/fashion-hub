@@ -126,18 +126,45 @@ def test_browser_return_cannot_mark_an_order_paid():
     assert "reference=seam_test" in redirect.headers["location"]
 
 
-def test_vendor_orders_are_outside_customer_demo_scope(enabled):
+def test_material_order_can_initialize_in_sandbox_with_buyer_ownership(enabled):
     order = _order()
     order.order_type = "vendor_order"
+    order.status = "checkout"
     service = _service(order)
     from app.services import catalog_order_service
     from unittest.mock import patch
     with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None):
-        with pytest.raises(ConflictError, match="customer fashion orders"):
-            service.initialize_checkout(order_id=order.id,
-                                        buyer_user_id=order.buyer_user_id,
-                                        customer_email="buyer@example.com")
+        result = service.initialize_checkout(order_id=order.id,
+                                             buyer_user_id=order.buyer_user_id,
+                                             customer_email="buyer@example.com")
+    payment = service.db.add.call_args.args[0]
+    assert payment.order_id == order.id
+    assert payment.provider_reference.startswith("FH-MAT-")
+    assert result.fields["txn_ref"] == payment.provider_reference
+    assert result.fields["amount"] == "12550"
+    service.db.commit.assert_called_once()
+
+
+def test_material_order_cannot_be_paid_by_another_account(enabled):
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    service = _service(order)
+    with pytest.raises(ForbiddenError):
+        service.initialize_checkout(order_id=order.id,
+                                    buyer_user_id=uuid.uuid4(),
+                                    customer_email="stranger@example.com")
     service.db.add.assert_not_called()
+
+
+def test_customer_checkout_uses_fashion_reference(enabled, monkeypatch):
+    from app.services import catalog_order_service
+    monkeypatch.setattr(catalog_order_service, "assert_catalog_order_payable", lambda order: None)
+    order = _order()
+    service = _service(order)
+    service.initialize_checkout(order_id=order.id, buyer_user_id=order.buyer_user_id,
+                                customer_email="buyer@example.com")
+    assert service.db.add.call_args.args[0].provider_reference.startswith("FH-FAS-")
 
 
 def test_authoritative_matching_success_reaches_settlement(enabled, monkeypatch):
