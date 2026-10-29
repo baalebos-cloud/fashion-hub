@@ -48,12 +48,14 @@ def test_inline_json_initializes_client(monkeypatch):
     assert seen["credentials"] is not None
 
 
-def test_malformed_json_fails_cleanly(monkeypatch, caplog):
+def test_malformed_json_fails_cleanly(monkeypatch):
     _setup(monkeypatch, "{not json")
+    events = []
+    monkeypatch.setattr(vertex_service.logger, "error", lambda format, *args: events.append((format, args)))
     with pytest.raises(vertex_service.VertexUnavailable):
         vertex_service.VertexAIService()._client()
-    assert "seam_vertex_setup_failed" in caplog.text
-    assert "{not json" not in caplog.text
+    assert any("seam_vertex_setup_failed" in fmt for fmt, _ in events)
+    assert "{not json" not in str(events)
 
 
 def test_escaped_pem_line_endings_normalized(monkeypatch):
