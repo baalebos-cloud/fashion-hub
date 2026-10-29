@@ -19,25 +19,16 @@ class ProfessionalRepository:
             result = result.filter(Professional.professional_type == professional_type)
         if query:
             pattern = '%' + query.strip().replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_') + '%'
-            result = result.filter(or_(Professional.business_name.ilike(pattern, escape='\\'),
-                                      Professional.bio.ilike(pattern, escape='\\'), User.full_name.ilike(pattern, escape='\\')))
-        if query:
-            # Search business location without excluding profiles with no linked address.
-            pattern = '%' + query.strip().replace('\\\\', '\\\\\\\\').replace('%', '\\\\%').replace('_', '\\\\_') + '%'
-            matching_ids = self.db.query(Location.id).filter(or_(
-                Location.city.ilike(pattern, escape='\\\\'),
-                Location.state_region.ilike(pattern, escape='\\\\'),
-                Location.formatted_address.ilike(pattern, escape='\\\\'),
+            matching_locations = self.db.query(Location.id).filter(or_(
+                Location.city.ilike(pattern, escape='\\'),
+                Location.state_region.ilike(pattern, escape='\\'),
+                Location.formatted_address.ilike(pattern, escape='\\'),
             ))
-            result = self.db.query(Professional).join(User, User.id == Professional.user_id).filter(
-                Professional.is_verified.is_(True), User.is_active.is_(True))
-            if professional_type:
-                result = result.filter(Professional.professional_type == professional_type)
             result = result.filter(or_(
-                Professional.business_name.ilike(pattern, escape='\\\\'),
-                Professional.bio.ilike(pattern, escape='\\\\'),
-                User.full_name.ilike(pattern, escape='\\\\'),
-                Professional.location_id.in_(matching_ids),
+                Professional.business_name.ilike(pattern, escape='\\'),
+                Professional.bio.ilike(pattern, escape='\\'),
+                User.full_name.ilike(pattern, escape='\\'),
+                Professional.location_id.in_(matching_locations),
             ))
         if latitude is not None and longitude is not None:
             # Coordinate columns are authoritative; older profiles may not have geom populated.
