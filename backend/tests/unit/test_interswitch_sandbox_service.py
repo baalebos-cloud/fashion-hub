@@ -231,3 +231,38 @@ def test_invalid_callback_reference_not_forwarded():
     redirect = browser_return(txnref="../unsafe?code=00")
     assert "reference=" not in redirect.headers["location"]
     assert "provider=interswitch" in redirect.headers["location"]
+
+
+def test_expired_material_reservation_never_creates_payment(enabled):
+    from app.services import catalog_order_service
+    from unittest.mock import patch
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    order.pricing_source = "vendor_catalog_v1"
+    order.delivery_address_snapshot = {"city": "Lagos"}
+    service = _service(order)
+    with patch.object(catalog_order_service, "assert_catalog_order_payable", return_value=None), \
+         patch("app.services.stock_reservation_service.StockReservationService.active", return_value=False):
+        with pytest.raises(ConflictError, match="reservation has expired"):
+            service.initialize_checkout(order_id=order.id, buyer_user_id=order.buyer_user_id,
+                                        customer_email="buyer@example.com")
+    service.db.add.assert_not_called()
+
+
+def test_material_order_requery_uses_authoritative_provider_before_settlement(enabled, monkeypatch):
+    import app.services.interswitch_sandbox_service as mod
+    order = _order()
+    order.order_type = "vendor_order"
+    order.status = "checkout"
+    service = _service(order)
+    service._get_payment_by_reference = Mock(return_value=SimpleNamespace(
+        provider="interswitch", order_id=order.id, amount=Decimal("125.50"),
+        currency="NGN", provider_reference="FH-MAT-test"
+    ))
+    service._settle = Mock(return_value=object())
+    monkeypatch.setattr(mod, "requery_transaction", lambda **kw: SimpleNamespace(
+        reference="FH-MAT-test", amount_minor=12550, currency="NGN", successful=True))
+    service.verify_and_confirm("FH-MAT-test", buyer_user_id=order.buyer_user_id)
+    assert service._settle.call_args.args[1].status == "successful"
+    assert service._settle.call_args.args[1].amount == Decimal("125.50")
