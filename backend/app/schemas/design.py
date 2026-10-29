@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field
 
 class CreateDesignRequest(BaseModel):
     title: str = Field(..., min_length=1, max_length=255)
+    image_url: str | None = Field(None, max_length=1024)
     description: Optional[str] = None
     base_price: Decimal = Field(..., gt=0, max_digits=12, decimal_places=2)
     category_id: Optional[uuid.UUID] = None
@@ -17,6 +18,7 @@ class CreateDesignRequest(BaseModel):
 
 
 class DesignResponse(BaseModel):
+    image_url: str | None = None
     id: uuid.UUID
     professional_id: uuid.UUID
     title: str
