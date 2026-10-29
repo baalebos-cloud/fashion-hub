@@ -26,7 +26,7 @@ class VertexAIService:
     def _client(self):
         if self.client is not None:
             return self.client
-        if not settings.GCP_PROJECT_ID or not settings.GCP_REGION or not settings.VERTEX_AI_ENABLED:
+        if not settings.VERTEX_AI_ENABLED or (not settings.GCP_PROJECT_ID and not settings.GEMINI_API_KEY):
             raise VertexUnavailable("Vertex AI is not configured.")
         try:
             from google import genai
@@ -37,7 +37,10 @@ class VertexAIService:
         if settings.GCP_SERVICE_ACCOUNT_JSON:
             try:
                 from google.oauth2 import service_account
-                info = json.loads(settings.GCP_SERVICE_ACCOUNT_JSON)
+                raw = settings.GCP_SERVICE_ACCOUNT_JSON.strip()
+                if raw.startswith("'") and raw.endswith("'"):
+                    raw = raw[1:-1]
+                info = json.loads(raw)
                 if not isinstance(info, dict) or info.get("type") != "service_account":
                     raise ValueError("Invalid credential type")
                 for field in ("private_key", "client_email", "project_id"):
@@ -49,8 +52,14 @@ class VertexAIService:
                 credentials = service_account.Credentials.from_service_account_info(
                     info, scopes=["https://www.googleapis.com/auth/cloud-platform"],
                 )
-            except (ValueError, TypeError, KeyError) as exc:
-                logger.error("seam_vertex_setup_failed stage=service_account_validation exception_type=%s", type(exc).__name__)
+            except Exception as exc:
+                logger.error("seam_vertex_setup_failed stage=service_account_validation type=%s", type(exc).__name__)
+                if settings.GEMINI_API_KEY:
+                    try:
+                        self.client = genai.Client(api_key=settings.GEMINI_API_KEY)
+                        return self.client
+                    except Exception as key_exc:
+                        logger.error("seam_api_key_init_failed type=%s", type(key_exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         else:
             # Google Gen AI SDK uses Application Default Credentials; this
