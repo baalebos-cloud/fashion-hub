@@ -11,7 +11,7 @@ from app.core.config import settings
 
 def test_provider_selected_without_s3(monkeypatch):
     monkeypatch.setattr(settings, "STORAGE_PROVIDER", "postgres")
-    assert isinstance(get_storage_provider(), PostgresStorageProvider())
+    assert isinstance(get_storage_provider(), PostgresStorageProvider)
 
 
 def test_unauthenticated_private_media_never_exposed():
