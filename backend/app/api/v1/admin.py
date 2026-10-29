@@ -50,6 +50,7 @@ def operations_dashboard(
     from app.models.kyb_verification import KYBVerification
     from app.models.saga import LedgerEntry
     from app.models.audit_log import AuditLog
+    from app.models.verification_document import VerificationDocument
     from app.core.config import settings
     from app.models.delivery_issue import DispatchIssueReport
 
@@ -59,14 +60,27 @@ def operations_dashboard(
                   .group_by(LedgerEntry.direction).all())
     pending_kyc = db.query(KYCVerification).filter(KYCVerification.status == "pending").limit(50).all()
     pending_kyb = db.query(KYBVerification).filter(KYBVerification.status == "pending").limit(50).all()
+    kyc_doc_ids = [x.id for x in pending_kyc]
+    kyb_doc_ids = [x.id for x in pending_kyb]
+    attached = db.query(VerificationDocument).filter(
+        (VerificationDocument.kyc_verification_id.in_(kyc_doc_ids)) |
+        (VerificationDocument.kyb_verification_id.in_(kyb_doc_ids))
+    ).all()
+    kyc_documents = {}
+    kyb_documents = {}
+    for doc in attached:
+        if doc.kyc_verification_id:
+            kyc_documents.setdefault(doc.kyc_verification_id, []).append(str(doc.id))
+        if doc.kyb_verification_id:
+            kyb_documents.setdefault(doc.kyb_verification_id, []).append(str(doc.id))
     issues = db.query(DispatchIssueReport).order_by(DispatchIssueReport.created_at.desc()).limit(20).all()
     recent_audits = db.query(AuditLog).order_by(AuditLog.created_at.desc()).limit(20).all()
     return {
         "marketplace": {role: counts.get(role, 0) for role in
                         ("customer", "tailor", "designer", "vendor", "delivery_partner")},
         "verification": {
-            "kyc_pending": [{"id": str(x.id), "user_id": str(x.user_id), "status": x.status} for x in pending_kyc],
-            "kyb_pending": [{"id": str(x.id), "owner_id": str(x.business_owner_user_id), "status": x.status} for x in pending_kyb],
+            "kyc_pending": [{"id": str(x.id), "user_id": str(x.user_id), "status": x.status, "documents": kyc_documents.get(x.id, [])} for x in pending_kyc],
+            "kyb_pending": [{"id": str(x.id), "owner_id": str(x.business_owner_user_id), "status": x.status, "documents": kyb_documents.get(x.id, [])} for x in pending_kyb],
         },
         "financial_controls": {
             "production_payments_enabled": settings.ENABLE_PRODUCTION_PAYMENTS,
