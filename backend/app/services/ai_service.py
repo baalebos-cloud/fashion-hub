@@ -39,7 +39,15 @@ class AIService:
         from app.integrations.ai.navigation_agent import build_navigation_response
 
         user = UserRepository(self.db).get_by_id(user_id)
-        answer = build_navigation_response(user_role=user.role, user_question=content)
+        from app.core.config import settings
+        if settings.VERTEX_AI_ENABLED:
+            from app.repositories.ai_repository import AIRepository
+            from app.services.vertex_service import get_vertex_service
+            rows = AIRepository(self.db).list_messages(conversation.id)
+            history = [{"role": m.role, "content": m.content} for m in rows[-25:]]
+            answer = get_vertex_service().ask_seam(history, user_role=user.role)
+        else:
+            answer = build_navigation_response(user_role=user.role, user_question=content)
 
         assistant_message = AIMessage(conversation_id=conversation.id, role="assistant", content=answer)
         self.db.add(assistant_message)
