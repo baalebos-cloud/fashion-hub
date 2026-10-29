@@ -7,11 +7,11 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 
     await page.route("https://fonts.googleapis.com/**", (route) => route.abort());
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
-    const email = page.getByLabel("Email", { exact: true });
+    const email = page.getByLabel("Email address", { exact: true });
     await expect(email).toHaveCSS("background-color", "rgb(250, 249, 245)");
     await expect(email).toHaveCSS("border-top-color", "rgb(217, 210, 193)");
     await expect(email).toHaveCSS("border-radius", "8px");
-    const button = page.getByRole("button", { name: "Log in" });
+    const button = page.getByRole("button", { name: "Sign in" });
     await expect(button).toHaveCSS("background-color", "rgb(28, 34, 48)");
     await expect(button).toHaveCSS("color", "rgb(250, 249, 245)");
     await email.focus();
