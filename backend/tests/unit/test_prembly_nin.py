@@ -15,7 +15,7 @@ def test_current_nin_basic_contract():
     }
     with patch("app.integrations.kyc.prembly.httpx.post", return_value=response) as post:
         result = PremblyNINProvider(api_key="test-only-key").verify("12345678901")
-    assert result.full_name == "TEST  PERSON" or result.full_name == "TEST PERSON"
+    assert result.full_name.replace("  ", " ") == "TEST PERSON"
     assert result.date_of_birth == date(1999, 5, 23)
     assert result.gender == "F"
     assert post.call_args.args[0] == PREMBLY_BASE_URL
@@ -32,6 +32,8 @@ def test_incomplete_identity_is_never_accepted():
             PremblyNINProvider(api_key="test-only-key").verify("12345678901")
 
 
-def test_missing_credentials_fail_closed():
+def test_missing_credentials_fail_closed(monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "NIN_API_KEY", None)
     with pytest.raises(ExternalProviderError):
-        PremblyNINProvider(api_key="").verify("12345678901") if False else PremblyNINProvider(api_key=None).verify("12345678901")
+        PremblyNINProvider().verify("12345678901")
