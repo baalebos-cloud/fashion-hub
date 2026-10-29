@@ -26,12 +26,14 @@ export function DesignUpload({ onCreated }: { onCreated: (design: Design) => voi
         description: description || undefined,
         base_price: Number(basePrice) || 0,
         required_measurement_fields: requiredFields.length > 0 ? requiredFields : undefined,
+        image_url: imageUrl ?? undefined,
       });
       onCreated(created);
       setTitle("");
       setDescription("");
       setBasePrice("");
       setRequiredFields([]);
+      setImageUrl(null);
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't add this design."));
     } finally {
@@ -47,7 +49,7 @@ export function DesignUpload({ onCreated }: { onCreated: (design: Design) => voi
       <Input type="number" placeholder="Starting price" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} />
       <MeasurementFieldSelector selected={requiredFields} onChange={setRequiredFields} />
       {error && <p className="text-sm text-thread">{error}</p>}
-      <Button onClick={handleSubmit} isLoading={isSubmitting} className="self-start" disabled={!title}>
+      <Button onClick={handleSubmit} isLoading={isSubmitting} className="self-start" disabled={!title.trim() || !imageUrl || !(Number(basePrice) > 0) || isSubmitting}>
         Add design
       </Button>
     </div>
