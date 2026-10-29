@@ -60,7 +60,7 @@ class VendorCatalogService:
             variants = (self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id)
                         .filter(ProductVariant.product_id == product.id).order_by(ProductVariant.sku).all())
         return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, name=product.name,
-                    description=product.description, category_id=product.category_id, primary_image_url=product.primary_image_url,
+                    description=product.description, category_id=product.category_id, primary_image_url=product.primary_image_url, image_urls=product.image_urls or [], unit_of_measure=product.unit_of_measure,
                     base_price=float(product.base_price), currency=product.currency, is_active=product.is_active,
                     variants=[dict(id=v.id, product_id=v.product_id, sku=v.sku, attributes=v.attributes,
                                    price=float(v.price), quantity_available=i.quantity_available if i else 0) for v, i in variants])
@@ -97,7 +97,9 @@ class VendorCatalogService:
         from app.models.inventory import Inventory
         vendor = self.owned_vendor(user_id)
         product = VendorProduct(vendor_id=vendor.id, name=payload.name, description=payload.description,
-                                base_price=payload.base_price, currency='NGN', category_id=payload.category_id)
+                                base_price=payload.base_price, currency='NGN', category_id=payload.category_id,
+                                image_urls=payload.image_urls, unit_of_measure=payload.unit_of_measure,
+                                primary_image_url=payload.image_urls[0] if payload.image_urls else None)
         try:
             self.db.add(product)
             self.db.flush()

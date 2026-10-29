@@ -40,9 +40,14 @@ class S3CompatibleStorageProvider(StorageProvider):
         except ImportError as exc:
             raise ExternalProviderError("The 'boto3' package is not installed.") from exc
 
+        endpoint = (settings.STORAGE_ENDPOINT or "").strip()
+        if not endpoint.startswith(("https://", "http://")):
+            raise ExternalProviderError("S3 storage endpoint is missing or invalid; configure STORAGE_ENDPOINT.")
+        if not settings.STORAGE_BUCKET or not settings.STORAGE_ACCESS_KEY or not settings.STORAGE_SECRET_KEY:
+            raise ExternalProviderError("S3 storage credentials or bucket are missing.")
         self._client = boto3.client(
             "s3",
-            endpoint_url=settings.STORAGE_ENDPOINT,
+            endpoint_url=endpoint,
             aws_access_key_id=settings.STORAGE_ACCESS_KEY,
             aws_secret_access_key=settings.STORAGE_SECRET_KEY,
         )

@@ -12,9 +12,6 @@ export const apiClient: AxiosInstance = axios.create({
   baseURL: apiConfig.baseUrl,
   timeout: apiConfig.timeoutMs,
   withCredentials: apiConfig.withCredentials,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 attachRequestInterceptors(apiClient);

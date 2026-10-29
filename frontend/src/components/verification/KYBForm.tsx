@@ -38,7 +38,7 @@ export function KYBForm() {
         <p className="text-sm text-thread">Your previous submission was rejected{status.rejection_reason ? `: ${status.rejection_reason}` : "."} Please resubmit.</p>
       )}
       <Input placeholder="Business registration number" value={registrationNumber} onChange={(e) => setRegistrationNumber(e.target.value)} />
-      <DocumentUpload label="Upload registration certificate" onUploaded={setDocumentUrl} />
+      <DocumentUpload label="Upload registration certificate" purpose="kyb" onUploaded={setDocumentUrl} />
       {error && <p className="text-sm text-thread">{error}</p>}
       <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!documentUrl || !registrationNumber}>Submit for review</Button>
     </div>

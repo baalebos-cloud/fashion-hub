@@ -4,7 +4,7 @@ from typing import Any
 """Products sold by vendors (fabrics, accessories, notions)."""
 import uuid
 from sqlalchemy import Boolean, Numeric, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -21,6 +21,8 @@ class VendorProduct(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     base_price: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(8), default="NGN", nullable=False)
+    unit_of_measure: Mapped[str] = mapped_column(String(16), nullable=False, default='yard')
+    image_urls: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     primary_image_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

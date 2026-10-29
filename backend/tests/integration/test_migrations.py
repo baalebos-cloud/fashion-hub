@@ -60,7 +60,7 @@ def test_fresh_and_historical_upgrades_preserve_records(migration_database, prev
                 conn.execute(text("INSERT INTO locations (id,name,address_line,city,state,country,geom) VALUES (:id,'Old home','10 Legacy Street','Lagos','Lagos','NG',ST_GeogFromText('SRID=4326;POINT(3.3792 6.5244)'))"), {'id': location_id})
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0013"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0015"
         assert {"users", "payouts", "referrals", "payment_outbox", "addresses"} <= set(inspect(conn).get_table_names())
         assert "eta_minutes" in {c["name"] for c in inspect(conn).get_columns("delivery_tracking")}
         assert str(next(x for x in inspect(conn).get_columns("payment_transactions") if x["name"] == "processed")["type"]) == "BOOLEAN"
@@ -133,7 +133,7 @@ def test_downgrade_refuses_to_discard_pending_work(migration_database):
             command.downgrade(config, "2ab23f38e9c6")
     with engine.connect() as conn:
         assert conn.execute(text("SELECT count(*) FROM payment_outbox")).scalar_one() == 1
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0013"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0015"
 
 
 def test_orphan_line_items_abort_without_removing_records(migration_database):
@@ -174,24 +174,42 @@ def test_downgrade_preserves_new_checkout_records(migration_database, saved_reco
             config.attributes['connection'] = conn
             command.downgrade(config, '0003')
     with engine.connect() as conn:
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0013'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0015'
         table = 'orders' if saved_record == 'order' else 'addresses'
         assert conn.execute(text(f'SELECT count(*) FROM {table}')).scalar_one() == 1
 
 
 def stock_legacy_seed(engine):
     from sqlalchemy.orm import Session
-    from tests.vendor_helpers import catalog, user, address
+    from tests.vendor_helpers import user, address
     from app.models.cart import Cart
     from app.models.cart_item import CartItem
     # ORM's new Cart.revision cannot be used before 0005; insert the old
     # cart shape explicitly while keeping catalog fixtures version-neutral.
     with Session(engine) as db:
-        _, vendor, product, variant, inv = catalog(db)
+        # Historical revision 0004 predates product image/unit columns.
+        # Seed the exact legacy schema rather than using the latest ORM model.
+        from app.models.vendor import Vendor
+        from app.models.product_variant import ProductVariant
+        from app.models.inventory import Inventory
+        seller = user(db, 'vendor')
+        vendor = Vendor(user_id=seller.id, business_name='Verified fabrics', is_verified=True)
+        db.add(vendor)
+        db.flush()
+        from sqlalchemy import text as sql_text
+        product_id = uuid.uuid4()
+        db.execute(sql_text("INSERT INTO vendor_products (id,vendor_id,name,description,base_price,currency,is_active) "
+                            "VALUES (:id,:vendor,'Navy cotton','Per yard',100.01,'NGN',true)"),
+                   {"id": product_id, "vendor": vendor.id})
+        variant = ProductVariant(product_id=product_id, sku='TEST-'+uuid.uuid4().hex, price=100.01)
+        db.add(variant)
+        db.flush()
+        inv = Inventory(product_variant_id=variant.id, quantity_available=10, quantity_reserved=0)
+        db.add(inv)
         buyer = user(db, 'tailor')
         db.commit()
         values = dict(cart=uuid.uuid4(), item=uuid.uuid4(), owner=buyer.id,
-                      variant=variant.id, vendor=vendor.id, product=product.id, inventory=inv.id)
+                      variant=variant.id, vendor=vendor.id, product=product_id, inventory=inv.id)
     with engine.begin() as conn:
         conn.execute(text("INSERT INTO carts (id,owner_user_id,status) VALUES (:cart,:owner,'active')"), values)
         conn.execute(text("INSERT INTO cart_items (id,cart_id,product_variant_id,vendor_id,quantity,unit_price_snapshot) VALUES (:item,:cart,:variant,:product,2,100.01)"), values)
@@ -234,7 +252,7 @@ def test_stock_migration_repairs_vendor_identity_and_preserves_history_on_downgr
             command.downgrade(config, '0004')
     with engine.connect() as conn:
         assert conn.execute(text('SELECT count(*) FROM orders')).scalar_one() == 1
-        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0013'
+        assert conn.execute(text('SELECT version_num FROM alembic_version')).scalar_one() == '0015'
 
 
 def test_latest_migration_can_rollback_one_revision_and_reapply(migration_database):
@@ -245,10 +263,10 @@ def test_latest_migration_can_rollback_one_revision_and_reapply(migration_databa
         config.attributes["connection"] = conn
         command.downgrade(config, "-1")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0012"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0014"
     migrate(engine, config, "head")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0013"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0015"
 
 
 def test_locations_have_a_gist_spatial_index_after_migrations(migration_database):
@@ -352,5 +370,5 @@ def test_saga_audit_ledger_immutable_and_rollback_rejects_history(migration_data
             config.attributes["connection"] = conn
             command.downgrade(config, "0010")
     with engine.connect() as conn:
-        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0013"
+        assert conn.execute(text("SELECT version_num FROM alembic_version")).scalar_one() == "0015"
         assert conn.execute(text("SELECT count(*) FROM ledger_entries")).scalar_one() == 2
