@@ -45,7 +45,7 @@ class VertexAIService:
                 )
             except (ValueError, TypeError, KeyError) as exc:
                 logger.error("seam_vertex_setup_failed stage=service_account_validation exception_type=%s", type(exc).__name__)
-            raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
+                raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         try:
             self.client = genai.Client(vertexai=True, project=settings.GCP_PROJECT_ID,
                                        location=settings.GCP_REGION, credentials=credentials)
