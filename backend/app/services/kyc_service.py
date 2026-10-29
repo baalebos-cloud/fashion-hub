@@ -25,8 +25,8 @@ class KYCService:
         user_id,
         nin_number: str,
         document_storage_keys: list[str],
-        home_latitude: float,
-        home_longitude: float,
+        home_latitude: float | None,
+        home_longitude: float | None,
         home_formatted_address: str | None = None,
     ):
         """
@@ -55,6 +55,12 @@ class KYCService:
 
         similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
         identity_match = similarity >= NAME_MATCH_THRESHOLD
+
+        from app.core.exceptions import ValidationAppError
+        if (home_latitude is None) != (home_longitude is None):
+            raise ValidationAppError("Supply both coordinates or neither.")
+        if home_latitude is None and not (home_formatted_address or "").strip():
+            raise ValidationAppError("A home address or confirmed map position is required.")
 
         home_location = Location(
             latitude=home_latitude,

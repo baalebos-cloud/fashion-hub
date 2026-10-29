@@ -6,9 +6,9 @@ from pydantic import BaseModel, Field
 class SubmitKYCRequest(BaseModel):
     nin_number: str = Field(..., min_length=11, max_length=11, description="11-digit Nigerian National Identity Number")
     document_storage_keys: list[str] = Field(..., min_length=1, description="Supporting ID document photos, already uploaded")
-    home_latitude: float = Field(..., ge=-90, le=90)
-    home_longitude: float = Field(..., ge=-180, le=180)
-    home_formatted_address: Optional[str] = None
+    home_latitude: Optional[float] = Field(None, ge=-90, le=90)
+    home_longitude: Optional[float] = Field(None, ge=-180, le=180)
+    home_formatted_address: Optional[str] = Field(None, max_length=512)
 
 
 class KYCStatusResponse(BaseModel):

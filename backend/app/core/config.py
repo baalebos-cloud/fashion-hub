@@ -175,7 +175,7 @@ class Settings(BaseSettings):
         if self.ENABLE_PRODUCTION_PAYMENTS:
             raise ValueError("Production Saga payments are not approved or implemented.")
         if self.APP_ENV in {"staging", "production"}:
-            if len(self.SECRET_KEY) < 32 or self.SECRET_KEY == "change-me-in-env":
+            if len(self.SECRET_KEY) < 32:
                 raise ValueError("Signing configuration must contain at least 32 random characters")
             if self.DEBUG or self.DATABASE_ECHO:
                 raise ValueError("Disable DEBUG and DATABASE_ECHO in staging/production")
