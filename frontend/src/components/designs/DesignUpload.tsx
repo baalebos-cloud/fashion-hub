@@ -43,7 +43,7 @@ export function DesignUpload({ onCreated }: { onCreated: (design: Design) => voi
 
   return (
     <div className="flex max-w-sm flex-col gap-4">
-      <ImageUploader uploadEndpoint="/media/upload?purpose=design" currentImageUrl={imageUrl} onUploaded={setImageUrl} label="Add photo" />
+      <ImageUploader uploadEndpoint="/media/upload?purpose=design" currentImageUrl={imageUrl} onUploaded={setImageUrl} onRemove={() => setImageUrl(null)} label="Add photo" />
       <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       <Input type="number" placeholder="Starting price" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} />
