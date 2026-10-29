@@ -9,6 +9,7 @@ from uuid import UUID
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -39,7 +40,7 @@ def list_professionals(
         raise ValidationAppError('Provide both latitude and longitude.')
     query = ProfessionalRepository(db).verified_query(professional_type=professional_type,
         query=q, latitude=lat, longitude=lng, radius_km=radius_km)
-    return {'items': query.order_by(Professional.id).offset(pagination.offset).limit(pagination.page_size).all(),
+    return {'items': query.order_by(desc(Professional.average_rating), desc(Professional.review_count), Professional.id).offset(pagination.offset).limit(pagination.page_size).all(),
             'total': query.count(), 'page': pagination.page, 'page_size': pagination.page_size}
 
 

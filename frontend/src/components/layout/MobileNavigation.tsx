@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Drawer } from "@/components/ui/drawer";
 import { Sidebar } from "./Sidebar";
 import type { UserRole } from "@/types/auth";
@@ -8,14 +9,16 @@ import type { UserRole } from "@/types/auth";
  * the two never drift apart. */
 export function MobileNavigation({ role }: { role: UserRole }) {
   const [isOpen, setIsOpen] = useState(false);
+  const location = useLocation();
+  useEffect(() => { setIsOpen(false); }, [location.pathname]);
 
   return (
-    <div className="lg:hidden">
+    <div className="md:hidden">
       <button
         type="button"
-        aria-label="Open menu"
+        aria-label="Toggle Menu"
         onClick={() => setIsOpen(true)}
-        className="flex h-10 w-10 items-center justify-center rounded-lg text-ink hover:bg-muslin"
+        className="flex h-11 w-11 items-center justify-center rounded-lg text-ink hover:bg-muslin"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path d="M4 6h16M4 12h16M4 18h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
@@ -23,7 +26,7 @@ export function MobileNavigation({ role }: { role: UserRole }) {
       </button>
 
       <Drawer isOpen={isOpen} onClose={() => setIsOpen(false)} side="left" title="Menu">
-        <Sidebar role={role} />
+        <Sidebar role={role} mobile onNavigate={() => setIsOpen(false)} />
       </Drawer>
     </div>
   );

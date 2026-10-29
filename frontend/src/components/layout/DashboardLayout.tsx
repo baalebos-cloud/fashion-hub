@@ -13,7 +13,7 @@ import type { UserRole } from "@/types/auth";
 export function DashboardLayout({ role, children }: { role: UserRole; children: ReactNode }) {
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex items-center border-b border-line px-2 lg:hidden">
+      <div className="flex items-center border-b border-line px-2 md:hidden">
         <MobileNavigation role={role} />
       </div>
       <Header />

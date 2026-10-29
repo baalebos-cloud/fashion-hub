@@ -104,20 +104,21 @@ const NAV_BY_ROLE: Record<UserRole, NavItem[]> = {
 };
 NAV_BY_ROLE.designer = NAV_BY_ROLE.tailor;
 
-export function Sidebar({ role }: { role: UserRole }) {
+export function Sidebar({ role, mobile = false, onNavigate }: { role: UserRole; mobile?: boolean; onNavigate?: () => void }) {
   const items = NAV_BY_ROLE[role] ?? [];
 
   return (
-    <nav className="app-sidebar hidden lg:flex lg:w-[264px] lg:flex-shrink-0 lg:flex-col border-r border-line bg-paper">
+    <nav className={mobile ? "flex h-full flex-col bg-paper" : "app-sidebar hidden md:flex md:w-[264px] md:flex-shrink-0 md:flex-col border-r border-line bg-paper"}>
       <div className="flex flex-col gap-0.5 overflow-y-auto p-3">
         {items.map((item) => (
           <NavLink
             key={item.label}
             to={item.path}
             end
+            onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                "rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                "flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                 isActive ? "bg-muslin text-ink" : "text-ink-soft hover:bg-muslin/60 hover:text-ink"
               )
             }
