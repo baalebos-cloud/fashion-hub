@@ -7,6 +7,7 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MeasurementGuide } from "./MeasurementGuide";
+import { MeasurementScanner } from "./MeasurementScanner";
 import {
   measurementSchema, measurementNames, measurementFieldsInCentimetres,
   type MeasurementInput,
@@ -140,6 +141,13 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
           </label>
         ))}
       </div>
+      <MeasurementScanner onApply={(fields) => {
+        setValue("unit", "cm");
+        for (const name of ["chest", "waist", "hip"] as const) {
+          if (fields[name] !== undefined) setValue(`values.${name}`, fields[name], { shouldValidate: true });
+        }
+        setStep("measure");
+      }} />
       <MeasurementGuide />
       {step === "review" && (
         <p role="status" className="text-sm">Please verify the measurement values and unit above. Measurements are saved to your profile in centimetres.</p>
