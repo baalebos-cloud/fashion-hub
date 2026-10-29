@@ -44,7 +44,10 @@ class VertexAIService:
         if not data or len(data) > 10 * 1024 * 1024:
             raise ValueError("Image must be nonempty and at most 10 MiB")
         from google.genai import types
-        return types.Part.from_bytes(data=data, mime_type="image/jpeg")
+        mime = "image/png" if data.startswith(b"\\x89PNG\\r\\n\\x1a\\n") else "image/jpeg" if data.startswith(b"\\xff\\xd8\\xff") else None
+        if mime is None:
+            raise ValueError("Only JPEG and PNG images are supported")
+        return types.Part.from_bytes(data=data, mime_type=mime)
 
     def extract_measurements_from_image(self, image_bytes: bytes) -> MeasurementEstimate:
         from google.genai import types
