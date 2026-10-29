@@ -16,6 +16,8 @@ async def save_media(file: UploadFile, *, owner_id, purpose: str, public: bool =
         raise ValidationAppError("Unsupported media purpose.")
     if settings.APP_ENV in {"production", "staging"} and settings.STORAGE_PROVIDER == "local":
         raise ValidationAppError("Persistent storage is required.")
+    if public and settings.STORAGE_PROVIDER != "local" and not settings.STORAGE_PUBLIC_BASE_URL:
+        raise ValidationAppError("Product image public storage URL is not configured.")
     mime = (file.content_type or "").lower()
     try:
         raw = await file.read(MAX_UPLOAD_SIZE_BYTES + 1)
