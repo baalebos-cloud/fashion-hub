@@ -6,6 +6,9 @@ No photographed body dimensions are inferred as tape-measured facts.
 from collections.abc import AsyncGenerator
 from functools import lru_cache
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 from app.core.config import settings
 from app.schemas.vertex_ai import CustomerMeasurementSchema, TailoringSpecSchema
@@ -132,6 +135,13 @@ class VertexAIService:
         except VertexUnavailable:
             raise
         except Exception as exc:
+            # Avoid logging credentials, prompts, or raw provider error text.
+            status = getattr(exc, "code", None) or getattr(exc, "status_code", None)
+            logger.error(
+                "seam_vertex_inference_failed type=%s status=%s model=%s region=%s",
+                type(exc).__name__, str(status)[:20] if status is not None else "unknown",
+                self.model, settings.GCP_REGION,
+            )
             raise VertexUnavailable("Vertex AI could not generate a reply.") from exc
 
     async def stream_fashion_advisor(self, messages: list[dict]) -> AsyncGenerator[str, None]:
