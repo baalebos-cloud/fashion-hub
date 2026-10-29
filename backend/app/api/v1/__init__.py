@@ -32,6 +32,7 @@ from app.api.v1 import (
     kyc,
     locations,
     maps,
+    media,
     measurements,
     messages,
     notifications,
@@ -94,6 +95,7 @@ api_router.include_router(delivery_tracking.router)
 api_router.include_router(delivery_webhooks.router)
 api_router.include_router(locations.router)
 api_router.include_router(maps.router)
+api_router.include_router(media.router)
 api_router.include_router(geocoding.router)
 api_router.include_router(measurements.router)
 api_router.include_router(designs.router)
