@@ -8,6 +8,7 @@ class VendorProductCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     description: str | None = Field(None, max_length=10000)
     base_price: Decimal = Field(gt=0, max_digits=12, decimal_places=2, allow_inf_nan=False)
+    image_urls: list[str] = Field(default_factory=list, min_length=1, max_length=5)
     initial_stock: int = Field(0, ge=0, le=1000000000, strict=True)
     category_id: uuid.UUID | None = None
 
@@ -35,6 +36,7 @@ class VendorProductResponse(BaseModel):
     name: str
     description: str | None
     category_id: uuid.UUID | None
+    image_urls: list[str]
     primary_image_url: str | None
     base_price: float
     currency: str
