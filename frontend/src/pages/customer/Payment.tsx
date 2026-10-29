@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { InterswitchLiveButton } from "@/components/payments/InterswitchLiveButton";
 import { InterswitchSandboxButton } from "@/components/payments/InterswitchSandboxButton";
 import { PaymentSummary } from "@/components/payments/PaymentSummary";
 import { PaymentConsent } from "@/components/payments/PaymentConsent";
@@ -25,7 +26,11 @@ export default function Payment() {
       <ul className="divide-y divide-line">{order.items.map((item) => <li key={item.id} className="flex justify-between py-2 text-sm"><span>{item.name_snapshot} × {item.quantity}</span><span>{formatCurrency(item.line_total, order.currency)}</span></li>)}</ul>
       <PaymentSummary orderNumber={order.order_number} amount={order.total_amount} currency={order.currency} />
       <PaymentConsent checked={hasConsented} onChange={setHasConsented} />
-      <PaymentButton orderId={order.id} callbackUrl={callbackUrl} disabled={!hasConsented} />
+      {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED === "true" ? (
+        <InterswitchLiveButton orderId={order.id} disabled={!hasConsented} />
+      ) : (
+        <PaymentButton orderId={order.id} callbackUrl={callbackUrl} disabled={!hasConsented} />
+      )}
       {import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
         <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented} />
       )}
