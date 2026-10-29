@@ -27,6 +27,10 @@ class InterswitchSandboxService(PaymentService):
         return False
 
     @staticmethod
+    def _merchant_code() -> str:
+        return settings.INTERSWITCH_MERCHANT_CODE or ""
+
+    @staticmethod
     def _require_sandbox():
         if (settings.is_production or not settings.INTERSWITCH_SANDBOX_ENABLED
                 or not settings.INTERSWITCH_MERCHANT_CODE
@@ -102,7 +106,7 @@ class InterswitchSandboxService(PaymentService):
         if buyer_user_id is None or str(order.buyer_user_id) != str(buyer_user_id):
             raise ForbiddenError("Only the order buyer may verify this payment.")
         result = requery_transaction(
-            merchant_code=settings.INTERSWITCH_MERCHANT_CODE,
+            merchant_code=self._merchant_code(),
             reference=provider_reference, expected_amount=payment.amount,
             live=self._live_mode(),
         )
