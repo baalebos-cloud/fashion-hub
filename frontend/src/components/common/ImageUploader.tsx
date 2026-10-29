@@ -9,12 +9,13 @@ export interface ImageUploaderProps {
   currentImageUrl?: string | null;
   onUploaded: (url: string) => void;
   label?: string;
+  onRemove?: () => void;
 }
 
 /** Used by ProfilePhoto, DesignUpload, DocumentUpload — validates locally
  * (see lib/utils/image.ts) before ever hitting the network, then delegates
  * the actual upload to the backend's storage integration. */
-export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, label = "Upload image" }: ImageUploaderProps) {
+export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, onRemove, label = "Upload image" }: ImageUploaderProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -44,13 +45,14 @@ export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, lab
 
   return (
     <div className="flex items-center gap-4">
-      {currentImageUrl && <img src={currentImageUrl} alt="" className="h-16 w-16 rounded-lg object-cover" />}
+      {currentImageUrl && <div className="relative"><img src={currentImageUrl} alt="Uploaded preview" className="h-16 w-16 rounded-lg object-cover" />{onRemove && <button type="button" aria-label="Remove uploaded photo" className="absolute -right-2 -top-2 rounded-full border border-line bg-paper px-2" onClick={onRemove}>×</button>}</div>}
       <div>
         <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
         <Button type="button" variant="secondary" size="sm" isLoading={isUploading} onClick={() => inputRef.current?.click()}>
           {label}
         </Button>
-        {error && <p className="mt-1 text-xs text-thread">{error}</p>}
+        {isUploading && <p role="status" className="mt-1 text-xs text-ink-soft">Uploading image…</p>}
+        {error && <p role="alert" className="mt-1 text-xs text-thread">{error}</p>}
       </div>
     </div>
   );

@@ -26,12 +26,14 @@ export function DesignUpload({ onCreated }: { onCreated: (design: Design) => voi
         description: description || undefined,
         base_price: Number(basePrice) || 0,
         required_measurement_fields: requiredFields.length > 0 ? requiredFields : undefined,
+        image_url: imageUrl ?? undefined,
       });
       onCreated(created);
       setTitle("");
       setDescription("");
       setBasePrice("");
       setRequiredFields([]);
+      setImageUrl(null);
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Couldn't add this design."));
     } finally {
@@ -41,13 +43,13 @@ export function DesignUpload({ onCreated }: { onCreated: (design: Design) => voi
 
   return (
     <div className="flex max-w-sm flex-col gap-4">
-      <ImageUploader uploadEndpoint="/media/upload?purpose=design" currentImageUrl={imageUrl} onUploaded={setImageUrl} label="Add photo" />
+      <ImageUploader uploadEndpoint="/media/upload?purpose=design" currentImageUrl={imageUrl} onUploaded={setImageUrl} onRemove={() => setImageUrl(null)} label="Add photo" />
       <Input placeholder="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       <Textarea placeholder="Description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
       <Input type="number" placeholder="Starting price" value={basePrice} onChange={(e) => setBasePrice(e.target.value)} />
       <MeasurementFieldSelector selected={requiredFields} onChange={setRequiredFields} />
       {error && <p className="text-sm text-thread">{error}</p>}
-      <Button onClick={handleSubmit} isLoading={isSubmitting} className="self-start" disabled={!title}>
+      <Button onClick={handleSubmit} isLoading={isSubmitting} className="self-start" disabled={!title.trim() || !imageUrl || !(Number(basePrice) > 0) || isSubmitting}>
         Add design
       </Button>
     </div>

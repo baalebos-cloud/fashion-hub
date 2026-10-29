@@ -9,6 +9,12 @@ from uuid import UUID
 from typing import Literal
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel, Field
+from urllib.parse import urlsplit
+from app.models.stored_media import StoredMedia
+from app.models.design_image import DesignImage
+from app.core.config import settings
+from app.core.exceptions import ValidationAppError
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
@@ -48,6 +54,47 @@ def list_professionals(
 def my_profile(user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)), db: Session = Depends(get_db)):
     return db.query(Professional).filter_by(user_id=user.id).first()
 
+
+class PortfolioImageRequest(BaseModel):
+    image_url: str = Field(min_length=1, max_length=1024)
+
+
+@router.get("/me/portfolio")
+def list_my_portfolio(user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+                      db: Session = Depends(get_db)):
+    professional = db.query(Professional).filter_by(user_id=user.id).first()
+    if not professional:
+        raise NotFoundError("Professional profile not found.")
+    rows = (db.query(DesignImage).filter_by(professional_id=professional.id, design_id=None)
+            .order_by(DesignImage.created_at.desc()).limit(100).all())
+    return [{"id": str(item.id), "image_url": item.image_url} for item in rows]
+
+
+@router.post("/me/portfolio", status_code=201)
+def add_portfolio_image(payload: PortfolioImageRequest,
+                        user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+                        db: Session = Depends(get_db)):
+    professional = db.query(Professional).filter_by(user_id=user.id).first()
+    if not professional:
+        raise NotFoundError("Professional profile not found.")
+    parsed = urlsplit(payload.image_url)
+    expected = urlsplit(settings.APP_URL)
+    if (parsed.scheme != expected.scheme or parsed.netloc != expected.netloc
+            or not parsed.path.startswith(f"{settings.API_PREFIX}/media/files/")):
+        raise ValidationAppError("Select a photo uploaded through the portfolio uploader.")
+    try:
+        media_id = UUID(parsed.path.rsplit("/", 1)[-1])
+    except ValueError as exc:
+        raise ValidationAppError("Invalid photo reference.") from exc
+    media = db.get(StoredMedia, media_id)
+    if (media is None or media.owner_user_id != user.id or not media.is_public
+            or not media.storage_key.startswith("portfolio/")):
+        raise ValidationAppError("Portfolio image does not belong to your account.")
+    row = DesignImage(professional_id=professional.id, image_url=payload.image_url)
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return {"id": str(row.id), "image_url": row.image_url}
 
 @router.put('/me', response_model=ProfessionalResponse)
 def save_profile(payload: ProfessionalProfileRequest,

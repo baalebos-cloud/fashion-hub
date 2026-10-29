@@ -2,14 +2,14 @@
  * Mirrors backend/app/utils/file_upload.py's constraints so the person
  * gets instant feedback instead of waiting on a round trip to fail. */
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_BYTES = 10 * 1024 * 1024;
+const MAX_SIZE_BYTES = 15 * 1024 * 1024;
 
 export function validateImageFile(file: File): string | null {
   if (!ALLOWED_TYPES.includes(file.type)) {
     return "Please upload a JPEG, PNG, or WebP image.";
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return "Image must be under 10MB.";
+    return "Image must be 15MB or smaller.";
   }
   return null;
 }
