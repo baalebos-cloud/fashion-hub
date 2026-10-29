@@ -12,7 +12,7 @@ export default function Verification() {
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Identity (KYC)</h2>
         <KYCForm />
       </div>
-      {user?.role === "tailor" && (
+      {(user?.role === "tailor" || user?.role === "designer") && (
         <div>
           <h2 className="mb-3 text-sm font-medium text-ink-soft">Business (KYB) — optional</h2>
           <KYBForm />

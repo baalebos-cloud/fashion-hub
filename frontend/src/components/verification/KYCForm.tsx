@@ -7,6 +7,7 @@ import { AddressMapPicker } from "@/components/common/AddressMapPicker";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import { isApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/formatters/date";
 import { useTimezone } from "@/hooks/use-timezone";
 
@@ -38,11 +39,13 @@ export function KYCForm() {
   const address = [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isProviderError, setIsProviderError] = useState(false);
 
   async function handleSubmit() {
     if (!canSubmit || !documentUrl) return;
     setIsSubmitting(true);
     setError(null);
+    setIsProviderError(false);
     try {
       await submit({
         nin_number: ninNumber,
@@ -52,6 +55,8 @@ export function KYCForm() {
         home_formatted_address: address ?? undefined,
       });
     } catch (err) {
+      const isProvider = isApiError(err) && err.code === "external_provider_error";
+      setIsProviderError(isProvider);
       setError(getDisplayErrorMessage(err, "Couldn't verify that NIN. Please double-check the number and try again."));
     } finally {
       setIsSubmitting(false);
@@ -144,10 +149,26 @@ export function KYCForm() {
 
       </div>
 
-      {error && <p className="text-sm text-thread">{error}</p>}
+      {error && (
+        <div
+          role="alert"
+          className={`rounded-card border p-3 text-sm ${
+            isProviderError
+              ? "border-[#eac9c2] bg-[#fbecea] text-thread"
+              : "border-line bg-muslin text-thread"
+          }`}
+        >
+          {error}
+          {isProviderError && (
+            <p className="mt-1 text-xs text-ink-soft">
+              This is a configuration issue — retrying will not help. Contact support.
+            </p>
+          )}
+        </div>
+      )}
 
-      {!canSubmit && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
-      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting}>
+      {!canSubmit && !error && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
+      <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting || isProviderError}>
         Submit for verification
       </Button>
     </div>
