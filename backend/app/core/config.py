@@ -99,6 +99,7 @@ class Settings(BaseSettings):
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
     VERTEX_AI_ENABLED: bool = False
     GCP_PROJECT_ID: Optional[str] = None
+    GCP_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)
     GCP_REGION: str = "us-central1"
     VERTEX_AI_MODEL_NAME: str = "gemini-3.8-flash"
 
