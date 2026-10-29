@@ -6,7 +6,7 @@ export async function uploadFile(
   endpointPath: string,
   file: File,
   fieldName = "file",
-): Promise<{ url: string; filename?: string; size_bytes?: number }> {
+): Promise<{ url: string; document_storage_key?: string; filename?: string; size_bytes?: number }> {
   const formData = new FormData();
   formData.append(fieldName, file);
   const response = await apiClient.post<{ url: string; filename?: string; size_bytes?: number }>(
