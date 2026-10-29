@@ -71,17 +71,15 @@ class InterswitchSandboxService(PaymentService):
             raise ConflictError("Order is not payable through Interswitch.")
         from app.services.catalog_order_service import assert_catalog_order_payable
         assert_catalog_order_payable(order)
-        # Scope the proof of concept to customer fashion orders. Vendor
-        # material-order redirects require a separate, role-specific flow.
-        if order.order_type != "customer_order":
-            raise ConflictError("Sandbox currently supports customer fashion orders only.")
+        if order.order_type not in {"customer_order", "vendor_order"}:
+            raise ConflictError("Unsupported Interswitch order type.")
         existing = self.db.query(Payment).filter(Payment.order_id == order.id).first()
         if existing:
             self._assert_provider(existing)
             if existing.status not in {"initialized", "pending"}:
                 raise ConflictError("The order already has a completed payment attempt.")
             return self._checkout_form(existing, customer_email)
-        reference = "seam_" + uuid.uuid4().hex
+        reference = "FH-" + ("MAT" if order.order_type == "vendor_order" else "FAS") + "-" + uuid.uuid4().hex
         payment = Payment(
             order_id=order.id, provider="interswitch", provider_reference=reference,
             amount=order.total_amount, currency="NGN", status="initialized",
