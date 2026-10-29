@@ -21,10 +21,10 @@ router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
 @router.get("/health-check")
-def module_placeholder():
+def module_placeholder(current_user: User = Depends(require_roles(Role.ADMIN))):
     """Placeholder route confirming this module is wired into the app.
     Replace with real endpoints for Admin."""
-    return {"module": "Admin", "status": "not yet implemented"}
+    return {"module": "Admin", "status": "restricted"}
 
 
 @router.get("/commerce-summary")
