@@ -6,9 +6,12 @@ Only a separately reviewed orchestration change may enable settlement.
 Docs: https://docs.interswitchgroup.com/docs/web-checkout
 """
 from dataclasses import dataclass
+import logging
 from urllib.parse import urlparse
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 from app.core.exceptions import ExternalProviderError
 from app.core.policies import money_to_minor_units
@@ -82,16 +85,35 @@ def requery_transaction(*, merchant_code: str, reference: str, expected_amount,
             "amount": expected_minor,
         }, timeout=15.0)
         response.raise_for_status()
+    except httpx.TimeoutException as exc:
+        logger.warning("interswitch_requery_timeout environment=%s", "live" if live else "sandbox")
+        raise ExternalProviderError("Interswitch verification timed out. Try checking again.") from exc
+    except httpx.HTTPStatusError as exc:
+        logger.warning("interswitch_requery_http_error environment=%s status=%s",
+                       "live" if live else "sandbox", exc.response.status_code)
+        raise ExternalProviderError("Interswitch verification service rejected the request.") from exc
+    except httpx.RequestError as exc:
+        logger.warning("interswitch_requery_transport_error environment=%s type=%s",
+                       "live" if live else "sandbox", type(exc).__name__)
+        raise ExternalProviderError("Interswitch verification service is unreachable.") from exc
+    try:
         data = response.json()
-    except (httpx.HTTPError, ValueError, TypeError) as exc:
-        raise ExternalProviderError("Interswitch transaction requery failed") from exc
+    except (ValueError, TypeError) as exc:
+        logger.warning("interswitch_requery_invalid_json environment=%s", "live" if live else "sandbox")
+        raise ExternalProviderError("Interswitch verification returned an invalid response.") from exc
     if not isinstance(data, dict):
-        raise ExternalProviderError("Interswitch transaction requery returned an invalid result")
+        logger.warning("interswitch_requery_invalid_shape environment=%s", "live" if live else "sandbox")
+        raise ExternalProviderError("Interswitch verification returned an invalid response.")
     received_reference = data.get("MerchantReference")
     amount = data.get("Amount")
     if (received_reference != reference or isinstance(amount, bool)
             or not isinstance(amount, int) or amount != expected_minor):
-        raise ExternalProviderError("Interswitch verification mismatch")
+        logger.warning("interswitch_requery_mismatch environment=%s reference_matches=%s amount_matches=%s",
+                       "live" if live else "sandbox", received_reference == reference,
+                       isinstance(amount, int) and not isinstance(amount, bool) and amount == expected_minor)
+        raise ExternalProviderError("Interswitch verification details do not match the order.")
+    logger.info("interswitch_requery_result environment=%s approved=%s",
+                "live" if live else "sandbox", data.get("ResponseCode") == "00")
     # A callback, HTTP 200, or non-00 code never establishes a paid order.
     return RequeryResult(
         reference=reference, amount_minor=amount, currency="NGN",
