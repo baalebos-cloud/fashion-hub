@@ -6,6 +6,7 @@
  */
 export const publicRoutes = {
   home: "/",
+  onboarding: "/discover",
   about: "/about",
   howItWorks: "/how-it-works",
   findTailor: "/find-a-tailor",
