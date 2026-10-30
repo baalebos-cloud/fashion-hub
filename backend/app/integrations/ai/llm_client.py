@@ -31,11 +31,58 @@ class LLMClient:
         self.model = model or settings.AI_MODEL
 
     def complete(self, messages: list[ChatMessage], max_tokens: int = 512) -> ChatCompletionResult:
-        if settings.AI_PROVIDER == "anthropic":
-            return self._complete_anthropic(messages, max_tokens)
-        if settings.AI_PROVIDER in {"vertex_ai", "vertexai"}:
-            return self._complete_vertex_ai(messages, max_tokens)
-        raise ExternalProviderError("Seam has an unsupported AI provider configured.")
+        provider = settings.AI_PROVIDER.lower()
+        try:
+            if provider == "anthropic":
+                return self._complete_anthropic(messages, max_tokens)
+            if provider in {"vertex_ai", "vertexai"}:
+                return self._complete_vertex_ai(messages, max_tokens)
+            if provider == "groq":
+                return self._complete_groq(messages, max_tokens)
+            raise ExternalProviderError("Seam has an unsupported AI provider configured.")
+        except ExternalProviderError:
+            if (provider in {"vertex_ai", "vertexai"}
+                    and settings.AI_FALLBACK_PROVIDER == "groq"
+                    and settings.GROQ_API_KEY):
+                logger.warning("seam_primary_ai_failed_using_groq_fallback")
+                return self._complete_groq(messages, max_tokens)
+            raise
+
+    def _complete_groq(self, messages: list[ChatMessage], max_tokens: int) -> ChatCompletionResult:
+        """Groq text completions. Keep authentication strictly server-side."""
+        if not settings.GROQ_API_KEY:
+            raise ExternalProviderError("Groq API credentials are not configured.")
+        if not 1 <= max_tokens <= 4096:
+            raise ExternalProviderError("Invalid AI response length.")
+        payload = {
+            "model": settings.GROQ_MODEL,
+            "messages": [{"role": msg.role, "content": msg.content}
+                         for msg in messages if msg.role in {"system", "user", "assistant"}],
+            "max_tokens": max_tokens,
+            "temperature": 0.2,
+        }
+        if not payload["messages"]:
+            raise ExternalProviderError("Seam requires a message.")
+        try:
+            response = httpx.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+                json=payload, timeout=20.0,
+            )
+        except httpx.RequestError:
+            logger.warning("seam_groq_transport_failure")
+            raise ExternalProviderError("Groq is currently unreachable.") from None
+        if response.status_code != 200:
+            logger.warning("seam_groq_api_failure", extra={"status": response.status_code})
+            raise ExternalProviderError(f"Groq request failed (HTTP {response.status_code}).")
+        try:
+            data = response.json()
+            answer = data["choices"][0]["message"]["content"]
+            if not isinstance(answer, str) or not answer.strip():
+                raise ValueError("empty")
+        except (ValueError, KeyError, IndexError, TypeError):
+            raise ExternalProviderError("Groq returned an invalid response.") from None
+        return ChatCompletionResult(content=answer.strip(), raw_response=data)
 
     def _complete_vertex_ai(self, messages: list[ChatMessage], max_tokens: int) -> ChatCompletionResult:
         """Google Cloud Vertex AI express-mode API, not the separate Gemini Developer API."""

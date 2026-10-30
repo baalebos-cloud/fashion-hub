@@ -11,6 +11,7 @@ from app.core.dependencies import get_current_user
 from app.models.user import User
 from app.schemas.vertex_ai import CustomerMeasurementSchema, TailoringSpecSchema
 from app.services.vertex_service import VertexUnavailable, get_vertex_service
+from app.integrations.ai.llm_client import LLMClient, ChatMessage
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
@@ -74,12 +75,29 @@ def estimate_materials(
 async def stream_advisor(
     payload: AdvisorRequest,
     user: User = Depends(get_current_user),
-    vertex=Depends(require_vertex_configured),
 ):
     async def events() -> AsyncIterator[str]:
         try:
-            async for chunk in vertex.stream_fashion_advisor([m.model_dump() for m in payload.messages]):
-                yield "data: " + json.dumps({"delta": chunk}) + "\n\n"
+            if settings.VERTEX_AI_ENABLED:
+                try:
+                    vertex = get_vertex_service()
+                    async for chunk in vertex.stream_fashion_advisor([m.model_dump() for m in payload.messages]):
+                        yield "data: " + json.dumps({"delta": chunk}) + "\n\n"
+                    yield "event: done\ndata: {}\n\n"
+                    return
+                except Exception:
+                    if not (settings.AI_FALLBACK_PROVIDER == "groq" and settings.GROQ_API_KEY):
+                        raise
+            if settings.AI_FALLBACK_PROVIDER == "groq" and settings.GROQ_API_KEY:
+                import asyncio
+                completion = await asyncio.to_thread(
+                    LLMClient()._complete_groq,
+                    [ChatMessage(role=m.role, content=m.content) for m in payload.messages],
+                    512,
+                )
+                yield "data: " + json.dumps({"delta": completion.content}) + "\n\n"
+            else:
+                raise VertexUnavailable("No AI advisor provider is configured.")
         except Exception:
             # Do not leak cloud credentials or upstream provider exception details.
             yield "event: error\ndata: " + json.dumps({"message": "Advisor temporarily unavailable."}) + "\n\n"

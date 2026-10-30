@@ -96,6 +96,9 @@ class Settings(BaseSettings):
     AI_PROVIDER: str = "anthropic"
     AI_API_KEY: Optional[str] = None
     AI_MODEL: str = "claude-sonnet-4-6"
+    AI_FALLBACK_PROVIDER: str = "groq"
+    GROQ_API_KEY: Optional[str] = Field(None, repr=False)
+    GROQ_MODEL: str = "llama-3.3-70b-versatile"
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
     VERTEX_AI_ENABLED: bool = False
     GCP_PROJECT_ID: Optional[str] = None
