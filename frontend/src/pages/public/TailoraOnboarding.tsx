@@ -31,7 +31,16 @@ export default function TailoraOnboarding() {
     setError("");
     // Marketplace results must be genuine verified/active professionals,
     // never generated or invented for a demo.
-    professionalsApi.list({ query: location.trim() || undefined, pageSize: 20 })
+    professionalsApi.list({ query: location.trim() || undefined, pageSize: 50 })
+      .then(async (data) => {
+        // A city-only query may find no matches when newly registered studios
+        // have not yet provided a business location. Show all registered
+        // professionals as a clearly unfiltered fallback.
+        if (data.items.length === 0 && location.trim()) {
+          return professionalsApi.list({ pageSize: 50 });
+        }
+        return data;
+      })
       .then((data) => { if (active) { setResults(data.items); setSearched(true); } })
       .catch(() => { if (active) setError("We couldn't load available professionals. Please try again."); })
       .finally(() => { if (active) setLoading(false); });
@@ -43,7 +52,7 @@ export default function TailoraOnboarding() {
     ["What's your style?", "Choose a style that feels most like you."],
     ["Where should we look?", "Find fashion professionals near you, or search any Nigerian city."],
     ["What is your budget?", "This helps us understand what works for you. Final prices are set by professionals."],
-    ["Your Tailora matches", "Explore verified fashion professionals and choose who you want to work with."],
+    ["Your Tailora matches", "Explore registered fashion professionals and choose who you want to work with."],
   ];
   const canContinue = [Boolean(need), Boolean(style), Boolean(location.trim()), Boolean(budget), true][step];
   const choiceClass = (selected: boolean) => `rounded-2xl border p-5 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ad7847] ${selected ? "border-[#ad7847] bg-[#fbf1e7] shadow-sm" : "border-[#e8dfd6] bg-white hover:border-[#bfa384]"}`;
@@ -77,7 +86,7 @@ export default function TailoraOnboarding() {
               {step === 1 && <div className="grid gap-3 sm:grid-cols-2">{STYLES.map((option) => <button type="button" key={option} aria-pressed={style === option} className={choiceClass(style === option)} onClick={() => setStyle(option)}>{option}</button>)}</div>}
               {step === 2 && <div><label htmlFor="tailora-city" className="mb-2 block text-sm font-medium">City, state or neighbourhood</label><input id="tailora-city" value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Ado-Ekiti, Lagos, Abuja" maxLength={100} className="w-full rounded-xl border border-[#dcccbf] px-4 py-3 text-base outline-none focus:border-[#a77551]" /><p className="mt-3 text-xs leading-5 text-[#83786f]">We'll search verified professionals by their listed business location.</p></div>}
               {step === 3 && <div className="grid gap-3">{BUDGETS.map(option => <button type="button" key={option} aria-pressed={budget === option} className={choiceClass(budget === option)} onClick={() => setBudget(option)}>{option}</button>)}</div>}
-              {step === 4 && <div aria-live="polite">{loading && <p className="text-[#786e66]">Finding verified professionals…</p>}{error && <p role="alert" className="text-red-700">{error}</p>}{searched && !loading && results.length === 0 && <div className="rounded-2xl border border-[#e8dfd6] p-6"><p className="font-semibold">No verified professionals found in {location} yet.</p><p className="mt-2 text-sm text-[#786e66]">Try another city or browse all verified professionals.</p><button type="button" className="mt-4 text-sm font-semibold underline" onClick={() => {setLocation("");setSearched(false);}}>Search all locations</button></div>}{!loading && results.length > 0 && <div className="grid gap-3">{results.map((p) => <Link key={p.id} to={publicRoutes.professionalProfile(p.id)} className="rounded-xl border border-[#e8dfd6] p-4 transition hover:border-[#a77551]"><strong className="block">{p.business_name || "Fashion professional"}</strong><span className="mt-1 block text-sm capitalize text-[#786e66]">{p.professional_type} · Verified profile</span><span className="mt-2 block text-sm font-semibold text-[#9b6644]">View profile and request an order →</span></Link>)}</div>}</div>}
+              {step === 4 && <div aria-live="polite">{loading && <p className="text-[#786e66]">Finding verified professionals…</p>}{error && <p role="alert" className="text-red-700">{error}</p>}{searched && !loading && results.length === 0 && <div className="rounded-2xl border border-[#e8dfd6] p-6"><p className="font-semibold">No registered professionals found yet.</p><p className="mt-2 text-sm text-[#786e66]">Try another city or browse all registered professionals.</p><button type="button" className="mt-4 text-sm font-semibold underline" onClick={() => {setLocation("");setSearched(false);}}>Search all locations</button></div>}{!loading && results.length > 0 && <div className="grid gap-3">{results.map((p) => <Link key={p.id} to={publicRoutes.professionalProfile(p.id)} className="rounded-xl border border-[#e8dfd6] p-4 transition hover:border-[#a77551]"><strong className="block">{p.business_name || "Fashion professional"}</strong><span className="mt-1 block text-sm capitalize text-[#786e66]">{p.professional_type} · {p.is_verified ? "Verified profile" : "Verification pending"}</span><span className="mt-2 block text-sm font-semibold text-[#9b6644]">View profile and request an order →</span></Link>)}</div>}</div>}
             </div>
             <div className="mt-10 flex items-center justify-between gap-3 border-t border-[#eee4dc] pt-6">
               <button type="button" className="rounded-full px-5 py-3 text-sm font-medium text-[#695c50] hover:bg-[#f8f1eb] disabled:opacity-40" disabled={step === 0} onClick={() => setStep(s => Math.max(0, s - 1))}>← Back</button>
