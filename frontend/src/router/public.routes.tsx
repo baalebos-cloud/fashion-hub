@@ -2,6 +2,7 @@ import type { ComponentType } from "react";
 import type { RouteObject } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Home from "@/pages/public/Home";
+import TailoraOnboarding from "@/pages/public/TailoraOnboarding";
 import About from "@/pages/public/About";
 import HowItWorks from "@/pages/public/HowItWorks";
 import FindTailor from "@/pages/public/FindTailor";
@@ -24,6 +25,7 @@ const withLayout = (Page: ComponentType) => (
 
 export const publicRouteObjects: RouteObject[] = [
   { path: publicRoutes.home, element: withLayout(Home) },
+  { path: publicRoutes.onboarding, element: withLayout(TailoraOnboarding) },
   { path: publicRoutes.about, element: withLayout(About) },
   { path: publicRoutes.howItWorks, element: withLayout(HowItWorks) },
   { path: publicRoutes.findTailor, element: withLayout(FindTailor) },
