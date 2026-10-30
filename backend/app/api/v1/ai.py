@@ -82,8 +82,8 @@ async def stream_advisor(
                 try:
                     vertex = get_vertex_service()
                     async for chunk in vertex.stream_fashion_advisor([m.model_dump() for m in payload.messages]):
-                        yield "data: " + json.dumps({"delta": chunk}) + "\\n\\n"
-                    yield "event: done\\ndata: {}\\n\\n"
+                        yield "data: " + json.dumps({"delta": chunk}) + "\n\n"
+                    yield "event: done\ndata: {}\n\n"
                     return
                 except Exception:
                     if not (settings.AI_FALLBACK_PROVIDER == "groq" and settings.GROQ_API_KEY):
@@ -95,7 +95,7 @@ async def stream_advisor(
                     [ChatMessage(role=m.role, content=m.content) for m in payload.messages],
                     512,
                 )
-                yield "data: " + json.dumps({"delta": completion.content}) + "\\n\\n"
+                yield "data: " + json.dumps({"delta": completion.content}) + "\n\n"
             else:
                 raise VertexUnavailable("No AI advisor provider is configured.")
         except Exception:
