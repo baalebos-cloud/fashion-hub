@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import { useMeasurements } from "@/hooks/use-measurements";
 import { useDesigns } from "@/hooks/use-designs";
 import { useToast } from "@/components/ui/toast";
@@ -89,6 +89,7 @@ export default function CreateOrder() {
           <option value="">Select a design…</option>
           {designs.map((design) => <option key={design.id} value={design.id}>{design.title} — {formatCurrency(design.base_price, design.currency)}</option>)}
         </Select>
+        {!isLoading && !designError && designs.length === 0 && <p role="status" className="mt-2 text-sm text-ink-soft">This professional has no published designs available for checkout. <Link className="text-brass-deep underline" to={customerRoutes.findProfessionals}>Browse other professionals</Link> or ask this professional to publish a priced design first.</p>}
         <p className="mt-2 text-xs text-ink-soft">Custom work needs an agreed quote and is not available through this checkout yet. The saved order shows the final amount before payment.</p>
       </div>
       <div>
@@ -97,6 +98,7 @@ export default function CreateOrder() {
           <option value="">Select a profile…</option>
           {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
         </Select>
+        {profiles.length === 0 && !measurementError && <p role="status" className="mt-2 text-sm text-ink-soft">No measurement profile saved yet. Use “Add a new measurement profile” below, then select the saved profile.</p>}
         {selectedDesign?.required_measurement_fields?.length ? <p className="mt-1.5 text-xs text-ink-soft">This design needs: {selectedDesign.required_measurement_fields.join(", ").replace(/_/g, " ")}</p> : null}
         <button type="button" onClick={() => setIsAddingProfile(!isAddingProfile)} className="mt-2 text-xs text-brass-deep hover:underline">{isAddingProfile ? "Close measurement form" : "+ Add a new measurement profile"}</button>
       </div>
@@ -107,10 +109,12 @@ export default function CreateOrder() {
           <option value="">Select an address…</option>
           {addresses.map((address) => <option key={address.id} value={address.id}>{address.label}: {address.formatted_address}, {address.city}</option>)}
         </Select>
+        {addresses.length === 0 && !loadError && <p role="status" className="mt-2 text-sm text-ink-soft">No delivery address saved yet. Add a Nigerian delivery address below to continue.</p>}
         <button type="button" onClick={() => setIsAddingAddress(!isAddingAddress)} className="mt-2 text-xs text-brass-deep hover:underline">{isAddingAddress ? "Close address form" : "+ Add a delivery address"}</button>
       </div>
       {isAddingAddress && <DeliveryAddressForm onSaved={(address) => { setAddresses((previous) => [address, ...previous]); setDeliveryAddressId(address.id); setIsAddingAddress(false); }} />}
       {[loadError, designError, measurementError, error].filter(Boolean).map((message, index) => <p key={index} role="alert" className="text-sm text-thread">{message}</p>)}
+      {!professionalId && <p role="alert" className="text-sm text-thread">No professional selected. Choose a professional from the directory first.</p>}
       <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!professional || !selectedDesign || !measurementProfileId || !deliveryAddressId} className="self-start">Continue to checkout</Button>
     </div>
   );
