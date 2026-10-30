@@ -69,7 +69,7 @@ export function SignupForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
       <div className="mb-1">
         <h1 className="font-display text-2xl text-ink">Create your account</h1>
-        <p className="mt-1 text-sm text-ink-soft">Join Fashion Hub — it's free.</p>
+        <p className="mt-1 text-sm text-ink-soft">Join Tailora — it’s free.</p>
       </div>
 
       {referralCode && (

@@ -61,7 +61,7 @@ export function LoginForm() {
     <form onSubmit={handleSubmit} className="flex flex-col gap-5" noValidate>
       <div className="mb-1">
         <h1 className="font-display text-2xl text-ink">Welcome back</h1>
-        <p className="mt-1 text-sm text-ink-soft">Sign in to your Fashion Hub account.</p>
+        <p className="mt-1 text-sm text-ink-soft">Sign in to your Tailora account.</p>
       </div>
 
       <div className="flex flex-col gap-1.5">

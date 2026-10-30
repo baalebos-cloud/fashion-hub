@@ -37,7 +37,7 @@ export function AIInput({ onSend, isSending, autoFocus }: AIInputProps) {
           ref={textareaRef}
           rows={1}
           autoFocus={autoFocus}
-          placeholder="Ask Tailora anything about Fashion Hub…"
+          placeholder="Ask Tailora anything about the platform…"
           onKeyDown={handleKeyDown}
           className="max-h-24 flex-1 resize-none border-none bg-transparent py-1.5 text-sm text-ink outline-none placeholder:text-ink-soft/60"
         />
@@ -51,7 +51,7 @@ export function AIInput({ onSend, isSending, autoFocus }: AIInputProps) {
         </button>
       </div>
       <p className="mt-2 text-center text-[10.5px] text-ink-soft">
-        Tailora can point you to the right page — it can&apos;t see other people&apos;s orders.
+        Tailora can point you to the right page — it can’t see other people’s orders.
       </p>
     </form>
   );

@@ -1,6 +1,6 @@
 {
-  "name": "Fashion Hub",
-  "short_name": "Fashion Hub",
+  "name": "Tailora",
+  "short_name": "Tailora",
   "description": "Custom clothing, made by verified tailors and designers near you.",
   "start_url": "/",
   "display": "standalone",

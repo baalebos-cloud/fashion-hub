@@ -7,8 +7,8 @@
  * the tab closes, limiting the blast radius of an XSS-exfiltrated token
  * compared to a token that persists indefinitely across browser restarts.
  */
-const ACCESS_TOKEN_KEY = "fashionhub.access_token";
-const REFRESH_TOKEN_KEY = "fashionhub.refresh_token";
+const ACCESS_TOKEN_KEY = "tailora.access_token";
+const REFRESH_TOKEN_KEY = "tailora.refresh_token";
 
 export interface TokenPair {
   accessToken: string;

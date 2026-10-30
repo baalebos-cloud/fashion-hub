@@ -13,15 +13,15 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         className="hidden w-1/2 flex-col justify-between bg-ink p-12 lg:flex"
       >
         <Link to={publicRoutes.home} className="font-display text-2xl text-brass">
-          Fashion Hub
+          Tailora
         </Link>
         <div>
           <blockquote className="font-display text-3xl leading-snug text-paper">
             "The craft of tailoring is the art of listening to a body."
           </blockquote>
-          <p className="mt-4 text-sm text-paper/50">— Fashion Hub</p>
+          <p className="mt-4 text-sm text-paper/50">— Tailora</p>
         </div>
-        <p className="text-xs text-paper/30">© {new Date().getFullYear()} Fashion Hub</p>
+        <p className="text-xs text-paper/30">© {new Date().getFullYear()} Tailora</p>
       </div>
 
       {/* Right form panel */}
@@ -30,7 +30,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           to={publicRoutes.home}
           className="mb-8 block font-display text-2xl text-ink lg:hidden"
         >
-          Fashion Hub
+          Tailora
         </Link>
         <div className="w-full max-w-sm rounded-card border border-line bg-paper p-6 shadow-sm">
           {children}

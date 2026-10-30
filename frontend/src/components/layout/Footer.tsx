@@ -28,7 +28,7 @@ export function Footer() {
           {/* Brand column */}
           <div className="flex flex-col gap-3">
             <Link to={publicRoutes.home} className="font-display text-xl text-ink">
-              Fashion Hub
+              Tailora
             </Link>
             <p className="text-sm text-ink-soft leading-relaxed">
               Nigeria's marketplace for custom clothing — connecting customers, tailors,
@@ -68,7 +68,7 @@ export function Footer() {
 
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-line pt-6 sm:flex-row">
           <p className="text-xs text-ink-soft">
-            © {new Date().getFullYear()} Fashion Hub. All rights reserved.
+            © {new Date().getFullYear()} Tailora. All rights reserved.
           </p>
           <p className="text-xs text-ink-soft">Made with care in Nigeria 🇳🇬</p>
         </div>
