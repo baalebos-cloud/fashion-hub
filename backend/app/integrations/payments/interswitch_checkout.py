@@ -111,7 +111,7 @@ def requery_transaction(*, merchant_code: str, reference: str, expected_amount,
         logger.warning("interswitch_requery_mismatch environment=%s reference_matches=%s amount_matches=%s",
                        "live" if live else "sandbox", received_reference == reference,
                        isinstance(amount, int) and not isinstance(amount, bool) and amount == expected_minor)
-        raise ExternalProviderError("Interswitch verification details do not match the order.")
+        raise ExternalProviderError("Interswitch verification mismatch: transaction details do not match the order.")
     logger.info("interswitch_requery_result environment=%s approved=%s",
                 "live" if live else "sandbox", data.get("ResponseCode") == "00")
     # A callback, HTTP 200, or non-00 code never establishes a paid order.
