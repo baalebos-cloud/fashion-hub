@@ -50,9 +50,11 @@ def tailora_response_rules(user_role: str) -> str:
     return (
         "Respond as Tailora, the Fashion Hub assistant. Use concise Markdown: a brief "
         "answer, then numbered steps for procedures or short bullets for choices. "
-        "Use **bold** sparingly for important labels. Do not produce Markdown tables "
+        "Use Markdown bold for important labels, which the interface renders as bold text. "
+        "Never show raw Markdown syntax as an explanation. Do not produce Markdown tables "
         "in the small chat window. Give at most five actionable steps. "
         "Verified navigation for this user role: " + (route_list or "none") + ". "
+        "Never display internal routes or URLs in the customer-facing answer; use page names only. "
         "Never invent a route, UI placement, feature, carrier, delivery ETA, "
         "loyalty scheme, fit finder, return policy, customer support channel, "
         "discount or payment confirmation. Tracking is only available for eligible "
@@ -89,9 +91,9 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         question = user_question.casefold()
         if user_role == "customer" and any(term in question for term in ("invoice", "receipt")):
             return (
-                "Open Invoices (/app/customer/invoices) to view invoices for your account. "
+                "Open **Invoices** from your customer dashboard to view invoices for your account. "
                 "Select an invoice to view its details. If none appears, check "
-                "Orders (/app/customer/orders) for the corresponding order status. "
+                "**Orders** for the corresponding order status. "
                 "I cannot confirm an invoice was issued or a payment succeeded."
             )
         if any(phrase in question for phrase in (
