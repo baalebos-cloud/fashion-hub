@@ -77,7 +77,7 @@ export default function Home() {
             measurements, and track everything from fitting to doorstep.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Link to={publicRoutes.findTailor}>
+            <Link to={publicRoutes.onboarding}>
               <Button size="lg" className="bg-brass text-ink hover:bg-brass-deep">
                 Find a tailor
               </Button>
@@ -139,7 +139,7 @@ export default function Home() {
           Ready to wear something made for you?
         </h2>
         <p className="mt-3 text-sm text-ink/70">
-          Join thousands of customers and professionals already on Fashion Hub.
+          Discover skilled fashion professionals and create your next custom outfit with Tailora.
         </p>
         <div className="mt-6 flex flex-wrap justify-center gap-3">
           <Link to={authRoutes.signup}>
