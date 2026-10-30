@@ -18,12 +18,6 @@ export function ProfessionalFilters({ value, onChange }: { value: ProfessionalFi
         <option value="tailor">Tailors</option>
         <option value="designer">Designers</option>
       </Select>
-      <Select value={value.radiusKm} onChange={(e) => onChange({ ...value, radiusKm: Number(e.target.value) })} className="w-auto">
-        <option value={5}>Within 5 km</option>
-        <option value={10}>Within 10 km</option>
-        <option value={25}>Within 25 km</option>
-        <option value={50}>Within 50 km</option>
-      </Select>
     </div>
   );
 }
