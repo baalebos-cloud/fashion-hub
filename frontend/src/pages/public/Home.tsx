@@ -79,7 +79,7 @@ export default function Home() {
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Link to={publicRoutes.onboarding}>
               <Button size="lg" className="bg-brass text-ink hover:bg-brass-deep">
-                Find your perfect tailor
+                Find a tailor
               </Button>
             </Link>
             <Link to={authRoutes.signup}>
