@@ -43,7 +43,7 @@ ROLE_APP_MAP = {
 }
 
 
-def build_navigation_response(*, user_role: str, user_question: str, llm_client: LLMClient | None = None) -> str:
+def build_navigation_response(*, user_role: str, user_question: str, llm_client: LLMClient | None = None, offline_only: bool = False) -> str:
     llm_client = llm_client or LLMClient()
     app_map = ROLE_APP_MAP.get(user_role, {})
     app_map_text = "\n".join(f"- {name}: {route}" for name, route in app_map.items())
@@ -57,6 +57,8 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         ChatMessage(role="user", content=user_question),
     ]
     try:
+        if offline_only:
+            raise ExternalProviderError("Offline-only navigation requested.")
         result = llm_client.complete(messages)
         return result.content
     except ExternalProviderError:
@@ -105,36 +107,36 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
                     "details, then add it to your cart if that option is available. "
                     "Open Cart (/app/professional/cart) to review your selections "
                     "before proceeding with any supported checkout steps. "
-                    "Availability and purchases are not confirmed by Seam."
+                    "Availability and purchases are not confirmed by Tailora."
                 )
             if "portfolio" in question:
                 return (
                     "Open Portfolio (/app/professional/portfolio) to manage "
                     "the work samples and details available in your account. "
-                    "Seam cannot publish or edit portfolio entries for you."
+                    "Tailora cannot publish or edit portfolio entries for you."
                 )
         if user_role in {"tailor", "designer"} and "accept" in question and "order" in question:
             return (
-                "Seam's AI connection is temporarily unavailable. "
+                "Tailora's AI connection is temporarily unavailable. "
                 "Open Incoming Orders (/app/professional/orders), select your pending "
                 "customer order, then choose Accept if available. "
                 "Only eligible orders assigned to you can be accepted."
             )
         if user_role == "vendor" and "order" in question:
             return (
-                "Seam's AI connection is temporarily unavailable. "
+                "Tailora's AI connection is temporarily unavailable. "
                 "Open Orders (/app/vendor/orders), select an order, "
                 "and review its available fulfillment actions."
             )
         if user_role == "customer" and "order" in question:
             return (
-                "Seam's AI connection is temporarily unavailable. "
+                "Tailora's AI connection is temporarily unavailable. "
                 "Open Orders (/app/customer/orders) to review or track your orders."
             )
         pages = list(app_map.items())[:3]
         directory = "; ".join(f"{name}: {route}" for name, route in pages)
         return (
-            "Seam's AI connection is temporarily unavailable. "
+            "Tailora's AI connection is temporarily unavailable. "
             + (f"You can still use these pages: {directory}." if directory
                else "Please use the navigation menu or contact support.")
         )

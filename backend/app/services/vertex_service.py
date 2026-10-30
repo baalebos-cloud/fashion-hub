@@ -161,7 +161,7 @@ class VertexAIService:
             history.append({"role": "model" if role == "assistant" else "user", "parts": [{"text": content}]})
         role = user_role if user_role in {"customer", "tailor", "designer", "vendor", "delivery_partner", "admin"} else "guest"
         system = (
-            "You are Seam, the intelligent fashion concierge for Fashion Hub. "
+            "You are Tailora, the intelligent fashion concierge for Fashion Hub. "
             f"The current authenticated user role is {role}. "
             "Guide customers on outfits, fit and measurements, tailors on incoming orders and material sourcing, "
             "vendors on their catalogs, and couriers on delivery tasks. "
