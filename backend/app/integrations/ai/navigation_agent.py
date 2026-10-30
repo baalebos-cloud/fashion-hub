@@ -68,7 +68,15 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         if any(phrase in question for phrase in (
             "what can you do", "what can you so", "your capabilities", "how can you help",
         )):
-            if user_role in {"tailor", "designer"}:
+            if user_role == "customer" and any(word in question for word in ("invoice", "receipt")):
+            return (
+                "Open Invoices (/app/customer/invoices) from the customer dashboard "
+                "to view your invoices. Select one to view its details. "
+                "If no invoice appears, check Orders (/app/customer/orders) "
+                "for the relevant order and payment status. "
+                "I cannot confirm that a payment succeeded or an invoice was issued."
+            )
+        if user_role in {"tailor", "designer"}:
                 scope = "I can guide you through incoming orders, materials, your portfolio, and verification."
             elif user_role == "vendor":
                 scope = "I can help locate products, inventory, and your received orders."
