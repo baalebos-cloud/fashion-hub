@@ -65,6 +65,13 @@ def build_navigation_response(*, user_role: str, user_question: str, llm_client:
         # Answer only from this role's fixed navigation map during outages;
         # never guess order status, promise actions, or leak provider details.
         question = user_question.casefold()
+        if user_role == "customer" and any(term in question for term in ("invoice", "receipt")):
+            return (
+                "Open Invoices (/app/customer/invoices) to view invoices for your account. "
+                "Select an invoice to view its details. If none appears, check "
+                "Orders (/app/customer/orders) for the corresponding order status. "
+                "I cannot confirm an invoice was issued or a payment succeeded."
+            )
         if any(phrase in question for phrase in (
             "what can you do", "what can you so", "your capabilities", "how can you help",
         )):
