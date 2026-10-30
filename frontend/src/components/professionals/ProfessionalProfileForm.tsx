@@ -28,7 +28,7 @@ export function ProfessionalProfileForm() {
     event.preventDefault(); setSaving(true); setError(""); setStatus("");
     try {
       const profile = await professionalsApi.saveProfile({ business_name: name, bio, years_experience: years, accepts_new_orders: accepting });
-      setStatus(profile.is_verified ? "Business profile saved." : "Business profile saved. Administrator verification is required before customers can order.");
+      setStatus(profile.is_verified ? "Business profile saved." : "Business profile saved. Your order availability follows the marketplace verification policy.");
     } catch { setError("Could not save your business profile. Please try again."); }
     finally { setSaving(false); }
   }

@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 
 from app.core.exceptions import ConflictError, ForbiddenError, NotFoundError, ValidationAppError
+from app.core.config import settings
 from app.core.timezone import utcnow
 from app.models.address import Address
 from app.models.customer import Customer
@@ -67,8 +68,12 @@ class CatalogOrderService:
         professional = self.db.query(Professional).filter(Professional.user_id == request.professional_user_id).with_for_update(read=True).first()
         if not seller or not seller.is_active or seller.role not in {'tailor', 'designer'} or not professional:
             raise NotFoundError('Professional not found.')
-        if not professional.is_verified or not professional.accepts_new_orders:
+        if not professional.accepts_new_orders:
             raise ConflictError('This professional is not currently accepting orders.')
+        # Demo visibility is not verification: the rollout flag only permits
+        # pending professionals to accept catalog orders while explicitly enabled.
+        if not professional.is_verified and not settings.HACKATHON_SHOW_PENDING_PROFESSIONALS:
+            raise ConflictError('This professional is awaiting verification and cannot accept orders yet.')
         address = self.db.query(Address).filter(Address.id == request.delivery_address_id, Address.user_id == customer.id).with_for_update(read=True).first()
         if not address:
             raise NotFoundError('Delivery address not found.')
