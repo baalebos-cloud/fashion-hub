@@ -101,6 +101,8 @@ class Settings(BaseSettings):
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
     VERTEX_AI_ENABLED: bool = False
+    # Temporary hackathon discoverability; does not grant KYC/KYB approval.
+    HACKATHON_SHOW_PENDING_PROFESSIONALS: bool = False
     GCP_PROJECT_ID: Optional[str] = None
     GCP_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)
     GEMINI_API_KEY: Optional[str] = Field(None, repr=False)
