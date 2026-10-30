@@ -60,6 +60,15 @@ class VertexAIService:
                         return self.client
                     except Exception as key_exc:
                         logger.error("seam_api_key_init_failed type=%s", type(key_exc).__name__)
+                # An unusable optional service-account JSON must not disable an
+                # independently configured Vertex Express Mode API key.
+                if settings.VERTEX_AI_API_KEY:
+                    try:
+                        self.client = genai.Client(vertexai=True, api_key=settings.VERTEX_AI_API_KEY)
+                        logger.info("tailora_vertex_recovered auth=express_api_key")
+                        return self.client
+                    except Exception as key_exc:
+                        logger.error("tailora_vertex_express_key_failed type=%s", type(key_exc).__name__)
                 raise VertexUnavailable("Google Cloud service account configuration is invalid.") from exc
         else:
             if settings.VERTEX_AI_API_KEY:
