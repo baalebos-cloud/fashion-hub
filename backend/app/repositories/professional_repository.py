@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.professional import Professional
 from app.models.user import User
 from app.models.location import Location
+from app.core.config import settings
 
 
 class ProfessionalRepository:
@@ -14,7 +15,9 @@ class ProfessionalRepository:
 
     def verified_query(self, *, professional_type=None, query=None, latitude=None, longitude=None, radius_km=10):
         result = self.db.query(Professional).join(User, User.id == Professional.user_id).filter(
-            Professional.is_verified.is_(True), User.is_active.is_(True))
+            User.is_active.is_(True))
+        if not settings.HACKATHON_SHOW_PENDING_PROFESSIONALS:
+            result = result.filter(Professional.is_verified.is_(True))
         if professional_type:
             result = result.filter(Professional.professional_type == professional_type)
         if query:
