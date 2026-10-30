@@ -13,7 +13,7 @@ export function ProfessionalCard({ professional, detailsPath }: { professional: 
           <div className="min-w-0">
             <div className="flex items-center gap-1.5">
               <div className="truncate font-medium text-ink">{professional.business_name ?? "Unnamed studio"}</div>
-              {professional.is_verified && <VerificationBadge />}
+              {professional.is_verified ? <VerificationBadge /> : <span className="shrink-0 text-[10px] text-ink-soft">Verification pending</span>}
             </div>
             <div className="text-xs text-ink-soft capitalize">{professional.professional_type}</div>
           </div>

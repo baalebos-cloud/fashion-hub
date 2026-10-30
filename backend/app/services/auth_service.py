@@ -55,6 +55,15 @@ class AuthService:
         )
         self.users.add(user)
         self.db.flush()
+        if role in {"tailor", "designer"}:
+            from app.models.professional import Professional
+            self.db.add(Professional(
+                user_id=user.id,
+                professional_type=role,
+                business_name=full_name.strip(),
+                is_verified=False,
+                accepts_new_orders=True,
+            ))
         from app.services.auth_email_outbox_service import AuthEmailOutboxService
         token = create_email_verification_token(str(user.id))
         AuthEmailOutboxService(self.db).enqueue(user=user, kind="verification", token=token)

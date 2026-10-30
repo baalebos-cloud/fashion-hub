@@ -1,3 +1,6 @@
+import { useEffect, useState } from "react";
+import { apiClient } from "@/lib/api/client";
+import type { PortfolioImage } from "@/components/profile/PortfolioGrid";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { ProfessionalPortfolio } from "./ProfessionalPortfolio";
 import { ProfessionalServices } from "./ProfessionalServices";
@@ -14,6 +17,21 @@ export interface ProfessionalProfileProps {
 }
 
 export function ProfessionalProfile({ professional, user, onOrder }: ProfessionalProfileProps) {
+  const [portfolio, setPortfolio] = useState<PortfolioImage[]>([]);
+  const [portfolioLoading, setPortfolioLoading] = useState(true);
+  const [portfolioError, setPortfolioError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setPortfolioLoading(true);
+    setPortfolioError(false);
+    apiClient.get<PortfolioImage[]>(`/professionals/${professional.id}/portfolio`)
+      .then(({ data }) => { if (active) setPortfolio(data); })
+      .catch(() => { if (active) setPortfolioError(true); })
+      .finally(() => { if (active) setPortfolioLoading(false); });
+    return () => { active = false; };
+  }, [professional.id]);
+
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-8">
       <div className="flex items-start justify-between">
@@ -27,8 +45,11 @@ export function ProfessionalProfile({ professional, user, onOrder }: Professiona
 
       {professional.bio && <p className="text-sm text-ink-soft">{professional.bio}</p>}
 
+      {!professional.is_verified && <p className="rounded-lg border border-line bg-muslin/40 px-4 py-3 text-sm text-ink-soft">Verification pending. This professional has registered but has not completed business verification.</p>}
       <ProfessionalServices professionalId={professional.id} />
-      <ProfessionalPortfolio images={[]} />
+      {portfolioLoading ? <p role="status">Loading portfolio…</p>
+        : portfolioError ? <p role="alert">Portfolio could not be loaded.</p>
+        : <ProfessionalPortfolio images={portfolio} />}
       <ProfessionalLocation location={null} />
       <ProfessionalReviews professionalId={professional.id} averageRating={professional.average_rating} reviewCount={professional.review_count} />
     </div>

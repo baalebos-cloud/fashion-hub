@@ -67,7 +67,22 @@ def list_my_portfolio(user: User = Depends(require_roles(Role.TAILOR, Role.DESIG
         raise NotFoundError("Professional profile not found.")
     rows = (db.query(DesignImage).filter_by(professional_id=professional.id, design_id=None)
             .order_by(DesignImage.created_at.desc()).limit(100).all())
-    return [{"id": str(item.id), "image_url": item.image_url} for item in rows]
+    photos = []
+    for item in rows:
+        parsed = urlsplit(item.image_url)
+        if not parsed.path.startswith(f"{settings.API_PREFIX}/media/files/"):
+            continue
+        try:
+            media_id = UUID(parsed.path.rsplit("/", 1)[-1])
+        except ValueError:
+            continue
+        media = db.get(StoredMedia, media_id)
+        if (media is None or media.owner_user_id != user.id or not media.is_public
+                or not media.storage_key.startswith("portfolio/")):
+            continue
+        photos.append({"id": str(item.id),
+                       "image_url": f"{settings.APP_URL.rstrip('/')}{settings.API_PREFIX}/media/files/{media_id}"})
+    return photos
 
 
 @router.post("/me/portfolio", status_code=201)
@@ -124,15 +139,47 @@ def verify_profile(professional_id: UUID, user: User = Depends(require_roles(Rol
     return profile
 
 
+@router.get("/{professional_id}/portfolio")
+def public_portfolio(professional_id: UUID, db: Session = Depends(get_db)):
+    """Only published portfolio photos owned by a visible, active professional."""
+    profile = (db.query(Professional).join(User, User.id == Professional.user_id)
+               .filter(Professional.id == professional_id, User.is_active.is_(True)).first())
+    if profile is None or (not profile.is_verified and not settings.HACKATHON_SHOW_PENDING_PROFESSIONALS):
+        raise NotFoundError("Professional not found.")
+
+    photos = (db.query(DesignImage)
+              .filter(DesignImage.professional_id == professional_id,
+                      DesignImage.design_id.is_(None))
+              .order_by(DesignImage.created_at.desc()).limit(100).all())
+    published = []
+    for photo in photos:
+        parsed = urlsplit(photo.image_url)
+        if not parsed.path.startswith(f"{settings.API_PREFIX}/media/files/"):
+            continue
+        try:
+            media_id = UUID(parsed.path.rsplit("/", 1)[-1])
+        except ValueError:
+            continue
+        media = db.get(StoredMedia, media_id)
+        if (media is None or not media.is_public
+                or media.owner_user_id != profile.user_id
+                or not media.storage_key.startswith("portfolio/")):
+            continue
+        # Rebuild URLs using the current backend origin, not old staging domains.
+        published.append({"id": str(photo.id),
+                          "image_url": f"{settings.APP_URL.rstrip('/')}{settings.API_PREFIX}/media/files/{media_id}"})
+    return published
+
+
 @router.get("/{professional_id}", response_model=ProfessionalResponse)
 def get_professional(professional_id: UUID, db: Session = Depends(get_db)):
-    # Individual profiles follow exactly the same eligibility rules as the
-    # public search/listing endpoint. A guessed UUID must not bypass KYB review.
+    # Profile access matches discoverability rules, without changing verification state.
     from app.models.user import User
-    profile = (db.query(Professional).join(User, User.id == Professional.user_id)
-               .filter(Professional.id == professional_id,
-                       Professional.is_verified.is_(True),
-                       User.is_active.is_(True)).first())
+    query = (db.query(Professional).join(User, User.id == Professional.user_id)
+             .filter(Professional.id == professional_id, User.is_active.is_(True)))
+    if not settings.HACKATHON_SHOW_PENDING_PROFESSIONALS:
+        query = query.filter(Professional.is_verified.is_(True))
+    profile = query.first()
     if profile is None:
         raise NotFoundError("Professional not found.")
     return profile

@@ -37,7 +37,10 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ALLOWED_ORIGINS,
+    allow_origins=settings.CORS_ALLOWED_ORIGINS + [
+        origin.strip() for origin in settings.HACKATHON_UI_ORIGINS.split(",")
+        if origin.strip().startswith("https://")
+    ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
