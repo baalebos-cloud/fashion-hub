@@ -186,6 +186,13 @@ export const endpoints = {
     products: "/search/vendor-products",
   },
 
+  admin: {
+    users: "/admin/users",
+    operations: "/admin/operations",
+    reviewKyc: (id: string) => `/admin/kyc/${id}/review`,
+    reviewKyb: (id: string) => `/admin/kyb/${id}/review`,
+  },
+
   adminCommerce: { summary: "/admin/commerce-summary" },
 
   dashboard: {

@@ -24,6 +24,40 @@ from app.models.user import User
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
 
+@router.get("/users")
+def list_users(
+    role: str | None = None,
+    page: int = 1,
+    page_size: int = 50,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Paginated user list. Excludes passwords, NIN, and home location."""
+    from sqlalchemy import func
+    q = db.query(User).filter(User.is_active.is_(True))
+    if role:
+        q = q.filter(User.role == role)
+    total = q.with_entities(func.count(User.id)).scalar()
+    users = q.order_by(User.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    return {
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "items": [
+            {
+                "id": str(u.id),
+                "email": u.email,
+                "full_name": u.full_name,
+                "role": u.role,
+                "is_email_verified": u.is_email_verified,
+                "is_active": u.is_active,
+                "created_at": u.created_at.isoformat() if u.created_at else None,
+            }
+            for u in users
+        ],
+    }
+
+
 @router.get("/health-check")
 def module_placeholder(current_user: User = Depends(require_roles(Role.ADMIN))):
     """Placeholder route confirming this module is wired into the app.
