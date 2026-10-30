@@ -75,7 +75,7 @@ class AIService:
                 logger.warning("tailora_groq_unavailable_using_offline_guidance")
         if answer is None:
             answer = ("Tailora is in offline assistance mode. "
-                      + build_navigation_response(user_role=user.role, user_question=content))
+                      + build_navigation_response(user_role=user.role, user_question=content, offline_only=True))
 
         assistant_message = AIMessage(conversation_id=conversation.id, role="assistant", content=answer)
         self.db.add(assistant_message)
