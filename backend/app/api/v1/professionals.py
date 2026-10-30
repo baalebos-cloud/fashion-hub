@@ -67,7 +67,22 @@ def list_my_portfolio(user: User = Depends(require_roles(Role.TAILOR, Role.DESIG
         raise NotFoundError("Professional profile not found.")
     rows = (db.query(DesignImage).filter_by(professional_id=professional.id, design_id=None)
             .order_by(DesignImage.created_at.desc()).limit(100).all())
-    return [{"id": str(item.id), "image_url": item.image_url} for item in rows]
+    photos = []
+    for item in rows:
+        parsed = urlsplit(item.image_url)
+        if not parsed.path.startswith(f"{settings.API_PREFIX}/media/files/"):
+            continue
+        try:
+            media_id = UUID(parsed.path.rsplit("/", 1)[-1])
+        except ValueError:
+            continue
+        media = db.get(StoredMedia, media_id)
+        if (media is None or media.owner_user_id != user.id or not media.is_public
+                or not media.storage_key.startswith("portfolio/")):
+            continue
+        photos.append({"id": str(item.id),
+                       "image_url": f"{settings.APP_URL.rstrip('/')}{settings.API_PREFIX}/media/files/{media_id}"})
+    return photos
 
 
 @router.post("/me/portfolio", status_code=201)
