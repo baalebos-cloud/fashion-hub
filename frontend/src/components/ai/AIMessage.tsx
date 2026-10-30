@@ -2,6 +2,15 @@ import { cn } from "@/lib/utils/cn";
 import type { AIChatTurn } from "@/types/ai";
 import type { ReactNode } from "react";
 
+// Hide internal route strings in assistant prose, including parenthesized routes.
+// Navigation labels remain visible; customer messages are not modified.
+function cleanAssistantText(content: string): string {
+  return content
+    .replace(/\\?[（(][\\s\\u00a0\\u202f]*\\?\\/app\\/[^\\s)）.,;]+[\\s\\u00a0\\u202f]*[)）]/g, "")
+    .replace(/\\/app\\/[A-Za-z0-9_:/.-]+/g, "")
+    .replace(/[ \\t]{2,}/g, " ");
+}
+
 // Render a deliberately small Markdown subset as React text nodes, never HTML.
 function formatInline(value: string): ReactNode[] {
   return value.split(/(\*\*[^*]+\*\*)/g).map((part, index) =>
@@ -65,7 +74,7 @@ export function AIMessage({ turn }: { turn: AIChatTurn }) {
             : "rounded-bl-md border border-line bg-paper text-ink"
         )}
       >
-        {isUser ? turn.content : <AssistantBody content={turn.content} />}
+        {isUser ? turn.content : <AssistantBody content={cleanAssistantText(turn.content)} />}
       </div>
     </div>
   );
