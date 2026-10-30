@@ -1,6 +1,6 @@
-# Fashion Hub — Frontend
+# Tailora — Frontend
 
-React 19 + TypeScript + Vite frontend for the Fashion Hub marketplace,
+React 19 + TypeScript + Vite frontend for the Tailora marketplace,
 implementing dashboards for five roles (Customer, Tailor/Designer, Vendor,
 Delivery Partner, Admin) plus a public marketing site, all sharing one
 globally-available AI assistant, **Tailora**.
