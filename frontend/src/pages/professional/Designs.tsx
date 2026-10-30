@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { professionalsApi } from "@/api/professionals.api";
 import { useAuth } from "@/hooks/use-auth";
 import { useDesigns } from "@/hooks/use-designs";
 import { DesignGallery } from "@/components/designs/DesignGallery";
@@ -8,7 +9,22 @@ import type { Design } from "@/types/design";
 
 export default function Designs() {
   const { user } = useAuth();
-  const { designs: fetchedDesigns, isLoading } = useDesigns(user?.id);
+  const [professionalId, setProfessionalId] = useState<string | undefined>();
+  const [profileError, setProfileError] = useState(false);
+  useEffect(() => {
+    if (!user?.id) return;
+    let active = true;
+    professionalsApi.mine()
+      .then((profile) => {
+        if (active) {
+          setProfessionalId(profile?.id);
+          setProfileError(!profile);
+        }
+      })
+      .catch(() => { if (active) setProfileError(true); });
+    return () => { active = false; };
+  }, [user?.id]);
+  const { designs: fetchedDesigns, isLoading } = useDesigns(professionalId);
   const [localDesigns, setLocalDesigns] = useState<Design[]>([]);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -28,7 +44,8 @@ export default function Designs() {
           }}
         />
       )}
-      <DesignGallery designs={designs} isLoading={isLoading} />
+      {profileError && <p role="alert" className="text-sm text-thread">Your professional profile could not be loaded. Check your profile details.</p>}
+      <DesignGallery designs={designs} isLoading={isLoading || (!professionalId && !profileError)} />
     </div>
   );
 }
