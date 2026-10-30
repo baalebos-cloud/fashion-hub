@@ -6,9 +6,9 @@ import type { ReactNode } from "react";
 // Navigation labels remain visible; customer messages are not modified.
 function cleanAssistantText(content: string): string {
   return content
-    .replace(/\\?[（(][\\s\\u00a0\\u202f]*\\?\\/app\\/[^\\s)）.,;]+[\\s\\u00a0\\u202f]*[)）]/g, "")
-    .replace(/\\/app\\/[A-Za-z0-9_:/.-]+/g, "")
-    .replace(/[ \\t]{2,}/g, " ");
+    .replace(/\s*[（(][\s\u00a0\u202f]*\/app\/[^)）\r\n]*[)）]/g, "")
+    .replace(/\/app\/[A-Za-z0-9_:/.-]+/g, "")
+    .replace(/[ \t]{2,}/g, " ");
 }
 
 // Render a deliberately small Markdown subset as React text nodes, never HTML.
