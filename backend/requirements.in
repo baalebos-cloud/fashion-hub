@@ -23,7 +23,7 @@ python-multipart==0.0.32
 
 # Validation / settings
 pydantic==2.14.1
-pydantic-settings==2.16.1
+pydantic-settings==2.16.2
 email-validator==2.3.0
 
 # Rate limiting
@@ -38,15 +38,15 @@ google-genai==1.56.0
 google-cloud-aiplatform==1.133.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
-boto3==1.43.118
+boto3==1.43.121
 
 # Testing
-pytest==9.1.1
-pytest-asyncio==1.4.0
+pytest==9.2.0
+pytest-asyncio==1.4.1
 pytest-cov==7.1.0
 httpx==0.28.1
-faker==40.43.0
+faker==40.44.0
 
 # Dev tooling
-ruff==0.17.2
-mypy==2.4.0
+ruff==0.17.3
+mypy==2.4.1
