@@ -3,7 +3,7 @@ import { z } from "zod";
 import { useKYC } from "@/hooks/use-kyc";
 import { DocumentUpload } from "./DocumentUpload";
 import { VerificationStatus } from "./VerificationStatus";
-import { MapLocationPicker } from "@/components/checkout/MapLocationPicker";
+import { AddressMapPicker } from "@/components/common/AddressMapPicker";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -32,12 +32,10 @@ export function KYCForm() {
     state: z.string().trim().min(2),
     landmark: z.string(),
   });
-  const validManual = useManualAddress && manualSchema.safeParse(manualAddress).success;
+  const validManual = manualSchema.safeParse(manualAddress).success;
   const validNin = /^\d{11}$/.test(ninNumber);
-  const canSubmit = Boolean(documentUrl) && validNin && (validManual || (!useManualAddress && homeLocation !== null));
-  const address = validManual
-    ? [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ")
-    : homeLocation?.formatted_address;
+  const canSubmit = Boolean(documentUrl) && validNin && validManual && (useManualAddress || homeLocation !== null);
+  const address = [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,14 +122,15 @@ export function KYCForm() {
           </div>
         </fieldset>
         {!useManualAddress && (
-          <MapLocationPicker
-            onSelect={(location) => setHomeLocation({
-              latitude: location.latitude, longitude: location.longitude,
-              formatted_address: location.formatted_address ?? undefined,
-            })}
-          />
+          <AddressMapPicker label="Home address" onAddressSelect={(location) => {
+            setHomeLocation({ latitude: location.latitude, longitude: location.longitude, formatted_address: location.formatted_address ?? undefined });
+            setManualAddress((old) => ({ ...old,
+              street: location.formatted_address && !location.formatted_address.startsWith("Pinned location (") ? location.formatted_address : "",
+              city: location.city ?? "", state: location.state_region ?? "",
+            }));
+          }} />
         )}
-        {useManualAddress && (
+        {(
           <div className="mt-3 flex flex-col gap-2">
             {(["street", "city", "state", "landmark"] as const).map((field) => (
               <label key={field} className="text-sm">
@@ -142,12 +141,12 @@ export function KYCForm() {
             <p className="text-xs text-ink-soft">Your address will be saved for review. GPS coordinates remain unverified until geocoding succeeds.</p>
           </div>
         )}
-        {!useManualAddress && homeLocation?.formatted_address && <p className="mt-1 text-xs text-ink-soft">{homeLocation.formatted_address}</p>}
+
       </div>
 
       {error && <p className="text-sm text-thread">{error}</p>}
 
-      {!canSubmit && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the manual fields or map.</p>}
+      {!canSubmit && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
       <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting}>
         Submit for verification
       </Button>
