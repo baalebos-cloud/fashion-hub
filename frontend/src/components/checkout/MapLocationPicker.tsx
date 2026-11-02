@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import type { GeoLocation } from "@/types/location";
 
 export interface MapLocationPickerProps {
+  onChange?: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
+  onResolvingChange?: (resolving: boolean) => void;
   onSelect: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
 }
 
@@ -17,13 +19,13 @@ type MapsApi = {
     panTo: (point: Point) => void;
     setZoom: (zoom: number) => void;
   };
-  Marker: new (options: Record<string, unknown>) => { setPosition: (point: Point) => void; setMap: (map: null) => void };
+  Marker: new (options: Record<string, unknown>) => { setPosition: (point: Point) => void; setMap: (map: null) => void; addListener?: (event: string, callback: () => void) => void; getPosition?: () => { lat: () => number; lng: () => number } | null };
 };
 type GoogleHost = Window & { google?: { maps?: MapsApi } };
 type MapInstance = InstanceType<MapsApi["Map"]>;
 type MarkerInstance = InstanceType<MapsApi["Marker"]>;
 
-export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
+export function MapLocationPicker({ onSelect, onChange, onResolvingChange }: MapLocationPickerProps) {
   const { isReady, error: mapError } = useMap();
   const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -37,6 +39,10 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
   const [isResolving, setResolving] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const resolvingRef = useRef(onResolvingChange);
+  resolvingRef.current = onResolvingChange;
 
   async function selectPoint(latitude: number, longitude: number) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
@@ -50,18 +56,21 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
     setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
     setSelectionError(null);
     setResolving(true);
+    resolvingRef.current?.(true);
+    onChangeRef.current?.({ latitude, longitude, formatted_address: null, city: null, state_region: null, country: null });
     try {
       const address = await reverseGeocode(latitude, longitude);
       if (requestVersion.current !== version) return;
       if (address.formatted_address?.trim()) {
         setResolvedAddress(address.formatted_address);
         setAddressDetails({ city: address.city, state_region: address.state_region, country: address.country });
+        onChangeRef.current?.({ latitude, longitude, formatted_address: address.formatted_address, city: address.city, state_region: address.state_region, country: address.country });
       }
     } catch {
       if (requestVersion.current === version)
         setSelectionError("Address could not be verified by the available map providers. Enter the correct street address manually or save the pin.");
     } finally {
-      if (requestVersion.current === version) setResolving(false);
+      if (requestVersion.current === version) { setResolving(false); resolvingRef.current?.(false); }
     }
   }
 
@@ -95,7 +104,13 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
       const position = event.latLng;
       if (!position) return;
       const point = { lat: position.lat(), lng: position.lng() };
-      if (!markerRef.current) markerRef.current = new maps.Marker({ map, position: point });
+      if (!markerRef.current) {
+        markerRef.current = new maps.Marker({ map, position: point, draggable: true });
+        markerRef.current.addListener?.("dragend", () => {
+          const dropped = markerRef.current?.getPosition?.();
+          if (dropped) void selectPoint(dropped.lat(), dropped.lng());
+        });
+      }
       else markerRef.current.setPosition(point);
       void selectPoint(point.lat, point.lng);
     });
@@ -116,7 +131,7 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
     mapRef.current?.setZoom(16);
     const maps = (window as GoogleHost).google?.maps;
     if (maps && mapRef.current) {
-      if (!markerRef.current) markerRef.current = new maps.Marker({ map: mapRef.current, position: point });
+      if (!markerRef.current) markerRef.current = new maps.Marker({ map: mapRef.current, position: point, draggable: true });
       else markerRef.current.setPosition(point);
     }
     await selectPoint(coords.latitude, coords.longitude);

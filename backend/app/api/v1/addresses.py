@@ -17,6 +17,7 @@ def serialize(address, location):
         recipient_phone=address.recipient_phone, formatted_address=location.formatted_address,
         city=location.city, state_region=location.state_region, country=location.country,
         postal_code=location.postal_code,
+        latitude=float(location.latitude), longitude=float(location.longitude),
     )
 
 
@@ -29,6 +30,7 @@ def list_addresses(user: User = Depends(get_current_user), db: Session = Depends
     return [serialize(a, loc) for a, loc in rows if all([
         a.recipient_name, a.recipient_phone, loc.formatted_address, loc.city,
         loc.state_region, loc.country and len(loc.country) == 2,
+        loc.latitude is not None, loc.longitude is not None,
     ])]
 
 

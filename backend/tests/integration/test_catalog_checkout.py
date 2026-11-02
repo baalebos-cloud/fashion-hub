@@ -150,7 +150,7 @@ def test_http_catalog_order_payment_and_invoice_with_ownership(db, context, make
             designs = client.get('/api/v1/designs', params={'professional_id': str(design.professional_id)})
             assert designs.status_code == 200 and designs.json()[0]['currency'] == 'NGN'
             address = client.post('/api/v1/addresses', json=dict(label='Office', recipient_name='Customer', recipient_phone='+2348012345678',
-                                  formatted_address='25 Test Avenue', city='Lagos', state_region='Lagos', country='NG'))
+                                  formatted_address='25 Test Avenue', city='Lagos', state_region='Lagos', country='NG', latitude=6.5244, longitude=3.3792))
             assert address.status_code == 201, address.text
             measurements = client.post('/api/v1/measurements', json=dict(label='New profile', fields=[dict(field_name='chest', value=93.25, unit='cm')]))
             assert measurements.status_code == 201, measurements.text
