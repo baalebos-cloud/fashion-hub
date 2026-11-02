@@ -51,10 +51,20 @@ class KYCService:
         from app.core.identity_encryption import encrypt_identity
         encrypted_nin = encrypt_identity(nin_number)
         nin_provider = get_nin_provider()
-        nin_result = nin_provider.verify(nin_number)  # raises on invalid/not-found NIN
+        if len(nin_number) != 11 or not nin_number.isascii() or not nin_number.isdecimal():
+            raise ValidationAppError("Enter a valid 11-digit NIN.")
+        if not document_storage_keys:
+            raise ValidationAppError("Upload a supporting identity document.")
+        try:
+            nin_result = nin_provider.verify(nin_number)
+        except ExternalProviderError:
+            # A provider outage never verifies identity. Hold documents for manual review.
+            nin_result = None
 
-        similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
-        identity_match = similarity >= NAME_MATCH_THRESHOLD
+        identity_match = None
+        if nin_result is not None:
+            similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
+            identity_match = similarity >= NAME_MATCH_THRESHOLD
 
         from app.core.exceptions import ValidationAppError
         if (home_latitude is None) != (home_longitude is None):
@@ -89,11 +99,11 @@ class KYCService:
             user_id=user_id,
             id_type="nin",
             id_number_encrypted=encrypted_nin,
-            nin_verified_full_name=nin_result.full_name,
-            nin_verified_date_of_birth=nin_result.date_of_birth,
-            nin_verified_gender=nin_result.gender,
+            nin_verified_full_name=nin_result.full_name if nin_result is not None else None,
+            nin_verified_date_of_birth=nin_result.date_of_birth if nin_result is not None else None,
+            nin_verified_gender=nin_result.gender if nin_result is not None else None,
             identity_match=identity_match,
-            status=document_result.status,
+            status="under_review" if nin_result is None else document_result.status,
         )
         self.db.add(verification)
         self.db.flush()
