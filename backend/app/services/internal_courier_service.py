@@ -54,10 +54,35 @@ class InternalCourierService:
         if not address or address.user_id != order.buyer_user_id:
             raise ConflictError("The customer's delivery address is unavailable.")
 
+        pickup_source = self.db.get(Location, profile.location_id)
+        dropoff_source = self.db.get(Location, address.location_id)
+        if pickup_source is None or dropoff_source is None:
+            raise ConflictError("Pickup and drop-off location details are required.")
+        # An accepted delivery must not silently change destination when a
+        # customer edits a saved address or the tailor moves their workshop.
+        def snapshot_location(source, location_type, fields=None):
+            fields = fields or {}
+            return Location(
+                location_type=location_type,
+                latitude=fields.get("latitude", source.latitude),
+                longitude=fields.get("longitude", source.longitude),
+                formatted_address=fields.get("formatted_address", source.formatted_address),
+                city=fields.get("city", source.city),
+                state_region=fields.get("state_region", source.state_region),
+                country=fields.get("country", source.country),
+                postal_code=fields.get("postal_code", source.postal_code),
+            )
+        pickup_snapshot = snapshot_location(pickup_source, "delivery_pickup")
+        dropoff_snapshot = snapshot_location(
+            dropoff_source, "delivery_dropoff", order.delivery_address_snapshot,
+        )
+        self.db.add(pickup_snapshot)
+        self.db.add(dropoff_snapshot)
+        self.db.flush()
         request = DeliveryRequest(
             order_id=order.id,
-            pickup_location_id=profile.location_id,
-            dropoff_location_id=address.location_id,
+            pickup_location_id=pickup_snapshot.id,
+            dropoff_location_id=dropoff_snapshot.id,
             package_description="Customer fashion order " + order.order_number,
             proposed_fee=order.delivery_fee,
             status="requested",
