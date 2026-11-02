@@ -125,6 +125,7 @@ class CatalogOrderService:
                 'recipient_name': address.recipient_name, 'recipient_phone': address.recipient_phone,
                 'formatted_address': location.formatted_address, 'city': location.city,
                 'state_region': location.state_region, 'country': location.country, 'postal_code': location.postal_code,
+                'latitude': float(location.latitude), 'longitude': float(location.longitude),
             },
             measurement_snapshot={'label': profile.label, 'garment_type': profile.garment_type,
                                   'fields': [{'field_name': f.field_name, 'value': str(f.value), 'unit': f.unit} for f in fields]},
