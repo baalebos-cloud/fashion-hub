@@ -18,7 +18,7 @@ type MapsApi = {
     panTo: (point: Point) => void;
     setZoom: (zoom: number) => void;
   };
-  Marker: new (options: Record<string, unknown>) => { setPosition: (point: Point) => void; setMap: (map: null) => void };
+  Marker: new (options: Record<string, unknown>) => { setPosition: (point: Point) => void; setMap: (map: null) => void; addListener?: (event: string, callback: () => void) => void; getPosition?: () => { lat: () => number; lng: () => number } | null };
 };
 type GoogleHost = Window & { google?: { maps?: MapsApi } };
 type MapInstance = InstanceType<MapsApi["Map"]>;
@@ -100,7 +100,13 @@ export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps
       const position = event.latLng;
       if (!position) return;
       const point = { lat: position.lat(), lng: position.lng() };
-      if (!markerRef.current) markerRef.current = new maps.Marker({ map, position: point });
+      if (!markerRef.current) {
+        markerRef.current = new maps.Marker({ map, position: point, draggable: true });
+        markerRef.current.addListener?.("dragend", () => {
+          const dropped = markerRef.current?.getPosition?.();
+          if (dropped) void selectPoint(dropped.lat(), dropped.lng());
+        });
+      }
       else markerRef.current.setPosition(point);
       void selectPoint(point.lat, point.lng);
     });
@@ -121,7 +127,7 @@ export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps
     mapRef.current?.setZoom(16);
     const maps = (window as GoogleHost).google?.maps;
     if (maps && mapRef.current) {
-      if (!markerRef.current) markerRef.current = new maps.Marker({ map: mapRef.current, position: point });
+      if (!markerRef.current) markerRef.current = new maps.Marker({ map: mapRef.current, position: point, draggable: true });
       else markerRef.current.setPosition(point);
     }
     await selectPoint(coords.latitude, coords.longitude);
