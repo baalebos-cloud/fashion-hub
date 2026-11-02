@@ -1,7 +1,9 @@
 """Authenticated server-side address geocoding. No browser secret exposure."""
 from fastapi import APIRouter, Depends, Query
 from app.core.dependencies import get_current_user
-from app.core.exceptions import ValidationAppError
+from app.core.exceptions import ExternalProviderError, ValidationAppError
+from app.integrations.maps.fallback import reverse_geocode_fallback
+from app.core.config import settings
 from app.integrations.maps import get_map_provider
 from app.models.user import User
 
@@ -20,4 +22,9 @@ def geocode(address: str = Query(..., min_length=5, max_length=512),
 def reverse(latitude: float = Query(..., ge=-90, le=90),
             longitude: float = Query(..., ge=-180, le=180),
             current_user: User = Depends(get_current_user)):
-    return get_map_provider().reverse_geocode(latitude, longitude)
+    try:
+        return get_map_provider().reverse_geocode(latitude, longitude)
+    except ExternalProviderError:
+        if not settings.GEOCODING_FALLBACK_URL:
+            raise
+        return reverse_geocode_fallback(latitude, longitude)
