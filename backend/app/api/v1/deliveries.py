@@ -10,6 +10,7 @@ from app.models.user import User
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.schemas.delivery import DeliveryResponse, MarkDeliveredRequest
+from app.schemas.dispatch_trip import DeliveryTripResponse
 from app.services.internal_courier_service import InternalCourierService
 
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
