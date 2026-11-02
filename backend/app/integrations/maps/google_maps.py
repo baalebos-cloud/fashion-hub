@@ -39,6 +39,8 @@ class GoogleMapsProvider(MapProvider):
         )
 
     def reverse_geocode(self, latitude: float, longitude: float) -> GeocodeResult:
+        if not self.api_key or not self.api_key.strip():
+            raise ExternalProviderError("Google reverse geocoding is not configured.")
         try:
             response = httpx.get(
                 "https://maps.googleapis.com/maps/api/geocode/json",
