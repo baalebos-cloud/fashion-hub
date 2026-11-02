@@ -29,3 +29,4 @@ class CreateAddressRequest(BaseModel):
 
 class AddressResponse(CreateAddressRequest):
     id: uuid.UUID
+    is_default: bool = False
