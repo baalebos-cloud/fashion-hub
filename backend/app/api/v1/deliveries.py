@@ -9,7 +9,7 @@ from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
-from app.schemas.delivery import DeliveryResponse, MarkDeliveredRequest
+from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
 from app.services.internal_courier_service import InternalCourierService
 
@@ -28,7 +28,7 @@ def my_active_deliveries(
             .order_by(Delivery.created_at.desc()).limit(50).all())
 
 
-@router.get("/orders/{order_id}/tracking", response_model=DeliveryResponse | None)
+@router.get("/orders/{order_id}/tracking", response_model=DeliveryTrackingResponse | None)
 def customer_order_delivery(
     order_id: uuid.UUID,
     user: User = Depends(get_current_user),
@@ -41,8 +41,18 @@ def customer_order_delivery(
     if not order or (str(user.id) not in {str(order.buyer_user_id), str(order.seller_user_id)}
                      and user.role != "admin"):
         raise NotFoundError("Delivery not found.")
-    return db.query(Delivery).filter(Delivery.order_id == order.id).order_by(
+    delivery = db.query(Delivery).filter(Delivery.order_id == order.id).order_by(
         Delivery.created_at.desc()).first()
+    if delivery is None:
+        return None
+    partner = db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery.delivery_partner_id else None
+    rider = db.get(User, partner.user_id) if partner else None
+    return {
+        "id": delivery.id, "order_id": delivery.order_id,
+        "status": delivery.status, "delivery_fee": delivery.delivery_fee,
+        "rider_name": rider.full_name if rider else None,
+        "rider_phone": rider.phone_number if rider else None,
+    }
 
 
 @router.get("/{delivery_id}", response_model=DeliveryResponse)
