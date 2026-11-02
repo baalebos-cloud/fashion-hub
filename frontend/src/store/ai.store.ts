@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { aiApi } from "@/api/ai.api";
+import { useAuthStore } from "@/store/auth.store";
 import type { AIChatTurn } from "@/types/ai";
 
 interface AIState {
@@ -9,6 +10,8 @@ interface AIState {
   isSending: boolean;
   error: string | null;
   pendingPrompt: string | null;
+  accountId: string | null;
+  generation: number;
 
   open: () => void;
   close: () => void;
@@ -35,6 +38,8 @@ export const useAIStore = create<AIState>((set, get) => ({
   isSending: false,
   error: null,
   pendingPrompt: null,
+  accountId: null,
+  generation: 0,
 
   open: () => set({ isOpen: true }),
   close: () => set({ isOpen: false }),
@@ -44,7 +49,11 @@ export const useAIStore = create<AIState>((set, get) => ({
 
   sendMessage: async (content) => {
     const trimmed = content.trim();
-    if (!trimmed || get().isSending) return;
+    const accountId = useAuthStore.getState().user?.id ?? null;
+    if (!accountId || !useAuthStore.getState().isAuthenticated || !trimmed || get().isSending) return;
+    if (get().accountId && get().accountId !== accountId) get().reset();
+    const generation = get().generation;
+    set({ accountId });
 
     set((state) => ({
       turns: [...state.turns, { id: `user-${Date.now()}`, role: "user", content: trimmed }],
@@ -55,16 +64,28 @@ export const useAIStore = create<AIState>((set, get) => ({
 
     try {
       const result = await aiApi.sendMessage(get().conversationId, trimmed);
+      if (get().generation !== generation || useAuthStore.getState().user?.id !== accountId) return;
       set((state) => ({
         conversationId: result.conversation_id,
         turns: [...state.turns, { id: `assistant-${Date.now()}`, role: "assistant", content: result.answer }],
       }));
     } catch (err) {
-      set({ error: err instanceof Error ? err.message : "Tailora couldn't respond just now." });
+      if (get().generation === generation && useAuthStore.getState().user?.id === accountId) {
+        set({ error: err instanceof Error ? err.message : "Tailora couldn't respond just now." });
+      }
     } finally {
-      set({ isSending: false });
+      if (get().generation === generation) set({ isSending: false });
     }
   },
 
-  reset: () => set({ conversationId: null, turns: [], error: null }),
+  reset: () => set((s) => ({ isOpen: false, conversationId: null, turns: [], error: null, pendingPrompt: null, isSending: false, accountId: null, generation: s.generation + 1 })),
 }));
+
+// Reset synchronously on identity changes, including logout and token restoration.
+// In-flight replies are discarded by the generation check above.
+useAuthStore.subscribe((state, previous) => {
+  if ((state.user?.id ?? null) !== (previous.user?.id ?? null) ||
+      (previous.isAuthenticated && !state.isAuthenticated)) {
+    useAIStore.getState().reset();
+  }
+});
