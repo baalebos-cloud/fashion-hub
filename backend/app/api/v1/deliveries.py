@@ -27,6 +27,23 @@ def my_active_deliveries(
             .order_by(Delivery.created_at.desc()).limit(50).all())
 
 
+@router.get("/orders/{order_id}/tracking", response_model=DeliveryResponse | None)
+def customer_order_delivery(
+    order_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Order-scoped tracking, never a public lookup by arbitrary order ID."""
+    from app.models.order import Order
+    from app.core.exceptions import NotFoundError
+    order = db.get(Order, order_id)
+    if not order or (str(user.id) not in {str(order.buyer_user_id), str(order.seller_user_id)}
+                     and user.role != "admin"):
+        raise NotFoundError("Delivery not found.")
+    return db.query(Delivery).filter(Delivery.order_id == order.id).order_by(
+        Delivery.created_at.desc()).first()
+
+
 @router.get("/{delivery_id}", response_model=DeliveryResponse)
 def delivery_details(
     delivery_id: uuid.UUID,
