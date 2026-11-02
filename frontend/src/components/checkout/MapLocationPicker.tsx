@@ -31,6 +31,7 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
   const markerRef = useRef<MarkerInstance | null>(null);
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
+  const [addressDetails, setAddressDetails] = useState<{ city: string | null; state_region: string | null; country: string | null }>({ city: null, state_region: null, country: null });
   const requestVersion = useRef(0);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [isResolving, setResolving] = useState(false);
@@ -45,16 +46,20 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
     }
     const version = ++requestVersion.current;
     setSelectedPoint({ lat: latitude, lng: longitude });
+    setAddressDetails({ city: null, state_region: null, country: null });
     setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
     setSelectionError(null);
     setResolving(true);
     try {
       const address = await reverseGeocode(latitude, longitude);
       if (requestVersion.current !== version) return;
-      if (address.formatted_address?.trim()) setResolvedAddress(address.formatted_address);
+      if (address.formatted_address?.trim()) {
+        setResolvedAddress(address.formatted_address);
+        setAddressDetails({ city: address.city, state_region: address.state_region, country: address.country });
+      }
     } catch {
       if (requestVersion.current === version)
-        setSelectionError("Address lookup is unavailable. Edit the address below or save the pin coordinates.");
+        setSelectionError("Address could not be verified by the available map providers. Enter the correct street address manually or save the pin.");
     } finally {
       if (requestVersion.current === version) setResolving(false);
     }
@@ -66,7 +71,7 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
       latitude: selectedPoint.lat,
       longitude: selectedPoint.lng,
       formatted_address: resolvedAddress.trim() || null,
-      city: null, state_region: null, country: null,
+      ...addressDetails,
     });
   }
 
@@ -132,7 +137,7 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
         isLoading={isLocating || isResolving} className="self-start">
         Use my current location
       </Button>
-      {selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => setResolvedAddress(event.target.value)} /></label>}
+      {selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} /></label>}
       {selectedPoint && <Button type="button" onClick={saveSelection} >Save shop location</Button>}
       {isResolving && <p role="status" className="text-sm text-ink-soft">Finding the selected address…</p>}
       {selectionError && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
