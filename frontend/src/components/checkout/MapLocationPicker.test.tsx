@@ -1,3 +1,4 @@
+import type { ButtonHTMLAttributes } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MapLocationPicker } from "./MapLocationPicker";
@@ -16,7 +17,7 @@ vi.mock("@/config/map.config", () => ({
   mapConfig: { provider: "google_maps", defaultCenter: { lat: 6.5, lng: 3.3 }, defaultZoom: 12 },
 }));
 vi.mock("@/components/ui/button", () => ({
-  Button: ({ children, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
+  Button: ({ children, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => <button {...props}>{children}</button>,
 }));
 
 beforeEach(() => {
