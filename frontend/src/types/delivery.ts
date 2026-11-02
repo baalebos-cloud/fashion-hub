@@ -24,3 +24,18 @@ export interface DeliveryPartner {
   is_available: boolean;
   average_rating: number;
 }
+
+export interface DispatchWaypoint {
+  address: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  contact_name: string | null;
+  contact_phone: string | null;
+}
+
+export interface DeliveryTrip extends Delivery {
+  pickup: DispatchWaypoint;
+  dropoff: DispatchWaypoint;
+  straight_line_km: number | null;
+  distance_source: "haversine";
+}
