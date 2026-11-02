@@ -12,6 +12,9 @@ from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.models.delivery_request import DeliveryRequest
 from app.models.notification import Notification
+from app.models.location import Location
+from app.models.user import User
+from app.services.dispatch_routing import estimate_straight_line_km, validate_point
 from app.models.order import Order
 from app.models.order_timeline import OrderTimelineEntry
 from app.models.professional import Professional
@@ -118,6 +121,40 @@ class InternalCourierService:
         if not permitted:
             raise NotFoundError("Delivery not found.")
         return delivery
+
+    def trip(self, *, delivery_id, actor):
+        """Fulfillment contacts and exact pins are available only to parties on this order."""
+        delivery = self.get(delivery_id=delivery_id, actor=actor)
+        request = self.db.get(DeliveryRequest, delivery.delivery_request_id)
+        if request is None:
+            raise NotFoundError("Delivery request not found.")
+        order = self.db.get(Order, delivery.order_id)
+        pickup = self.db.get(Location, request.pickup_location_id)
+        dropoff = self.db.get(Location, request.dropoff_location_id)
+        if not order or not pickup or not dropoff:
+            raise NotFoundError("Delivery route is unavailable.")
+        address = self.db.get(Address, order.delivery_address_id) if order.delivery_address_id else None
+        seller = self.db.get(User, order.seller_user_id)
+        origin = validate_point(pickup.latitude, pickup.longitude)
+        destination = validate_point(dropoff.latitude, dropoff.longitude)
+        return {
+            "id": delivery.id, "order_id": order.id, "status": delivery.status,
+            "delivery_fee": float(delivery.delivery_fee),
+            "pickup": {
+                "address": pickup.formatted_address,
+                **(origin or {"latitude": None, "longitude": None}),
+                "contact_name": seller.full_name if seller else None,
+                "contact_phone": seller.phone_number if seller else None,
+            },
+            "dropoff": {
+                "address": dropoff.formatted_address,
+                **(destination or {"latitude": None, "longitude": None}),
+                "contact_name": address.recipient_name if address else None,
+                "contact_phone": address.recipient_phone if address else None,
+            },
+            "straight_line_km": estimate_straight_line_km(origin, destination),
+            "distance_source": "haversine",
+        }
 
     def transition(self, *, delivery_id, actor, action):
         if action not in STATUS_ACTIONS:
