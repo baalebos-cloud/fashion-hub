@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { GeoLocation } from "@/types/location";
 
 export interface MapLocationPickerProps {
+  mode?: "shop" | "delivery";
   onChange?: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
   onResolvingChange?: (resolving: boolean) => void;
   onSelect: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
@@ -25,7 +26,7 @@ type GoogleHost = Window & { google?: { maps?: MapsApi } };
 type MapInstance = InstanceType<MapsApi["Map"]>;
 type MarkerInstance = InstanceType<MapsApi["Marker"]>;
 
-export function MapLocationPicker({ onSelect, onChange, onResolvingChange }: MapLocationPickerProps) {
+export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode = "shop" }: MapLocationPickerProps) {
   const { isReady, error: mapError } = useMap();
   const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -152,10 +153,11 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange }: Map
         isLoading={isLocating || isResolving} className="self-start">
         Use my current location
       </Button>
-      {selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} /></label>}
-      {selectedPoint && <Button type="button" onClick={saveSelection} >Save shop location</Button>}
+      {mode === "shop" && selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} /></label>}
+      {mode === "shop" && selectedPoint && <Button type="button" onClick={saveSelection}>Save shop location</Button>}
       {isResolving && <p role="status" className="text-sm text-ink-soft">Finding the selected address…</p>}
-      {selectionError && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
+      {selectionError && mode === "shop" && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
+      {selectionError && mode === "delivery" && <p role="status" className="text-sm text-ink-soft">Some address details could not be found automatically. Complete the fields below.</p>}
       {geolocationError && (
         <p role="alert" className="text-sm text-thread">
           {geolocationErrorCode === "PERMISSION_DENIED"
