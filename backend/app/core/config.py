@@ -81,6 +81,10 @@ class Settings(BaseSettings):
     # --- Maps / Geocoding ---
     MAP_PROVIDER: str = "google_maps"  # google_maps | mapbox
     MAPS_API_KEY: Optional[str] = None
+    # Optional secondary resolver. For public Nominatim, configure an identifying
+    # contact email and shared Redis to enforce the service-wide request limit.
+    GEOCODING_FALLBACK_URL: Optional[str] = None
+    GEOCODING_CONTACT_EMAIL: Optional[str] = None
 
     # --- Delivery ---
     DELIVERY_PROVIDER: str = "internal"
