@@ -35,7 +35,7 @@ export function DeliveryAddressForm({ onSaved }: { onSaved: (address: SavedAddre
   async function save(event: FormEvent) {
     event.preventDefault();
     if (!hasPin) { setError("Select a delivery pin on the map first."); return; }
-    if (values.recipient_name.trim().length < 2 || !/^(?:\\+234[789][01]\\d{8}|0[789][01]\\d{8})$/.test(values.recipient_phone.replace(/[\\s()-]/g, ""))) {
+    if (values.recipient_name.trim().length < 2 || !/^(?:\+234[789][01]\d{8}|0[789][01]\d{8})$/.test(values.recipient_phone.replace(/[\s()-]/g, ""))) {
       setError("Enter a recipient name (at least 2 characters) and a valid Nigerian phone number."); return;
     }
     setIsSaving(true);
