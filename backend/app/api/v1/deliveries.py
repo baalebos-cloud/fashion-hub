@@ -52,3 +52,13 @@ def mark_delivered(
     db: Session = Depends(get_db),
 ):
     return InternalCourierService(db).transition(delivery_id=delivery_id, actor=user, action="delivered")
+
+
+@router.get("/{delivery_id}/trip", response_model=DeliveryTripResponse)
+def delivery_trip(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Only the courier, order owner, seller or admin can see precise trip locations."""
+    return InternalCourierService(db).trip(delivery_id=delivery_id, actor=user)
