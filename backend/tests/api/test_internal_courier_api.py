@@ -43,6 +43,14 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert response.status_code == 201, response.text
             requested = response.json()
             assert requested["status"] == "requested"
+            # Dispatch owns immutable coordinates, not mutable shop/address pointers.
+            from app.models.delivery_request import DeliveryRequest
+            saved_request = db.get(DeliveryRequest, requested["id"])
+            assert str(saved_request.pickup_location_id) != str(shop.id)
+            assert db.get(Location, saved_request.pickup_location_id).formatted_address == "Test tailoring shop"
+            shop.formatted_address = "Moved workshop location"
+            db.commit()
+            assert db.get(Location, saved_request.pickup_location_id).formatted_address == "Test tailoring shop"
             assert client.post(route).json()["id"] == requested["id"]
 
             current[0] = buyer
@@ -59,6 +67,10 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert accepted.status_code == 200, accepted.text
             delivery_id = accepted.json()["id"]
             assert accepted.json()["status"] == "assigned"
+            trip = client.get(f"/api/v1/deliveries/{delivery_id}/trip")
+            assert trip.status_code == 200, trip.text
+            assert trip.json()["pickup"]["address"] == "Test tailoring shop"
+            assert trip.json()["distance_source"] == "haversine"
             assert client.post(f"/api/v1/delivery-requests/{requested['id']}/accept").status_code in {403, 404}
 
             pickup = f"/api/v1/deliveries/{delivery_id}/picked-up"
