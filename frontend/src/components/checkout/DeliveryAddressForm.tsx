@@ -17,9 +17,9 @@ const addressFields = [
   ["country", "Country code (two uppercase letters)", "text", 2],
 ] as const;
 
-export function DeliveryAddressForm({ onSaved }: { onSaved: (address: SavedAddress) => void }) {
+export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onSaved: (address: SavedAddress) => void; initial?: SavedAddress; onSubmitAddress?: (payload: AddressInput) => Promise<SavedAddress> }) {
   const id = useId();
-  const [values, setValues] = useState<AddressInput>({ label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN });
+  const [values, setValues] = useState<AddressInput>(initial ?? { label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN });
   const [isResolving, setIsResolving] = useState(false);
   const hasPin = Number.isFinite(values.latitude) && Number.isFinite(values.longitude);
   function applyLocation(location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) {
@@ -40,7 +40,7 @@ export function DeliveryAddressForm({ onSaved }: { onSaved: (address: SavedAddre
     setIsSaving(true);
     setError(null);
     try {
-      onSaved(await addressesApi.create(values));
+      onSaved(await (onSubmitAddress ?? addressesApi.create)(values));
     } catch (err) {
       setError(getDisplayErrorMessage(err));
     } finally {
@@ -50,7 +50,7 @@ export function DeliveryAddressForm({ onSaved }: { onSaved: (address: SavedAddre
   return (
     <form onSubmit={save} className="flex flex-col gap-3 rounded border border-sand p-4">
       <div><p className="mb-2 text-sm font-medium text-ink">Select your delivery point</p>
-        <MapLocationPicker onChange={applyLocation} onSelect={applyLocation} onResolvingChange={setIsResolving} />
+        <MapLocationPicker mode="delivery" onChange={applyLocation} onSelect={applyLocation} onResolvingChange={setIsResolving} />
         <p className="mt-2 text-xs text-ink-soft" role="status">{hasPin ? `Pin: ${values.latitude.toFixed(5)}, ${values.longitude.toFixed(5)}` : "A map pin is required to save this address."}</p>
       </div>
       {addressFields.map(([key, label, type, max]) => (
