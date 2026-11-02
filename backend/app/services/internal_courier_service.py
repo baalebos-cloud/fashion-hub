@@ -156,7 +156,17 @@ class InternalCourierService:
             "distance_source": "haversine",
         }
 
-    def transition(self, *, delivery_id, actor, action):
+    def customer_handover_code(self, *, delivery_id, actor):
+        """The buyer alone sees the code after the courier has collected the order."""
+        delivery = self.get(delivery_id=delivery_id, actor=actor)
+        order = self.db.get(Order, delivery.order_id)
+        if not order or str(order.buyer_user_id) != str(actor.id):
+            raise NotFoundError("Delivery not found.")
+        if delivery.status != "in_transit" or order.status != "out_for_delivery":
+            raise ConflictError("The package must be picked up before issuing a handover code.")
+        return {"delivery_id": delivery.id, "handover_code": handover_code(delivery.id)}
+
+    def transition(self, *, delivery_id, actor, action, handover_code_input=None):
         if action not in STATUS_ACTIONS:
             raise ConflictError("Unknown courier action.")
         # Lock the order first for consistency with order lifecycle operations.
@@ -174,6 +184,8 @@ class InternalCourierService:
         expected_order, expected_delivery, new_order, new_delivery, stamp_field = STATUS_ACTIONS[action]
         if order.status != expected_order or delivery.status != expected_delivery:
             raise InvalidStateTransitionError("The delivery is not in the required state.")
+        if action == "delivered":
+            verify_handover_code(delivery.id, handover_code_input)
         now = utcnow()
         previous_status = order.status
         order.status = new_order
