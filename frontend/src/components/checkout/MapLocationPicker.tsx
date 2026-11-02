@@ -8,6 +8,7 @@ import type { GeoLocation } from "@/types/location";
 
 export interface MapLocationPickerProps {
   onChange?: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
+  onResolvingChange?: (resolving: boolean) => void;
   onSelect: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
 }
 
@@ -24,7 +25,7 @@ type GoogleHost = Window & { google?: { maps?: MapsApi } };
 type MapInstance = InstanceType<MapsApi["Map"]>;
 type MarkerInstance = InstanceType<MapsApi["Marker"]>;
 
-export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps) {
+export function MapLocationPicker({ onSelect, onChange, onResolvingChange }: MapLocationPickerProps) {
   const { isReady, error: mapError } = useMap();
   const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -40,6 +41,8 @@ export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps
   onSelectRef.current = onSelect;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const resolvingRef = useRef(onResolvingChange);
+  resolvingRef.current = onResolvingChange;
 
   async function selectPoint(latitude: number, longitude: number) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
@@ -53,6 +56,7 @@ export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps
     setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
     setSelectionError(null);
     setResolving(true);
+    resolvingRef.current?.(true);
     onChangeRef.current?.({ latitude, longitude, formatted_address: null, city: null, state_region: null, country: null });
     try {
       const address = await reverseGeocode(latitude, longitude);
@@ -66,7 +70,7 @@ export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps
       if (requestVersion.current === version)
         setSelectionError("Address could not be verified by the available map providers. Enter the correct street address manually or save the pin.");
     } finally {
-      if (requestVersion.current === version) setResolving(false);
+      if (requestVersion.current === version) { setResolving(false); resolvingRef.current?.(false); }
     }
   }
 
