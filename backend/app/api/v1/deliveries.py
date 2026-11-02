@@ -9,7 +9,7 @@ from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
-from app.schemas.delivery import DeliveryResponse
+from app.schemas.delivery import DeliveryResponse, MarkDeliveredRequest
 from app.services.internal_courier_service import InternalCourierService
 
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
@@ -48,10 +48,11 @@ def mark_picked_up(
 @router.post("/{delivery_id}/delivered", response_model=DeliveryResponse)
 def mark_delivered(
     delivery_id: uuid.UUID,
+    payload: MarkDeliveredRequest,
     user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
     db: Session = Depends(get_db),
 ):
-    return InternalCourierService(db).transition(delivery_id=delivery_id, actor=user, action="delivered")
+    return InternalCourierService(db).transition(delivery_id=delivery_id, actor=user, action="delivered", handover_code_input=payload.handover_code)
 
 
 @router.get("/{delivery_id}/trip", response_model=DeliveryTripResponse)
@@ -62,3 +63,12 @@ def delivery_trip(
 ):
     """Only the courier, order owner, seller or admin can see precise trip locations."""
     return InternalCourierService(db).trip(delivery_id=delivery_id, actor=user)
+
+@router.get("/{delivery_id}/handover-code")
+def customer_handover_code(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Return OTP only to the delivery's customer after pickup; never to the rider."""
+    return InternalCourierService(db).customer_handover_code(delivery_id=delivery_id, actor=user)
