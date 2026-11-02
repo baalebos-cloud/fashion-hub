@@ -76,7 +76,18 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             db.refresh(order)
             assert order.status == "out_for_delivery"
             assert client.post(pickup).status_code == 409
-            response = client.post(dropoff)
+            # Only the buyer may view the code, and the rider must provide it.
+            current[0] = buyer
+            code_response = client.get(f"/api/v1/deliveries/{delivery_id}/handover-code")
+            assert code_response.status_code == 200, code_response.text
+            code = code_response.json()["handover_code"]
+            assert len(code) == 6
+            current[0] = other_courier
+            assert client.get(f"/api/v1/deliveries/{delivery_id}/handover-code").status_code == 404
+            current[0] = courier
+            assert client.post(dropoff, json={}).status_code == 422
+            assert client.post(dropoff, json={"handover_code": "999999" if code != "999999" else "888888"}).status_code == 422
+            response = client.post(dropoff, json={"handover_code": code})
             assert response.status_code == 200, response.text
             assert response.json()["status"] == "delivered"
             db.refresh(order)
