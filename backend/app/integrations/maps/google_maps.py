@@ -47,8 +47,8 @@ class GoogleMapsProvider(MapProvider):
             )
             response.raise_for_status()
             data = response.json()
-            if not data.get("results"):
-                raise ExternalProviderError("No reverse geocoding results for coordinates.")
+            if data.get("status") != "OK" or not data.get("results"):
+                raise ExternalProviderError(f"Google reverse geocoding unavailable ({data.get('status', 'UNKNOWN')}).")
             result = data["results"][0]
         except httpx.HTTPError as exc:
             raise ExternalProviderError(f"Google reverse_geocode failed: {exc}") from exc
