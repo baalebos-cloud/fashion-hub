@@ -5,7 +5,7 @@ from difflib import SequenceMatcher
 from sqlalchemy.orm import Session
 
 from app.core.constants import VerificationStatus
-from app.core.exceptions import ForbiddenError, NotFoundError, ValidationAppError
+from app.core.exceptions import ExternalProviderError, ForbiddenError, NotFoundError, ValidationAppError
 
 # How closely the NIN record's name must match the account's stated name
 # to auto-flag identity_match=True. Below this, the submission still goes
@@ -66,7 +66,6 @@ class KYCService:
             similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
             identity_match = similarity >= NAME_MATCH_THRESHOLD
 
-        from app.core.exceptions import ValidationAppError
         if (home_latitude is None) != (home_longitude is None):
             raise ValidationAppError("Supply both coordinates or neither.")
         if home_latitude is None and not (home_formatted_address or "").strip():
