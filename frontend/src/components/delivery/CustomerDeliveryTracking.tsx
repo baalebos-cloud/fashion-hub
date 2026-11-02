@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { deliveriesApi } from "@/api/deliveries.api";
 import type { Delivery } from "@/types/delivery";
+import { contactLinks } from "./DispatchTripCard";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 
 export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
@@ -40,6 +41,8 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
       <h2 className="font-medium">Delivery tracking</h2>
       {delivery ? <DeliveryStatusBadge status={delivery.status} /> :
         <p className="text-sm text-ink-soft">No courier has been assigned yet.</p>}
+      {delivery?.rider_name && <p className="text-sm text-ink">Assigned rider: {delivery.rider_name}</p>}
+      {contactLinks(delivery?.rider_phone ?? null) && <a className="text-sm text-brass-deep underline" href={contactLinks(delivery?.rider_phone ?? null)!.call}>Call assigned rider</a>}
       {delivery?.status === "in_transit" && (
         <button type="button" onClick={() => void showCode()} className="rounded border border-line p-2 text-sm">
           Show handover code
