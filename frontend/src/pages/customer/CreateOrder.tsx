@@ -44,7 +44,7 @@ export default function CreateOrder() {
     if (professionalId) {
       Promise.all([professionalsApi.getById(professionalId), addressesApi.list()])
         .then(([profile, saved]) => {
-          if (active) { setProfessional(profile); setAddresses(saved); }
+          if (active) { setProfessional(profile); setAddresses(saved); setDeliveryAddressId(saved.find((a) => a.is_default)?.id ?? ""); }
         })
         .catch((err) => { if (active) setLoadError(getDisplayErrorMessage(err)); });
     }
