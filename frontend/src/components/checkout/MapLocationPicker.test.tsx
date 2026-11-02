@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes } from "react";
 import { beforeEach, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MapLocationPicker } from "./MapLocationPicker";
 
 const mocks = vi.hoisted(() => ({
@@ -41,8 +41,8 @@ it("saves valid coordinates and editable address even when reverse geocoding fai
   mocks.reverse.mockRejectedValue(new Error("REQUEST_DENIED"));
   const onSelect = vi.fn();
   render(<MapLocationPicker onSelect={onSelect} />);
-  mocks.click?.({ latLng: { lat: () => 7.12345, lng: () => 4.65432 } });
-  await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Address lookup is unavailable"));
+  act(() => { mocks.click?.({ latLng: { lat: () => 7.12345, lng: () => 4.65432 } }); });
+  await waitFor(() => expect(screen.getByRole("alert").textContent).toContain("Address lookup is unavailable"));
   fireEvent.change(screen.getByLabelText("Shop address"), { target: { value: "My shop, Ekiti" } });
   fireEvent.click(screen.getByText("Save shop location"));
   expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({
@@ -54,8 +54,8 @@ it("keeps pin coordinates available when lookup returns no street address", asyn
   mocks.reverse.mockResolvedValue({ formatted_address: "" });
   const onSelect = vi.fn();
   render(<MapLocationPicker onSelect={onSelect} />);
-  mocks.click?.({ latLng: { lat: () => 8, lng: () => 5 } });
-  await waitFor(() => expect(screen.getByLabelText("Shop address")).toHaveValue("Pinned location (8.00000, 5.00000)"));
+  act(() => { mocks.click?.({ latLng: { lat: () => 8, lng: () => 5 } }); });
+  await waitFor(() => expect((screen.getByLabelText("Shop address") as HTMLInputElement).value).toBe("Pinned location (8.00000, 5.00000)"));
   fireEvent.click(screen.getByText("Save shop location"));
   expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ latitude: 8, longitude: 5 }));
 });
