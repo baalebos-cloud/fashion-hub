@@ -39,3 +39,12 @@ def test_google_rejects_http_200_error_status():
     with patch("app.integrations.maps.google_maps.httpx.get", return_value=response):
         with pytest.raises(ExternalProviderError, match="REQUEST_DENIED"):
             GoogleMapsProvider(api_key="test").reverse_geocode(7.64037, 5.22104)
+
+
+def test_missing_google_key_fails_without_network_call():
+    with patch("app.integrations.maps.google_maps.httpx.get") as http:
+        with patch("app.integrations.maps.google_maps.settings") as config:
+            config.MAPS_API_KEY = None
+            with pytest.raises(ExternalProviderError, match="not configured"):
+                GoogleMapsProvider().reverse_geocode(7.64037, 5.22104)
+        http.assert_not_called()
