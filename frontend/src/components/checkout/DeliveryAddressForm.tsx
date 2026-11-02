@@ -19,7 +19,7 @@ const addressFields = [
 
 export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onSaved: (address: SavedAddress) => void; initial?: SavedAddress; onSubmitAddress?: (payload: AddressInput) => Promise<SavedAddress> }) {
   const id = useId();
-  const [values, setValues] = useState<AddressInput>(initial ?? { label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN });
+  const [values, setValues] = useState<AddressInput>(() => initial ? ({ label: initial.label, recipient_name: initial.recipient_name, recipient_phone: initial.recipient_phone, formatted_address: initial.formatted_address, city: initial.city, state_region: initial.state_region, country: initial.country, postal_code: initial.postal_code, latitude: initial.latitude, longitude: initial.longitude }) : ({ label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN }));
   const [isResolving, setIsResolving] = useState(false);
   const hasPin = Number.isFinite(values.latitude) && Number.isFinite(values.longitude);
   function applyLocation(location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) {
