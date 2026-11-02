@@ -1,5 +1,6 @@
 """Owned postal addresses; never accept an arbitrary location/user ID."""
-from fastapi import APIRouter, Depends
+from uuid import UUID
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
@@ -13,7 +14,7 @@ router = APIRouter(prefix='/addresses', tags=['Addresses'])
 
 def serialize(address, location):
     return AddressResponse(
-        id=address.id, label=address.label or 'Home', recipient_name=address.recipient_name,
+        id=address.id, label=address.label or 'Home', is_default=address.is_default, recipient_name=address.recipient_name,
         recipient_phone=address.recipient_phone, formatted_address=location.formatted_address,
         city=location.city, state_region=location.state_region, country=location.country,
         postal_code=location.postal_code,
@@ -45,3 +46,44 @@ def create_address(payload: CreateAddressRequest, user: User = Depends(get_curre
     db.commit()
     db.refresh(address)
     return serialize(address, location)
+
+
+@router.put('/{address_id}', response_model=AddressResponse)
+def update_address(address_id: UUID, payload: CreateAddressRequest,
+                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    address = db.query(Address).filter(Address.id == address_id, Address.user_id == user.id).first()
+    if address is None:
+        raise HTTPException(status_code=404, detail='Address not found')
+    location = db.get(Location, address.location_id)
+    if location is None:
+        raise HTTPException(status_code=404, detail='Location not found')
+    for field, value in payload.model_dump(exclude={'label', 'recipient_name', 'recipient_phone'}).items():
+        setattr(location, field, value)
+    address.label = payload.label
+    address.recipient_name = payload.recipient_name
+    address.recipient_phone = payload.recipient_phone
+    db.commit()
+    return serialize(address, location)
+
+
+@router.put('/{address_id}/default', response_model=AddressResponse)
+def make_default(address_id: UUID, user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    address = db.query(Address).filter(Address.id == address_id, Address.user_id == user.id).first()
+    if address is None:
+        raise HTTPException(status_code=404, detail='Address not found')
+    db.query(Address).filter(Address.user_id == user.id).update({'is_default': False})
+    address.is_default = True
+    db.commit()
+    return serialize(address, db.get(Location, address.location_id))
+
+
+@router.delete('/{address_id}', status_code=204)
+def delete_address(address_id: UUID, user: User = Depends(get_current_user),
+                   db: Session = Depends(get_db)):
+    address = db.query(Address).filter(Address.id == address_id, Address.user_id == user.id).first()
+    if address is None:
+        raise HTTPException(status_code=404, detail='Address not found')
+    # Retain the location as immutable historical delivery snapshots may refer to it.
+    db.delete(address)
+    db.commit()

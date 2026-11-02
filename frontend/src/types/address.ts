@@ -13,4 +13,5 @@ export interface AddressInput {
 
 export interface SavedAddress extends AddressInput {
   id: string;
+  is_default: boolean;
 }
