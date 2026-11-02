@@ -51,7 +51,7 @@ export const useAIStore = create<AIState>((set, get) => ({
     const trimmed = content.trim();
     const accountId = useAuthStore.getState().user?.id ?? null;
     if (!accountId || !useAuthStore.getState().isAuthenticated || !trimmed || get().isSending) return;
-    if (get().accountId !== accountId) get().reset();
+    if (get().accountId && get().accountId !== accountId) get().reset();
     const generation = get().generation;
     set({ accountId });
 
