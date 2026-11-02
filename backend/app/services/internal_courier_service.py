@@ -15,6 +15,7 @@ from app.models.notification import Notification
 from app.models.location import Location
 from app.models.user import User
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
+from app.services.delivery_handover import handover_code, verify_handover_code
 from app.models.order import Order
 from app.models.order_timeline import OrderTimelineEntry
 from app.models.professional import Professional
