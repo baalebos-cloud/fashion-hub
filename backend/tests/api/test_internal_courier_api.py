@@ -1,5 +1,6 @@
 """Full internal dispatch regression: buyer data stays private and only the
 assigned courier can update paid customer-order fulfillment."""
+import uuid
 from fastapi.testclient import TestClient
 
 from app.core.database import get_db
@@ -45,7 +46,7 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert requested["status"] == "requested"
             # Dispatch owns immutable coordinates, not mutable shop/address pointers.
             from app.models.delivery_request import DeliveryRequest
-            saved_request = db.get(DeliveryRequest, requested["id"])
+            saved_request = db.get(DeliveryRequest, uuid.UUID(requested["id"]))
             assert str(saved_request.pickup_location_id) != str(shop.id)
             assert db.get(Location, saved_request.pickup_location_id).formatted_address == "Test tailoring shop"
             shop.formatted_address = "Moved workshop location"
