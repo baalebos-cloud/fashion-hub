@@ -15,3 +15,8 @@ class DeliveryResponse(BaseModel):
     delivery_fee: float
 
     model_config = {"from_attributes": True}
+
+
+class DeliveryTrackingResponse(DeliveryResponse):
+    rider_name: Optional[str] = None
+    rider_phone: Optional[str] = None
