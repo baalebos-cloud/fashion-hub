@@ -28,7 +28,7 @@ it("blocks submitting without a selected map pin", () => {
 
 it("requires recipient details and persists address with pin coordinates", async () => {
   vi.mocked(addressesApi.create).mockResolvedValue({
-    id: "test-id", label: "Home", recipient_name: "Test Customer", recipient_phone: "08031234567",
+    id: "test-id", is_default: false, label: "Home", recipient_name: "Test Customer", recipient_phone: "08031234567",
     formatted_address: "Ado-Iworoko Road, Ado Ekiti, Ekiti, Nigeria",
     city: "Ado Ekiti", state_region: "Ekiti", country: "NG", latitude: 7.64037, longitude: 5.22104,
   });
