@@ -7,6 +7,8 @@ export interface AddressInput {
   state_region: string;
   country: string;
   postal_code?: string;
+  latitude: number;
+  longitude: number;
 }
 
 export interface SavedAddress extends AddressInput {
