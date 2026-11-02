@@ -1,5 +1,6 @@
 import uuid
-from pydantic import BaseModel, ConfigDict, Field
+import re
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class CreateAddressRequest(BaseModel):
@@ -12,6 +13,14 @@ class CreateAddressRequest(BaseModel):
     state_region: str = Field(min_length=1, max_length=128)
     country: str = Field(default='NG', pattern=r'^[A-Z]{2}$')
     postal_code: str | None = Field(default=None, max_length=32)
+
+    @field_validator('recipient_phone')
+    @classmethod
+    def validate_recipient_phone(cls, value: str) -> str:
+        digits = re.sub(r'[ ()-]', '', value)
+        if not re.fullmatch(r'(?:\+234[789][01]\d{8}|0[789][01]\d{8})', digits):
+            raise ValueError('Enter a valid Nigerian mobile number.')
+        return value
 
 
 class AddressResponse(CreateAddressRequest):
