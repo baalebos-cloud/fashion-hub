@@ -107,6 +107,9 @@ export const endpoints = {
     details: (id: string) => `/deliveries/${id}`,
     pickedUp: (id: string) => `/deliveries/${id}/picked-up`,
     delivered: (id: string) => `/deliveries/${id}/delivered`,
+    trip: (id: string) => `/deliveries/${id}/trip`,
+    handoverCode: (id: string) => `/deliveries/${id}/handover-code`,
+    byOrder: (orderId: string) => `/deliveries/orders/${orderId}/tracking`,
   },
   deliveryRequests: {
     available: "/delivery-requests/available",
