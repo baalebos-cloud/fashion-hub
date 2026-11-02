@@ -28,7 +28,7 @@ export function loadMapSdk(): Promise<void> {
   loadPromise = new Promise((resolve, reject) => {
     if (mapConfig.provider === "google_maps") {
       const script = document.createElement("script");
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapConfig.publicKey}&libraries=places`;
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${mapConfig.publicKey}&libraries=places,geometry`;
       script.async = true;
       script.onload = () => {
         if (!(window as Window & { google?: { maps?: { Map?: unknown } } }).google?.maps?.Map) {
