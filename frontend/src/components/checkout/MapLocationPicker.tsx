@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import type { GeoLocation } from "@/types/location";
 
 export interface MapLocationPickerProps {
+  onChange?: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
   onSelect: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
 }
 
@@ -23,7 +24,7 @@ type GoogleHost = Window & { google?: { maps?: MapsApi } };
 type MapInstance = InstanceType<MapsApi["Map"]>;
 type MarkerInstance = InstanceType<MapsApi["Marker"]>;
 
-export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
+export function MapLocationPicker({ onSelect, onChange }: MapLocationPickerProps) {
   const { isReady, error: mapError } = useMap();
   const { locate, isLocating, error: geolocationError, errorCode: geolocationErrorCode } = useGeolocation();
   const elementRef = useRef<HTMLDivElement>(null);
@@ -37,6 +38,8 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
   const [isResolving, setResolving] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
 
   async function selectPoint(latitude: number, longitude: number) {
     if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
@@ -50,12 +53,14 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
     setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
     setSelectionError(null);
     setResolving(true);
+    onChangeRef.current?.({ latitude, longitude, formatted_address: null, city: null, state_region: null, country: null });
     try {
       const address = await reverseGeocode(latitude, longitude);
       if (requestVersion.current !== version) return;
       if (address.formatted_address?.trim()) {
         setResolvedAddress(address.formatted_address);
         setAddressDetails({ city: address.city, state_region: address.state_region, country: address.country });
+        onChangeRef.current?.({ latitude, longitude, formatted_address: address.formatted_address, city: address.city, state_region: address.state_region, country: address.country });
       }
     } catch {
       if (requestVersion.current === version)
