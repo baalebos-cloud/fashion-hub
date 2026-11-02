@@ -29,28 +29,45 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markerRef = useRef<MarkerInstance | null>(null);
-  const [resolvedAddress, setResolvedAddress] = useState<string | null>(null);
+  const [resolvedAddress, setResolvedAddress] = useState<string>("");
+  const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
+  const requestVersion = useRef(0);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [isResolving, setResolving] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
 
   async function selectPoint(latitude: number, longitude: number) {
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude) ||
+        Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
+      setSelectionError("Invalid coordinates. Place the pin again.");
+      return;
+    }
+    const version = ++requestVersion.current;
+    setSelectedPoint({ lat: latitude, lng: longitude });
+    setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
     setSelectionError(null);
     setResolving(true);
     try {
       const address = await reverseGeocode(latitude, longitude);
-      setResolvedAddress(address.formatted_address);
-      onSelectRef.current({
-        latitude, longitude, formatted_address: address.formatted_address,
-        city: address.city, state_region: address.state_region, country: address.country,
-      });
+      if (requestVersion.current !== version) return;
+      if (address.formatted_address?.trim()) setResolvedAddress(address.formatted_address);
     } catch {
-      setResolvedAddress(null);
-      setSelectionError("The pin was placed, but the address could not be resolved. Check the maps service and try again.");
+      if (requestVersion.current === version)
+        setSelectionError("Address lookup is unavailable. Edit the address below or save the pin coordinates.");
     } finally {
-      setResolving(false);
+      if (requestVersion.current === version) setResolving(false);
     }
+  }
+
+  function saveSelection() {
+    if (!selectedPoint) return;
+    onSelectRef.current({
+      latitude: selectedPoint.lat,
+      longitude: selectedPoint.lng,
+      formatted_address: resolvedAddress.trim() || null,
+      city: null, state_region: null, country: null,
+    });
   }
 
   useEffect(() => {
@@ -115,7 +132,8 @@ export function MapLocationPicker({ onSelect }: MapLocationPickerProps) {
         isLoading={isLocating || isResolving} className="self-start">
         Use my current location
       </Button>
-      {resolvedAddress && <p role="status" className="text-sm text-ink-soft">{resolvedAddress}</p>}
+      {selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => setResolvedAddress(event.target.value)} /></label>}
+      {selectedPoint && <Button type="button" onClick={saveSelection} >Save shop location</Button>}
       {isResolving && <p role="status" className="text-sm text-ink-soft">Finding the selected address…</p>}
       {selectionError && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
       {geolocationError && (
