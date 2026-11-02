@@ -34,7 +34,7 @@ httpx==0.28.1
 
 # AI provider SDK
 anthropic==2.3.0
-google-genai==1.56.0
+google-genai==1.75.0
 google-cloud-aiplatform==1.133.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)

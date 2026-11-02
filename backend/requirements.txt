@@ -816,9 +816,9 @@ google-crc32c==1.9.0 \
     # via
     #   google-cloud-storage
     #   google-resumable-media
-google-genai==1.56.0 \
-    --hash=sha256:0491af33c375f099777ae207d9621f044e27091fafad4c50e617eba32165e82f \
-    --hash=sha256:9e6b11e0c105ead229368cb5849a480e4d0185519f8d9f538d61ecfcf193b052
+google-genai==1.75.0 \
+    --hash=sha256:56bac3991b311c93f980c0a2abcd287b672146905df1fbd71c92ed633d5a07cf \
+    --hash=sha256:8dc4c096e7d6288c3087f6893f582fe52468932464781edb8193bd92b9fefb2c
     # via
     #   -r requirements.in
     #   google-cloud-aiplatform
