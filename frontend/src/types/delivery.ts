@@ -15,6 +15,8 @@ export interface Delivery {
   status: DeliveryStatus;
   delivery_fee: number;
   proof_of_delivery_url?: string | null;
+  rider_name?: string | null;
+  rider_phone?: string | null;
 }
 
 export interface DeliveryPartner {
