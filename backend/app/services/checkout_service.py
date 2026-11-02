@@ -83,7 +83,7 @@ class CheckoutService:
                       delivery_address_snapshot=dict(recipient_name=address.recipient_name, recipient_phone=address.recipient_phone,
                           formatted_address=location.formatted_address, city=location.city, state_region=location.state_region,
                           country=location.country, postal_code=location.postal_code,
-                          latitude=float(location.latitude), longitude=float(location.longitude)), items=snapshots)
+                          latitude=float(location.latitude) if location.latitude is not None else None, longitude=float(location.longitude) if location.longitude is not None else None), items=snapshots)
         try:
             self.db.add(order)
             self.db.flush()
