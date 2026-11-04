@@ -22,7 +22,10 @@ export const deliveriesApi = {
     const response = await apiClient.get<Delivery | null>(endpoints.deliveries.byOrder(orderId));
     return response.data;
   },
-  async publishPosition(id: string, payload: Pick<RiderPosition, "latitude" | "longitude" | "accuracy_m">): Promise<RiderPosition> {
+  async startPosition(id: string): Promise<string> {
+    return (await apiClient.post<{ share_token: string }>(endpoints.deliveries.positionStart(id))).data.share_token;
+  },
+  async publishPosition(id: string, payload: Pick<RiderPosition, "latitude" | "longitude" | "accuracy_m"> & { share_token: string }): Promise<RiderPosition> {
     return (await apiClient.post<RiderPosition>(endpoints.deliveries.position(id), payload)).data;
   },
   async getPosition(id: string): Promise<RiderPosition | null> {
