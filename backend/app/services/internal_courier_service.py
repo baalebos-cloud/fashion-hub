@@ -24,8 +24,8 @@ from app.repositories.order_repository import OrderRepository
 
 REQUESTABLE = {"ready_for_delivery", "shipped"}
 STATUS_ACTIONS = {
-    "picked-up": ("shipped", "assigned", "out_for_delivery", "in_transit", "out_for_delivery_at"),
-    "delivered": ("out_for_delivery", "in_transit", "delivered", "delivered", "delivered_at"),
+    "picked-up": (("ready_for_delivery", "shipped"), "assigned", "out_for_delivery", "in_transit", "out_for_delivery_at"),
+    "delivered": (("out_for_delivery",), "in_transit", "delivered", "delivered", "delivered_at"),
 }
 
 
@@ -242,7 +242,7 @@ class InternalCourierService:
         if order.order_type != "customer_order":
             raise ConflictError("Unsupported delivery type.")
         expected_order, expected_delivery, new_order, new_delivery, stamp_field = STATUS_ACTIONS[action]
-        if order.status != expected_order or delivery.status != expected_delivery:
+        if order.status not in expected_order or delivery.status != expected_delivery:
             raise InvalidStateTransitionError("The delivery is not in the required state.")
         if action == "delivered":
             verify_handover_code(delivery.id, handover_code_input)
@@ -252,6 +252,7 @@ class InternalCourierService:
         setattr(order, stamp_field, now)
         delivery.status = new_delivery
         if action == "picked-up":
+            order.shipped_at = order.shipped_at or now
             delivery.picked_up_at = now
         else:
             delivery.delivered_at = now
