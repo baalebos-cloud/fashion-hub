@@ -6,7 +6,6 @@ stop request atomically revokes consent and erases the point, including when
 a GPS request is concurrently in flight. Nothing is saved to the rider's
 long-term profile or user address.
 """
-import hmac
 import json
 import secrets
 from datetime import datetime, timezone
