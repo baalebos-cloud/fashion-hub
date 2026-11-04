@@ -89,6 +89,27 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             db.refresh(order)
             assert order.status == "out_for_delivery"
             assert client.post(pickup).status_code == 409
+            # Rider-initiated location sharing; unassigned accounts cannot read or publish.
+            gps = f"/api/v1/deliveries/{delivery_id}/position"
+            share = client.post(gps + "/start")
+            assert share.status_code == 200, share.text
+            token = share.json()["share_token"]
+            assert len(token) >= 32
+            update = {"latitude": 7.64037, "longitude": 5.22102,
+                      "accuracy_m": 12, "share_token": token}
+            assert client.post(gps, json=update).status_code == 200
+            current[0] = other_courier
+            assert client.get(gps).status_code == 404
+            assert client.post(gps, json=update).status_code == 404
+            current[0] = buyer
+            shared = client.get(gps)
+            assert shared.status_code == 200 and shared.json()["latitude"] == 7.64037
+            assert "share_token" not in shared.json()
+            current[0] = courier
+            assert client.delete(gps).status_code == 204
+            assert client.post(gps, json=update).status_code == 403
+            current[0] = buyer
+            assert client.get(gps).json() is None
             # Only the buyer may view the code, and the rider must provide it.
             current[0] = buyer
             code_response = client.get(f"/api/v1/deliveries/{delivery_id}/handover-code")
