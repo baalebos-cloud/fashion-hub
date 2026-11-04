@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.main import app
+from app.models.address import Address
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.models.location import Location
@@ -84,6 +85,15 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert trip.status_code == 200, trip.text
             assert trip.json()["pickup"]["address"] == "Test tailoring shop"
             assert trip.json()["distance_source"] == "haversine"
+            # The customer's later deletion of their saved address cannot
+            # erase recipient details or change an already assigned route.
+            saved_address = db.get(Address, order.delivery_address_id)
+            db.delete(saved_address)
+            db.commit()
+            trip = client.get(f"/api/v1/deliveries/{delivery_id}/trip")
+            assert trip.status_code == 200
+            assert trip.json()["dropoff"]["contact_name"] == "Test Customer"
+            assert trip.json()["dropoff"]["contact_phone"] == "+2348012345678"
             assert client.post(f"/api/v1/delivery-requests/{requested['id']}/accept").status_code in {403, 404}
 
             pickup = f"/api/v1/deliveries/{delivery_id}/picked-up"
