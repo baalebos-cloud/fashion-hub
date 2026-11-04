@@ -16,7 +16,7 @@ from app.models.location import Location
 from app.models.user import User
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
 from app.services.delivery_handover import handover_code, verify_handover_code
-from app.services.delivery_position import clear_position, read_position, save_position
+from app.services.delivery_position import clear_position, read_position, save_position, start_sharing
 from app.models.order import Order
 from app.models.order_timeline import OrderTimelineEntry
 from app.models.professional import Professional
@@ -191,11 +191,20 @@ class InternalCourierService:
             raise NotFoundError("Assigned delivery not found.")
         return delivery
 
-    def report_position(self, *, delivery_id, actor, latitude, longitude, accuracy_m):
+    def begin_position(self, *, delivery_id, actor):
+        delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
+        if delivery.status != "in_transit":
+            raise ConflictError("GPS sharing is available only after pickup and before handover.")
+        return start_sharing(delivery.id)
+
+    def report_position(self, *, delivery_id, actor, latitude, longitude, accuracy_m, share_token):
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
         if delivery.status != "in_transit":
             raise ConflictError("Live GPS is available only after pickup and before handover.")
-        return save_position(delivery.id, latitude=latitude, longitude=longitude, accuracy_m=accuracy_m)
+        return save_position(
+            delivery.id, share_token=share_token, latitude=latitude,
+            longitude=longitude, accuracy_m=accuracy_m,
+        )
 
     def stop_position(self, *, delivery_id, actor):
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
