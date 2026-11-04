@@ -192,6 +192,7 @@ export const endpoints = {
   },
 
   adminCommerce: { summary: "/admin/commerce-summary" },
+  adminDispatch: { board: "/admin/dispatch-board" },
 
   dashboard: {
     summary: "/dashboard",
