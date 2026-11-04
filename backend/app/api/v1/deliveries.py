@@ -11,6 +11,7 @@ from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
+from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse
 from app.services.internal_courier_service import InternalCourierService
 
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
@@ -100,3 +101,36 @@ def customer_handover_code(
 ):
     """Return OTP only to the delivery's customer after pickup; never to the rider."""
     return InternalCourierService(db).customer_handover_code(delivery_id=delivery_id, actor=user)
+
+
+@router.post("/{delivery_id}/position", response_model=RiderPositionResponse)
+def share_rider_position(
+    delivery_id: uuid.UUID,
+    payload: RiderPositionInput,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """Explicit, temporary GPS sharing by the rider assigned to an active delivery."""
+    return InternalCourierService(db).report_position(
+        delivery_id=delivery_id, actor=user, **payload.model_dump(),
+    )
+
+
+@router.get("/{delivery_id}/position", response_model=RiderPositionResponse | None)
+def authorized_rider_position(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Customer, seller and assigned courier can inspect unexpired rider GPS."""
+    return InternalCourierService(db).current_position(delivery_id=delivery_id, actor=user)
+
+
+@router.delete("/{delivery_id}/position", status_code=204)
+def stop_rider_position(
+    delivery_id: uuid.UUID,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """End GPS sharing immediately without waiting for the 90-second expiry."""
+    InternalCourierService(db).stop_position(delivery_id=delivery_id, actor=user)
