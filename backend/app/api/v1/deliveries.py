@@ -11,7 +11,7 @@ from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
-from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse
+from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse, RiderSharingSession
 from app.services.internal_courier_service import InternalCourierService
 
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
@@ -101,6 +101,16 @@ def customer_handover_code(
 ):
     """Return OTP only to the delivery's customer after pickup; never to the rider."""
     return InternalCourierService(db).customer_handover_code(delivery_id=delivery_id, actor=user)
+
+
+@router.post("/{delivery_id}/position/start", response_model=RiderSharingSession)
+def begin_rider_position(
+    delivery_id: uuid.UUID,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """Consent is given by the assigned rider's deliberate Start action."""
+    return InternalCourierService(db).begin_position(delivery_id=delivery_id, actor=user)
 
 
 @router.post("/{delivery_id}/position", response_model=RiderPositionResponse)
