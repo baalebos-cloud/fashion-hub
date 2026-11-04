@@ -52,11 +52,27 @@ class InternalCourierService:
         address = self.db.get(Address, order.delivery_address_id) if order.delivery_address_id else None
         if not profile or not profile.location_id:
             raise ConflictError("Set your business pickup location before dispatch.")
-        if not address or address.user_id != order.buyer_user_id:
+        if address and address.user_id != order.buyer_user_id:
             raise ConflictError("The customer's delivery address is unavailable.")
-
+        snapshot = order.delivery_address_snapshot or {}
+        if not isinstance(snapshot, dict):
+            snapshot = {}
         pickup_source = self.db.get(Location, profile.location_id)
-        dropoff_source = self.db.get(Location, address.location_id)
+        if address is not None:
+            dropoff_source = self.db.get(Location, address.location_id)
+        elif snapshot.get("formatted_address") and snapshot.get("latitude") is not None and snapshot.get("longitude") is not None:
+            # A customer can delete their saved address after ordering. The
+            # order's checkout snapshot still belongs to this order and is
+            # authoritative for fulfillment.
+            dropoff_source = Location(
+                location_type="delivery_dropoff",
+                latitude=snapshot["latitude"], longitude=snapshot["longitude"],
+                formatted_address=snapshot["formatted_address"],
+                city=snapshot.get("city"), state_region=snapshot.get("state_region"),
+                country=snapshot.get("country"), postal_code=snapshot.get("postal_code"),
+            )
+        else:
+            dropoff_source = None
         if pickup_source is None or dropoff_source is None:
             raise ConflictError("Pickup and drop-off location details are required.")
         # An accepted delivery must not silently change destination when a
@@ -176,8 +192,10 @@ class InternalCourierService:
             "dropoff": {
                 "address": dropoff.formatted_address,
                 **(destination or {"latitude": None, "longitude": None}),
-                "contact_name": address.recipient_name if address else None,
-                "contact_phone": address.recipient_phone if address else None,
+                "contact_name": (order.delivery_address_snapshot or {}).get("recipient_name")
+                    or (address.recipient_name if address else None),
+                "contact_phone": (order.delivery_address_snapshot or {}).get("recipient_phone")
+                    or (address.recipient_phone if address else None),
             },
             "straight_line_km": estimate_straight_line_km(origin, destination),
             "distance_source": "haversine",
