@@ -109,6 +109,7 @@ export const endpoints = {
     delivered: (id: string) => `/deliveries/${id}/delivered`,
     trip: (id: string) => `/deliveries/${id}/trip`,
     handoverCode: (id: string) => `/deliveries/${id}/handover-code`,
+    position: (id: string) => `/deliveries/${id}/position`,
     byOrder: (orderId: string) => `/deliveries/orders/${orderId}/tracking`,
   },
   deliveryRequests: {
