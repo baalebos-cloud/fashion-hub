@@ -41,3 +41,11 @@ export interface DeliveryTrip extends Delivery {
   straight_line_km: number | null;
   distance_source: "haversine";
 }
+
+/** Position is ephemeral and only shared with parties to an active delivery. */
+export interface RiderPosition {
+  latitude: number;
+  longitude: number;
+  accuracy_m: number;
+  recorded_at: string;
+}
