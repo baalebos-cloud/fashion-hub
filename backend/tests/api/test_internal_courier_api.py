@@ -88,9 +88,8 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
 
             pickup = f"/api/v1/deliveries/{delivery_id}/picked-up"
             dropoff = f"/api/v1/deliveries/{delivery_id}/delivered"
-            assert client.post(pickup).status_code == 409
-            order.status = "shipped"
-            db.commit()
+            # A ready order can be picked up immediately after assignment:
+            # no artificial seller-side "shipped" state change is required.
             current[0] = other_courier
             assert client.post(pickup).status_code == 404
             assert client.get(f"/api/v1/deliveries/{delivery_id}").status_code == 404
@@ -100,6 +99,7 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert response.json()["status"] == "in_transit"
             db.refresh(order)
             assert order.status == "out_for_delivery"
+            assert order.shipped_at is not None
             assert client.post(pickup).status_code == 409
             # Rider-initiated location sharing; unassigned accounts cannot read or publish.
             gps = f"/api/v1/deliveries/{delivery_id}/position"
