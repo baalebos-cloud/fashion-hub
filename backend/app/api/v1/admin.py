@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.permissions import Role, require_roles
 from app.services.commerce_dashboard_service import load_commerce_summary
+from app.schemas.dispatch_board import DispatchBoardResponse
 
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -31,7 +32,7 @@ def module_placeholder(current_user: User = Depends(require_roles(Role.ADMIN))):
     return {"module": "Admin", "status": "restricted"}
 
 
-@router.get("/dispatch-board")
+@router.get("/dispatch-board", response_model=DispatchBoardResponse)
 def dispatch_board(
     db: Session = Depends(get_db),
     admin: User = Depends(require_roles(Role.ADMIN)),
