@@ -31,6 +31,50 @@ def module_placeholder(current_user: User = Depends(require_roles(Role.ADMIN))):
     return {"module": "Admin", "status": "restricted"}
 
 
+@router.get("/dispatch-board")
+def dispatch_board(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Read-only admin dispatch overview; customers and couriers cannot query it."""
+    from app.models.delivery import Delivery
+    from app.models.delivery_partner import DeliveryPartner
+    from app.models.delivery_request import DeliveryRequest
+
+    pending_query = db.query(DeliveryRequest).filter(DeliveryRequest.status == "requested")
+    active_query = db.query(Delivery).filter(
+        Delivery.status.in_(["assigned", "picked_up", "in_transit", "out_for_delivery"])
+    )
+    pending = pending_query.order_by(DeliveryRequest.created_at.desc()).limit(50).all()
+    active = active_query.order_by(Delivery.created_at.desc()).limit(100).all()
+    partner_ids = [d.delivery_partner_id for d in active if d.delivery_partner_id]
+    partners = (db.query(DeliveryPartner).filter(DeliveryPartner.id.in_(partner_ids)).all()
+                if partner_ids else [])
+    by_id = {p.id: p for p in partners}
+    return {
+        "unassigned_count": pending_query.count(),
+        "active_count": active_query.count(),
+        "available_verified_riders": db.query(DeliveryPartner).filter(
+            DeliveryPartner.is_verified.is_(True),
+            DeliveryPartner.is_available.is_(True),
+        ).count(),
+        "pending": [
+            {"id": p.id, "order_id": p.order_id, "status": p.status, "created_at": p.created_at}
+            for p in pending
+        ],
+        "active": [
+            {
+                "id": d.id, "order_id": d.order_id, "status": d.status,
+                "delivery_partner_id": d.delivery_partner_id,
+                "vehicle_type": (by_id[d.delivery_partner_id].vehicle_type
+                                 if d.delivery_partner_id in by_id else None),
+                "created_at": d.created_at,
+            }
+            for d in active
+        ],
+    }
+
+
 @router.get("/commerce-summary")
 def commerce_summary(
     db: Session = Depends(get_db),
