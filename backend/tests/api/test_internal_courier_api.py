@@ -20,6 +20,7 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
     seller = make_user(role="tailor")
     courier = make_user(role="delivery_partner")
     other_courier = make_user(role="delivery_partner")
+    admin = make_user(role="admin")
     order = OrderService(db).create_customer_order(
         **catalog_request(db, buyer, seller)
     )
@@ -63,11 +64,22 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert available.status_code == 200 and len(available.json()) == 1
             assert "dropoff_location_id" not in available.json()[0]
             assert "pickup_location_id" not in available.json()[0]
+            assert client.get("/api/v1/admin/dispatch-board").status_code == 403
+            current[0] = admin
+            board = client.get("/api/v1/admin/dispatch-board")
+            assert board.status_code == 200, board.text
+            assert board.json()["unassigned_count"] == 1
+            current[0] = courier
 
             accepted = client.post(f"/api/v1/delivery-requests/{requested['id']}/accept")
             assert accepted.status_code == 200, accepted.text
             delivery_id = accepted.json()["id"]
             assert accepted.json()["status"] == "assigned"
+            current[0] = admin
+            board = client.get("/api/v1/admin/dispatch-board")
+            assert board.status_code == 200
+            assert board.json()["active_count"] == 1
+            current[0] = courier
             trip = client.get(f"/api/v1/deliveries/{delivery_id}/trip")
             assert trip.status_code == 200, trip.text
             assert trip.json()["pickup"]["address"] == "Test tailoring shop"
