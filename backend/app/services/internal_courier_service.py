@@ -16,6 +16,7 @@ from app.models.location import Location
 from app.models.user import User
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
 from app.services.delivery_handover import handover_code, verify_handover_code
+from app.services.delivery_position import clear_position, read_position, save_position
 from app.models.order import Order
 from app.models.order_timeline import OrderTimelineEntry
 from app.models.professional import Professional
@@ -181,6 +182,30 @@ class InternalCourierService:
             "straight_line_km": estimate_straight_line_km(origin, destination),
             "distance_source": "haversine",
         }
+
+    def _assigned_rider_for_position(self, *, delivery_id, actor):
+        delivery = self.get(delivery_id=delivery_id, actor=actor)
+        partner = self.db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery.delivery_partner_id else None
+        if (actor.role != "delivery_partner" or not partner
+                or str(partner.user_id) != str(actor.id)):
+            raise NotFoundError("Assigned delivery not found.")
+        return delivery
+
+    def report_position(self, *, delivery_id, actor, latitude, longitude, accuracy_m):
+        delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
+        if delivery.status != "in_transit":
+            raise ConflictError("Live GPS is available only after pickup and before handover.")
+        return save_position(delivery.id, latitude=latitude, longitude=longitude, accuracy_m=accuracy_m)
+
+    def stop_position(self, *, delivery_id, actor):
+        delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
+        clear_position(delivery.id)
+
+    def current_position(self, *, delivery_id, actor):
+        delivery = self.get(delivery_id=delivery_id, actor=actor)
+        if delivery.status != "in_transit":
+            return None
+        return read_position(delivery.id)
 
     def customer_handover_code(self, *, delivery_id, actor):
         """The buyer alone sees the code after the courier has collected the order."""
