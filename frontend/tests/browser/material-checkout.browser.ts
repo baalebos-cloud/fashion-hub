@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("a material order is reviewed separately and a late payment shows review required", async ({ page }) => {
-  await page.addInitScript(() => sessionStorage.setItem("fashionhub.access_token", "browser-test"));
+  await page.addInitScript(() => sessionStorage.setItem("tailora.access_token", "browser-test"));
   const expiry = new Date(Date.now() + 15 * 60000).toISOString();
   const cart = { cart_id: "cart", revision: 2, currency: "NGN", subtotal: 75, items: [
     { id: "a", product_variant_id: "variant-a", vendor_id: "store-a", vendor_name: "Cotton Store", product_name: "Cotton", sku: "A", currency: "NGN", quantity: 1, unit_price_snapshot: 25, is_available: true },
