@@ -133,6 +133,12 @@ class Settings(BaseSettings):
     # Straight-line distance is multiplied by this to approximate road distance.
     DISPATCH_ROAD_FACTOR: float = 1.35
     DISPATCH_OFFER_TTL_MINUTES: int = 10
+    # Sequential auto-offers (phase 3). Off by default: when on, each new job is offered to the
+    # best-ranked eligible rider with an exclusive window, then the next; finally the open board.
+    DISPATCH_AUTO_OFFER_ENABLED: bool = False
+    DISPATCH_AUTO_OFFER_TTL_SECONDS: int = 90
+    DISPATCH_AUTO_OFFER_MAX_ATTEMPTS: int = 5
+    DISPATCH_AUTO_OFFER_RADIUS_KM: float = 20.0
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
     VOICE_PROVIDER: Optional[str] = None

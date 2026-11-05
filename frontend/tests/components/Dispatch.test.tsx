@@ -9,7 +9,8 @@ import type { DispatchJob } from "@/types/dispatch";
 
 vi.mock("@/api/delivery-requests.api", () => ({
   deliveryRequestsApi: { available: vi.fn(), accept: vi.fn(), makeOffer: vi.fn(), withdrawOffer: vi.fn(),
-    sellerDispatch: vi.fn(), acceptOffer: vi.fn(), journey: vi.fn() },
+    sellerDispatch: vi.fn(), acceptOffer: vi.fn(), journey: vi.fn(),
+    reservedForMe: vi.fn().mockResolvedValue([]), acceptReserved: vi.fn(), declineReserved: vi.fn() },
 }));
 vi.mock("@/lib/utils/errors", () => ({
   getDisplayErrorMessage: (err: unknown, fallback = "error") => (err instanceof Error ? err.message : fallback),
@@ -24,7 +25,10 @@ const job: DispatchJob = {
   dropoff_area: "Victoria Island, Lagos", posted_at: new Date().toISOString(), my_offer: null,
 };
 
-beforeEach(() => vi.clearAllMocks());
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.mocked(deliveryRequestsApi.reservedForMe).mockResolvedValue([]);
+});
 afterEach(cleanup);
 
 describe("rider job board", () => {

@@ -22,7 +22,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | `InternalCourierService.request` rejects `vendor_order`; vendor orders stall at `ready_for_pickup`; no vendor pickup location endpoint; tailor cannot confirm receipt |
 | 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Blocked by #12 | Orders are already linked (`material_order_parent`, 0010); each order has its own request/delivery |
 | 14 | Structured delivery event log with idempotency keys | Partially implemented | `OrderTimelineEntry` + `tracking_events` table (unused for status events) |
-| 15 | Sequential auto-offers with TTL / auto-assignment | Missing | `DeliveryRequestService.broadcast_to_nearby_partners` raises `NotImplementedError` |
+| 15 | Sequential auto-offers with TTL (feature-flagged) | Implemented, test-verified (phase 3); off by default | `services/auto_dispatch_service.py`, `dispatch_job_offers` (0022), `tests/api/test_auto_dispatch.py` |
 | 16 | Road-based route distance/ETA (Routes API or OSM) | Missing | Haversine × road factor only, labelled as estimate |
 | 17 | Shareable recipient tracking link (no account) | Missing | — |
 | 18 | Pickup verification (package count/reference) | Partially implemented | Pickup is assigned-rider only; no package-count check |
@@ -42,7 +42,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 |---|---|---|
 | **1 (this PR)** | Materials leg: vendor pickup location, vendor-order dispatch through the existing request/offer/claim/handover flow, rider pickup/delivery transitions for materials, tailor receipt confirmation, UI on vendor and tailor order pages | — |
 | 2 (#131) | Admin dispatch actions: cancel/reassign with audit log and concurrency checks; issue resolution | 1 |
-| 3 | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
+| 3 (#132) | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
 | 4 | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |
 | 6 | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
@@ -59,3 +59,19 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 No schema change is required: `delivery_requests`, `deliveries`, `delivery_offers`
 and `orders` already represent a leg per order, and vendors already have
 `warehouse_location_id`. Existing customer-order behaviour is unchanged.
+
+## Phase 3 design notes: auto-offers
+
+- **Flag:** `DISPATCH_AUTO_OFFER_ENABLED` (default `false`). With it off, behaviour is exactly as before.
+- **Eligible:** verified, online, has a vehicle, no active delivery, not already offered this job, within
+  `DISPATCH_AUTO_OFFER_RADIUS_KM` when a base location is known.
+- **Ranking:** straight-line km from the rider's base (current location, else KYC home address) to pickup,
+  then rating, then completed deliveries; riders without a known base rank last. Distance is used for
+  ranking only and is never shown as an ETA. Rider locations never leave the server.
+- **Exclusive window:** `DISPATCH_AUTO_OFFER_TTL_SECONDS`. During it the job is hidden from other riders'
+  board and they can't claim or bid. A partial unique index enforces one live offer per job.
+- **Advance:** decline, expiry (Celery beat every 15 s, plus lazy checks on reads) or the rider going
+  offline move the job to the next rider. After `DISPATCH_AUTO_OFFER_MAX_ATTEMPTS`, or with no eligible
+  rider, the job stays on the open board (manual claim and fare offers still work).
+- **Rollout:** enable in staging with synthetic riders first; watch acceptance and expiry rates
+  on the admin board before enabling in production.

@@ -97,3 +97,11 @@ class DeliveryJourney(BaseModel):
     delivery_status: str | None
     milestones: list[JourneyMilestone]
     live: JourneyLive | None
+
+
+class ReservedJob(BaseModel):
+    """A job auto-offered exclusively to this rider until expires_at."""
+    id: uuid.UUID
+    expires_at: datetime
+    attempt: int
+    job: DispatchJob

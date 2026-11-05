@@ -59,3 +59,11 @@ export interface DeliveryJourney {
   milestones: JourneyMilestone[];
   live: { eta_minutes: number | null; distance_remaining_km: number | null; basis: "live_gps_estimate"; updated_at: string | null } | null;
 }
+
+/** A job Tailora reserved for this rider (auto-dispatch) until expires_at. */
+export interface ReservedJob {
+  id: string;
+  expires_at: string;
+  attempt: number;
+  job: DispatchJob;
+}

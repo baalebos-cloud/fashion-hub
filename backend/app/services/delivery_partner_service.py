@@ -46,5 +46,9 @@ class DeliveryPartnerService:
             raise ConflictError("An active delivery must be completed before going available.")
         partner.is_available = is_available
         self.db.commit()
+        if not is_available:
+            # Jobs reserved for a rider who goes offline move straight to the next rider.
+            from app.services.auto_dispatch_service import AutoDispatchService
+            AutoDispatchService(self.db).withdraw_for_partner(partner.id)
         self.db.refresh(partner)
         return partner

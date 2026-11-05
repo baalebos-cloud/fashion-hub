@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { formatNaira as naira } from "@/lib/formatters/currency";
 import type { DispatchJob } from "@/types/dispatch";
+import { ReservedJobs } from "@/components/dispatch/ReservedJobs";
 
 const REFRESH_MS = 20_000;
 
@@ -163,6 +164,7 @@ export default function DeliveryRequests() {
       <p className="text-sm text-ink-soft">
         Accept a job at the suggested fare, or offer your own fare and pickup time. Exact addresses and contacts are shared once you're assigned.
       </p>
+      <ReservedJobs onAccepted={(delivery) => navigate(deliveryRoutes.details(delivery.id))} onChanged={refresh} />
       {loading && <p role="status">Checking for delivery jobs…</p>}
       {error && <p role="alert" className="text-thread">{error}</p>}
       {!loading && !error && items.length === 0 && (

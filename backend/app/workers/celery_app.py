@@ -78,6 +78,10 @@ celery_app.conf.update(
             "task": "app.workers.payment_tasks.reconcile_pending_payments_task",
             "schedule": 300.0,  # every 5 minutes
         },
+        "advance-expired-job-offers": {
+            "task": "app.workers.delivery_tasks.advance_expired_job_offers_task",
+            "schedule": 15.0,  # auto-dispatch exclusive windows (no-op while disabled)
+        },
         "check-stale-delivery-tracking": {
             "task": "app.workers.tracking_tasks.check_stale_tracking_task",
             "schedule": 120.0,  # every 2 minutes -- catches "GPS stopped updating"

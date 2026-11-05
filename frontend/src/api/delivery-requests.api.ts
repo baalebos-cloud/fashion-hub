@@ -1,7 +1,7 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 import type { Delivery } from "@/types/delivery";
-import type { DeliveryJourney, DispatchJob, MyOffer, SellerDispatchView } from "@/types/dispatch";
+import type { DeliveryJourney, DispatchJob, MyOffer, ReservedJob, SellerDispatchView } from "@/types/dispatch";
 
 export interface InternalDeliveryRequest {
   id: string;
@@ -40,5 +40,14 @@ export const deliveryRequestsApi = {
   },
   async journey(orderId: string): Promise<DeliveryJourney> {
     return (await apiClient.get<DeliveryJourney>(`/deliveries/orders/${orderId}/journey`)).data;
+  },
+  async reservedForMe(): Promise<ReservedJob[]> {
+    return (await apiClient.get<ReservedJob[]>("/delivery-requests/job-offers/mine")).data;
+  },
+  async acceptReserved(offerId: string): Promise<Delivery> {
+    return (await apiClient.post<Delivery>(`/delivery-requests/job-offers/${offerId}/accept`)).data;
+  },
+  async declineReserved(offerId: string): Promise<void> {
+    await apiClient.post(`/delivery-requests/job-offers/${offerId}/decline`);
   },
 };
