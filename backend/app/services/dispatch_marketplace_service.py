@@ -31,7 +31,7 @@ from app.models.order import Order
 from app.models.user import User
 from app.services.dispatch_pricing import eta_minutes, offer_bounds, road_km, suggested_fare
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
-from app.services.internal_courier_service import REQUESTABLE, InternalCourierService
+from app.services.internal_courier_service import InternalCourierService, is_dispatchable
 
 
 def _point(location: Location | None):
@@ -119,7 +119,7 @@ class DispatchMarketplaceService:
         partner = self.courier._verified_available_partner(actor)
         request = self.db.get(DeliveryRequest, request_id)
         order = self.db.get(Order, request.order_id) if request else None
-        if not request or request.status != "requested" or not order or order.status not in REQUESTABLE:
+        if not request or request.status != "requested" or not is_dispatchable(order):
             raise NotFoundError("Available delivery request not found.")
         _, _, km = self._route(request)
         low, high = offer_bounds(self._fare(request, km))
@@ -197,7 +197,7 @@ class DispatchMarketplaceService:
         order = self.db.get(Order, request.order_id) if request else None
         if not order or str(order.seller_user_id) != str(actor.id):
             raise NotFoundError("Offer not found.")
-        if request.status != "requested" or order.status not in REQUESTABLE:
+        if request.status != "requested" or not is_dispatchable(order):
             raise ConflictError("This delivery already has a rider.")
         offer = (self.db.query(DeliveryOffer).filter_by(id=offer_id)
                  .with_for_update().populate_existing().first())

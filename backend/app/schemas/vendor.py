@@ -16,5 +16,7 @@ class VendorResponse(BaseModel):
     business_name: str
     is_verified: bool
     average_rating: float
+    # Set when the vendor has saved a store pickup point; required to request riders.
+    warehouse_location_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}

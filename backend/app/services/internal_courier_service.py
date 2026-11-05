@@ -3,6 +3,7 @@
 This is an explicit polling workflow for verified couriers, NOT a
 geo-matching or third-party shipping integration.
 """
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, ForbiddenError, InvalidStateTransitionError, NotFoundError
@@ -22,11 +23,28 @@ from app.models.order_timeline import OrderTimelineEntry
 from app.models.professional import Professional
 from app.repositories.order_repository import OrderRepository
 
-REQUESTABLE = {"ready_for_delivery", "shipped"}
-STATUS_ACTIONS = {
-    "picked-up": (("ready_for_delivery", "shipped"), "assigned", "out_for_delivery", "in_transit", "out_for_delivery_at"),
-    "delivered": (("out_for_delivery",), "in_transit", "delivered", "delivered", "delivered_at"),
+# Each order is its own delivery leg: a customer garment (tailor -> customer) or
+# a materials order (vendor -> tailor). Statuses below are per order type.
+REQUESTABLE_BY_TYPE = {
+    "customer_order": {"ready_for_delivery", "shipped"},
+    "vendor_order": {"ready_for_pickup"},
 }
+# Union kept for callers that only need "is this order waiting for a rider".
+REQUESTABLE = set().union(*REQUESTABLE_BY_TYPE.values())
+# (order_type, action) -> (expected order states, expected delivery state,
+#                          new order state, new delivery state, order timestamp field)
+STATUS_ACTIONS = {
+    ("customer_order", "picked-up"): (("ready_for_delivery", "shipped"), "assigned", "out_for_delivery", "in_transit", "out_for_delivery_at"),
+    ("customer_order", "delivered"): (("out_for_delivery",), "in_transit", "delivered", "delivered", "delivered_at"),
+    ("vendor_order", "picked-up"): (("ready_for_pickup",), "assigned", "in_transit", "in_transit", "out_for_delivery_at"),
+    ("vendor_order", "delivered"): (("in_transit",), "in_transit", "delivered", "delivered", "delivered_at"),
+}
+# Status in which the buyer may reveal the handover code (package collected, not yet handed over).
+HANDOVER_STATUS = {"customer_order": "out_for_delivery", "vendor_order": "in_transit"}
+
+
+def is_dispatchable(order) -> bool:
+    return order is not None and order.status in REQUESTABLE_BY_TYPE.get(order.order_type, set())
 
 
 class InternalCourierService:
@@ -37,27 +55,36 @@ class InternalCourierService:
         order = OrderRepository(self.db).get_by_id_for_update(order_id)
         if not order:
             raise NotFoundError("Order not found.")
-        if order.order_type != "customer_order":
-            raise ConflictError("Internal courier dispatch currently supports customer orders only.")
-        if str(order.seller_user_id) != str(actor.id) or actor.role not in {"tailor", "designer"}:
-            raise ForbiddenError("Only this order's professional may request delivery.")
-        if order.status not in REQUESTABLE:
-            raise ConflictError("The order must be ready for delivery.")
+        seller_roles = {"customer_order": {"tailor", "designer"}, "vendor_order": {"vendor"}}
+        if order.order_type not in seller_roles:
+            raise ConflictError("This order type can't be dispatched.")
+        if str(order.seller_user_id) != str(actor.id) or actor.role not in seller_roles[order.order_type]:
+            raise ForbiddenError("Only this order's seller may request delivery.")
+        if not is_dispatchable(order):
+            raise ConflictError("The order must be ready for pickup before requesting a rider.")
         existing = (self.db.query(DeliveryRequest).filter_by(order_id=order.id)
                     .order_by(DeliveryRequest.created_at.desc()).first())
         if existing:
             return existing
 
-        profile = self.db.query(Professional).filter_by(user_id=actor.id).first()
+        if order.order_type == "vendor_order":
+            from app.models.vendor import Vendor
+            vendor = self.db.query(Vendor).filter_by(user_id=actor.id).first()
+            pickup_location_id = vendor.warehouse_location_id if vendor else None
+            if not pickup_location_id:
+                raise ConflictError("Set your store pickup location before requesting a rider.")
+        else:
+            profile = self.db.query(Professional).filter_by(user_id=actor.id).first()
+            pickup_location_id = profile.location_id if profile else None
+            if not pickup_location_id:
+                raise ConflictError("Set your business pickup location before dispatch.")
         address = self.db.get(Address, order.delivery_address_id) if order.delivery_address_id else None
-        if not profile or not profile.location_id:
-            raise ConflictError("Set your business pickup location before dispatch.")
         if address and address.user_id != order.buyer_user_id:
             raise ConflictError("The customer's delivery address is unavailable.")
         snapshot = order.delivery_address_snapshot or {}
         if not isinstance(snapshot, dict):
             snapshot = {}
-        pickup_source = self.db.get(Location, profile.location_id)
+        pickup_source = self.db.get(Location, pickup_location_id)
         if address is not None:
             dropoff_source = self.db.get(Location, address.location_id)
         elif snapshot.get("formatted_address") and snapshot.get("latitude") is not None and snapshot.get("longitude") is not None:
@@ -100,7 +127,8 @@ class InternalCourierService:
             order_id=order.id,
             pickup_location_id=pickup_snapshot.id,
             dropoff_location_id=dropoff_snapshot.id,
-            package_description="Customer fashion order " + order.order_number,
+            package_description=("Materials order " if order.order_type == "vendor_order"
+                                 else "Customer fashion order ") + order.order_number,
             proposed_fee=self._suggested_fee(order, pickup_snapshot, dropoff_snapshot),
             status="requested",
         )
@@ -126,7 +154,8 @@ class InternalCourierService:
         self._verified_available_partner(actor)
         return (self.db.query(DeliveryRequest).join(Order, Order.id == DeliveryRequest.order_id)
                 .filter(DeliveryRequest.status == "requested",
-                        Order.order_type == "customer_order", Order.status.in_(REQUESTABLE))
+                        or_(*[(Order.order_type == kind) & Order.status.in_(states)
+                              for kind, states in REQUESTABLE_BY_TYPE.items()]))
                 .order_by(DeliveryRequest.created_at, DeliveryRequest.id).limit(limit).all())
 
     def _verified_available_partner(self, actor):
@@ -147,7 +176,7 @@ class InternalCourierService:
         if not request or request.status != "requested":
             raise NotFoundError("Available delivery request not found.")
         order = self.db.get(Order, request.order_id)
-        if not order or order.order_type != "customer_order" or order.status not in REQUESTABLE:
+        if not is_dispatchable(order):
             raise ConflictError("This order is no longer ready for dispatch.")
         return self.assign(request=request, order=order, partner=partner, fee=request.proposed_fee)
 
@@ -262,12 +291,12 @@ class InternalCourierService:
         order = self.db.get(Order, delivery.order_id)
         if not order or str(order.buyer_user_id) != str(actor.id):
             raise NotFoundError("Delivery not found.")
-        if delivery.status != "in_transit" or order.status != "out_for_delivery":
+        if delivery.status != "in_transit" or order.status != HANDOVER_STATUS.get(order.order_type):
             raise ConflictError("The package must be picked up before issuing a handover code.")
         return {"delivery_id": delivery.id, "handover_code": handover_code(delivery.id)}
 
     def transition(self, *, delivery_id, actor, action, handover_code_input=None):
-        if action not in STATUS_ACTIONS:
+        if action not in {"picked-up", "delivered"}:
             raise ConflictError("Unknown courier action.")
         # Lock the order first for consistency with order lifecycle operations.
         initial = self.db.get(Delivery, delivery_id)
@@ -279,9 +308,9 @@ class InternalCourierService:
         partner = self.db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery else None
         if not order or not delivery or not partner or actor.role != "delivery_partner" or str(partner.user_id) != str(actor.id):
             raise NotFoundError("Assigned delivery not found.")
-        if order.order_type != "customer_order":
+        if (order.order_type, action) not in STATUS_ACTIONS:
             raise ConflictError("Unsupported delivery type.")
-        expected_order, expected_delivery, new_order, new_delivery, stamp_field = STATUS_ACTIONS[action]
+        expected_order, expected_delivery, new_order, new_delivery, stamp_field = STATUS_ACTIONS[(order.order_type, action)]
         if order.status not in expected_order or delivery.status != expected_delivery:
             raise InvalidStateTransitionError("The delivery is not in the required state.")
         if action == "delivered":
@@ -297,6 +326,11 @@ class InternalCourierService:
         else:
             delivery.delivered_at = now
             partner.is_available = True
+        if order.order_type == "vendor_order" and action == "picked-up":
+            # Materials orders record the collection itself before going in transit.
+            self.db.add(OrderTimelineEntry(order_id=order.id, from_status=previous_status, to_status="picked_up",
+                                           actor_user_id=actor.id, note="Courier collected the materials"))
+            previous_status = "picked_up"
         self.db.add(OrderTimelineEntry(
             order_id=order.id, from_status=previous_status, to_status=new_order,
             actor_user_id=actor.id, note="Courier " + action,

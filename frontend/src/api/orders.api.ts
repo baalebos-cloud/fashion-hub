@@ -78,4 +78,8 @@ export const ordersApi = {
     const response = await apiClient.post<Order>(endpoints.orders.cancel(id), { note });
     return response.data;
   },
+  /** Tailor/designer confirms the materials they bought arrived (delivered -> completed). */
+  async confirmMaterialsReceived(orderId: string, note?: string): Promise<Order> {
+    return (await apiClient.post<Order>(`/orders/${orderId}/materials-received`, { note: note ?? null })).data;
+  },
 };

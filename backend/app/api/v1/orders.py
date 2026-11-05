@@ -299,6 +299,17 @@ def vendor_fulfillment(
     )
 
 
+@router.post("/{order_id}/materials-received", response_model=OrderResponse)
+def confirm_materials_received(
+    order_id: uuid.UUID,
+    payload: OrderTransitionRequest,
+    current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    db: Session = Depends(get_db),
+):
+    """The tailor/designer who bought the materials confirms they arrived."""
+    return VendorFulfillmentService(db).confirm_received(order_id=order_id, actor=current_user, note=payload.note)
+
+
 @router.post("/{order_id}/cancel", response_model=OrderResponse)
 def cancel_order(
     order_id: uuid.UUID,

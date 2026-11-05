@@ -19,7 +19,7 @@ router = APIRouter(prefix="/delivery-requests", tags=["Delivery Requests"])
 @router.post("/orders/{order_id}", response_model=DeliveryRequestResponse, status_code=201)
 def request_delivery(
     order_id: uuid.UUID,
-    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR)),
     db: Session = Depends(get_db),
 ):
     return InternalCourierService(db).request(order_id=order_id, actor=user)
@@ -61,7 +61,7 @@ def withdraw_offer(
 @router.get("/orders/{order_id}/dispatch", response_model=SellerDispatchView)
 def seller_dispatch(
     order_id: uuid.UUID,
-    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR)),
     db: Session = Depends(get_db),
 ):
     """The order's seller: suggested fare and live rider offers to choose from."""
@@ -71,7 +71,7 @@ def seller_dispatch(
 @router.post("/offers/{offer_id}/accept", response_model=DeliveryResponse)
 def accept_offer(
     offer_id: uuid.UUID,
-    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR)),
     db: Session = Depends(get_db),
 ):
     return DispatchMarketplaceService(db).accept_offer(offer_id=offer_id, actor=user)
