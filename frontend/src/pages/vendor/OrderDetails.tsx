@@ -2,6 +2,7 @@ import { useState } from "react";
 import { OrderContacts } from "@/components/calls/OrderContacts";
 import { RequestRiderPanel } from "@/components/dispatch/RequestRiderPanel";
 import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
+import { PickupCodeCard } from "@/components/dispatch/PickupCodeCard";
 import { vendorRoutes } from "@/config/routes.config";
 import { useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
@@ -60,6 +61,7 @@ export default function OrderDetails() {
       {order.status === "ready_for_pickup" && (
         <RequestRiderPanel orderId={order.id} pickupSettingsPath={vendorRoutes.delivery} />
       )}
+      {order.status === "ready_for_pickup" && <PickupCodeCard orderId={order.id} />}
       {["ready_for_pickup", "picked_up", "in_transit", "delivered", "received", "completed"].includes(order.status) && (
         <DeliveryJourney orderId={order.id} />
       )}

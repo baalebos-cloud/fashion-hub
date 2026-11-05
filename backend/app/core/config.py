@@ -143,6 +143,11 @@ class Settings(BaseSettings):
     TRACKING_LINK_TTL_HOURS: int = 168          # 7 days
     TRACKING_LINK_AFTER_DELIVERY_HOURS: int = 48  # links stop working this long after delivery
     TRACKING_LINK_MAX_ACTIVE: int = 3
+    # Delivery proof (phase 6). Codes are one-time, expire, and rotate on request.
+    HANDOVER_CODE_TTL_MINUTES: int = 30
+    PICKUP_CODE_TTL_MINUTES: int = 30
+    # The seller gives the rider a pickup code; the rider enters it to start the trip.
+    DELIVERY_PICKUP_CODE_REQUIRED: bool = True
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
     VOICE_PROVIDER: Optional[str] = None

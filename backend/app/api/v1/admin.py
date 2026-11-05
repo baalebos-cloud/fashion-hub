@@ -172,6 +172,16 @@ def dispatch_cancel_request(request_id: UUID, payload: DispatchActionReason, req
     return {"request_id": str(record.id), "status": record.status}
 
 
+@router.get("/dispatch/deliveries/{delivery_id}/events")
+def dispatch_delivery_events(delivery_id: UUID, db: Session = Depends(get_db),
+                             admin: User = Depends(require_roles(Role.ADMIN))):
+    """A run's audit trail: codes issued, failed checks, pickup and drop-off. Never the codes."""
+    from app.services.internal_courier_service import InternalCourierService
+    return [{"id": str(e.id), "event_type": e.event_type, "actor_role": e.actor_role,
+             "details": e.details or {}, "created_at": e.created_at}
+            for e in InternalCourierService(db).events(delivery_id=delivery_id, actor=admin)]
+
+
 @router.get("/dispatch/issues")
 def dispatch_open_issues(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
     """Rider-reported problems that aren't resolved yet, oldest first."""

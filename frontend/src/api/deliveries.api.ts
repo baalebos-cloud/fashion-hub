@@ -1,22 +1,40 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
-import type { Delivery, DeliveryTrip, RiderPosition } from "@/types/delivery";
+import type { Delivery, DeliveryTrip, HandoverCode, PickupCode, RiderPosition } from "@/types/delivery";
+
+/** One key per user action, so a retry after a dropped connection is applied only once. */
+export function newIdempotencyKey(): string {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `web-${random}`;
+}
 
 export const deliveriesApi = {
-  async markPickedUp(id: string): Promise<Delivery> {
-    const response = await apiClient.post<Delivery>(endpoints.deliveries.pickedUp(id));
+  async markPickedUp(id: string, body: { pickup_code?: string; package_count: number }, idempotencyKey?: string): Promise<Delivery> {
+    const response = await apiClient.post<Delivery>(endpoints.deliveries.pickedUp(id), body,
+      idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined);
     return response.data;
   },
-  async markDelivered(id: string, handoverCode: string): Promise<Delivery> {
-    const response = await apiClient.post<Delivery>(endpoints.deliveries.delivered(id), { handover_code: handoverCode });
+  async markDelivered(id: string, handoverCode: string, idempotencyKey?: string): Promise<Delivery> {
+    const response = await apiClient.post<Delivery>(endpoints.deliveries.delivered(id), { handover_code: handoverCode },
+      idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined);
     return response.data;
   },
   async getTrip(id: string): Promise<DeliveryTrip> {
     return (await apiClient.get<DeliveryTrip>(endpoints.deliveries.trip(id))).data;
   },
-  async getHandoverCode(id: string): Promise<string> {
-    const response = await apiClient.get<{ handover_code: string }>(endpoints.deliveries.handoverCode(id));
-    return response.data.handover_code;
+  /** Buyer only, after pickup. Codes expire; a lapsed one is replaced automatically. */
+  async getHandoverCode(id: string): Promise<HandoverCode> {
+    return (await apiClient.get<HandoverCode>(endpoints.deliveries.handoverCode(id))).data;
+  },
+  async rotateHandoverCode(id: string): Promise<HandoverCode> {
+    return (await apiClient.post<HandoverCode>(`${endpoints.deliveries.handoverCode(id)}/rotate`)).data;
+  },
+  /** Seller only, while the rider is coming to collect. */
+  async getPickupCode(id: string): Promise<PickupCode> {
+    return (await apiClient.get<PickupCode>(endpoints.deliveries.pickupCode(id))).data;
+  },
+  async rotatePickupCode(id: string): Promise<PickupCode> {
+    return (await apiClient.post<PickupCode>(`${endpoints.deliveries.pickupCode(id)}/rotate`)).data;
   },
   async getByOrder(orderId: string): Promise<Delivery | null> {
     const response = await apiClient.get<Delivery | null>(endpoints.deliveries.byOrder(orderId));

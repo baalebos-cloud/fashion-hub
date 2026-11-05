@@ -105,7 +105,13 @@ def test_materials_leg_from_vendor_to_tailor(materials):
     assert http.post(f"/api/v1/delivery-requests/{request_id}/accept").status_code in {404, 409}
     current[0] = materials["rider"]
     assert http.post(f"/api/v1/deliveries/{delivery_id}/delivered", json={"handover_code": "000000"}).status_code == 409
-    assert http.post(f"/api/v1/deliveries/{delivery_id}/picked-up").status_code == 200
+    # The vendor gives the rider a one-time pickup code; without it the trip can't start.
+    assert http.post(f"/api/v1/deliveries/{delivery_id}/picked-up").status_code == 422
+    current[0] = materials["vendor"]
+    pickup_code = http.get(f"/api/v1/deliveries/{delivery_id}/pickup-code").json()["pickup_code"]
+    current[0] = materials["rider"]
+    assert http.post(f"/api/v1/deliveries/{delivery_id}/picked-up",
+                     json={"pickup_code": pickup_code, "package_count": 2}).status_code == 200
     db.refresh(material)
     assert material.status == "in_transit"
     assert [e.to_status for e in db.query(OrderTimelineEntry).filter_by(order_id=material.id)

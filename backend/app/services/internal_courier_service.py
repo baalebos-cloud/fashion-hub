@@ -17,7 +17,10 @@ from app.models.notification import Notification
 from app.models.location import Location
 from app.models.user import User
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
-from app.services.delivery_handover import handover_code, verify_handover_code
+from app.core.config import settings
+from app.core.exceptions import ValidationAppError
+from app.models.delivery_proof import DeliveryEvent
+from app.services.delivery_handover import DeliveryCodeService, record_event, validate_idempotency_key
 from app.services.delivery_position import clear_position, read_position, save_position, start_sharing
 from app.models.order import Order
 from app.models.order_timeline import OrderTimelineEntry
@@ -333,19 +336,60 @@ class InternalCourierService:
             return None
         return read_position(delivery.id)
 
-    def customer_handover_code(self, *, delivery_id, actor):
-        """The buyer alone sees the code after the courier has collected the order."""
+    def _lock_for_code(self, delivery_id):
+        """Order -> delivery lock order, same as transition(), so codes and status never race."""
+        initial = self.db.get(Delivery, delivery_id)
+        order = OrderRepository(self.db).get_by_id_for_update(initial.order_id)
+        delivery = (self.db.query(Delivery).filter_by(id=delivery_id)
+                    .with_for_update().populate_existing().first())
+        return order, delivery
+
+    def customer_handover_code(self, *, delivery_id, actor, rotate: bool = False):
+        """The buyer alone sees the code after the courier has collected the order. Codes expire
+        and rotate; the rider never receives one."""
         delivery = self.get(delivery_id=delivery_id, actor=actor)
         order = self.db.get(Order, delivery.order_id)
         if not order or str(order.buyer_user_id) != str(actor.id):
             raise NotFoundError("Delivery not found.")
+        order, delivery = self._lock_for_code(delivery.id)
         if delivery.status != "in_transit" or order.status != HANDOVER_STATUS.get(order.order_type):
             raise ConflictError("The package must be picked up before issuing a handover code.")
-        return {"delivery_id": delivery.id, "handover_code": handover_code(delivery.id)}
+        issued = DeliveryCodeService(self.db).reveal(delivery=delivery, purpose="handover", actor=actor, rotate=rotate)
+        self.db.commit()
+        return {"delivery_id": delivery.id, "handover_code": issued["code"], "expires_at": issued["expires_at"],
+                "package_count": delivery.package_count}
 
-    def transition(self, *, delivery_id, actor, action, handover_code_input=None):
+    def seller_pickup_code(self, *, delivery_id, actor, rotate: bool = False):
+        """The seller alone sees the pickup code while a rider is on the way to collect."""
+        delivery = self.get(delivery_id=delivery_id, actor=actor)
+        order = self.db.get(Order, delivery.order_id)
+        if not order or str(order.seller_user_id) != str(actor.id):
+            raise NotFoundError("Delivery not found.")
+        if not settings.DELIVERY_PICKUP_CODE_REQUIRED:
+            return {"delivery_id": delivery.id, "required": False, "pickup_code": None, "expires_at": None}
+        order, delivery = self._lock_for_code(delivery.id)
+        expected_order = STATUS_ACTIONS.get((order.order_type, "picked-up"), ((),))[0]
+        if delivery.status != "assigned" or order.status not in expected_order:
+            raise ConflictError("A pickup code is available only while a rider is coming to collect.")
+        issued = DeliveryCodeService(self.db).reveal(delivery=delivery, purpose="pickup", actor=actor, rotate=rotate)
+        self.db.commit()
+        return {"delivery_id": delivery.id, "required": True, "pickup_code": issued["code"],
+                "expires_at": issued["expires_at"]}
+
+    def events(self, *, delivery_id, actor):
+        """Admin view of a run's audit trail."""
+        if actor.role != "admin":
+            raise NotFoundError("Delivery not found.")
+        if not self.db.get(Delivery, delivery_id):
+            raise NotFoundError("Delivery not found.")
+        return (self.db.query(DeliveryEvent).filter(DeliveryEvent.delivery_id == delivery_id)
+                .order_by(DeliveryEvent.seq).all())
+
+    def transition(self, *, delivery_id, actor, action, handover_code_input=None, pickup_code_input=None,
+                   package_count: int | None = None, idempotency_key: str | None = None):
         if action not in {"picked-up", "delivered"}:
             raise ConflictError("Unknown courier action.")
+        key = validate_idempotency_key(idempotency_key)
         # Lock the order first for consistency with order lifecycle operations.
         initial = self.db.get(Delivery, delivery_id)
         if not initial:
@@ -356,13 +400,37 @@ class InternalCourierService:
         partner = self.db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery else None
         if not order or not delivery or not partner or actor.role != "delivery_partner" or str(partner.user_id) != str(actor.id):
             raise NotFoundError("Assigned delivery not found.")
+        event_type = "picked_up" if action == "picked-up" else "delivered"
+        if key:
+            prior = (self.db.query(DeliveryEvent)
+                     .filter(DeliveryEvent.delivery_id == delivery.id, DeliveryEvent.idempotency_key == key).first())
+            if prior is not None:
+                # A retried request (flaky network): answer with the current state, change nothing.
+                if prior.event_type != event_type or str(prior.actor_user_id) != str(actor.id):
+                    raise ConflictError("This Idempotency-Key was already used for a different action.")
+                self.db.commit()
+                return delivery
         if (order.order_type, action) not in STATUS_ACTIONS:
             raise ConflictError("Unsupported delivery type.")
         expected_order, expected_delivery, new_order, new_delivery, stamp_field = STATUS_ACTIONS[(order.order_type, action)]
         if order.status not in expected_order or delivery.status != expected_delivery:
             raise InvalidStateTransitionError("The delivery is not in the required state.")
-        if action == "delivered":
-            verify_handover_code(delivery.id, handover_code_input)
+        if action == "picked-up" and package_count is not None and not 1 <= package_count <= 50:
+            raise ValidationAppError("Package count must be between 1 and 50.")
+        purpose = "handover" if action == "delivered" else ("pickup" if settings.DELIVERY_PICKUP_CODE_REQUIRED else None)
+        if purpose:
+            try:
+                DeliveryCodeService(self.db).verify(
+                    delivery=delivery, purpose=purpose,
+                    submitted=handover_code_input if purpose == "handover" else pickup_code_input)
+            except (ValidationAppError, ForbiddenError) as exc:
+                # Keep a record of failed attempts even though the transition itself rolls back.
+                self.db.rollback()
+                failed = self.db.get(Delivery, delivery_id)
+                record_event(self.db, delivery=failed, event_type=f"{purpose}_verification_failed", actor=actor,
+                             reason="locked" if isinstance(exc, ForbiddenError) else "rejected")
+                self.db.commit()
+                raise
         now = utcnow()
         previous_status = order.status
         order.status = new_order
@@ -371,9 +439,13 @@ class InternalCourierService:
         if action == "picked-up":
             order.shipped_at = order.shipped_at or now
             delivery.picked_up_at = now
+            delivery.package_count = package_count or 1
         else:
             delivery.delivered_at = now
             partner.is_available = True
+        record_event(self.db, delivery=delivery, event_type=event_type, actor=actor, idempotency_key=key,
+                     package_count=delivery.package_count,
+                     verified_by=f"{purpose}_code" if purpose else "rider_confirmation")
         if order.order_type == "vendor_order" and action == "picked-up":
             # Materials orders record the collection itself before going in transit.
             self.db.add(OrderTimelineEntry(order_id=order.id, from_status=previous_status, to_status="picked_up",

@@ -24,6 +24,8 @@ class Delivery(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
     delivery_fee: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False, default=0)
     estimated_arrival_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # Number of packages the rider confirmed at pickup (shown to the recipient at handover).
+    package_count: Mapped[int | None] = mapped_column(nullable=True)
     proof_of_delivery_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
 
     picked_up_at: Mapped[datetime | None] = mapped_column(nullable=True)

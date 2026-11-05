@@ -107,13 +107,17 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             assert client.post(pickup).status_code == 404
             assert client.get(f"/api/v1/deliveries/{delivery_id}").status_code == 404
             current[0] = courier
-            response = client.post(pickup)
+            assert client.post(pickup).status_code == 422  # seller's pickup code required
+            current[0] = seller
+            pickup_code = client.get(f"/api/v1/deliveries/{delivery_id}/pickup-code").json()["pickup_code"]
+            current[0] = courier
+            response = client.post(pickup, json={"pickup_code": pickup_code})
             assert response.status_code == 200, response.text
             assert response.json()["status"] == "in_transit"
             db.refresh(order)
             assert order.status == "out_for_delivery"
             assert order.shipped_at is not None
-            assert client.post(pickup).status_code == 409
+            assert client.post(pickup, json={"pickup_code": pickup_code}).status_code == 409
             # Rider-initiated location sharing; unassigned accounts cannot read or publish.
             gps = f"/api/v1/deliveries/{delivery_id}/position"
             share = client.post(gps + "/start")
