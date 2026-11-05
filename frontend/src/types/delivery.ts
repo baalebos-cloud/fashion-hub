@@ -17,6 +17,11 @@ export interface Delivery {
   proof_of_delivery_url?: string | null;
   rider_name?: string | null;
   rider_phone?: string | null;
+  rider_verified?: boolean | null;
+  rider_rating?: number | null;
+  rider_vehicle_type?: string | null;
+  rider_completed_deliveries?: number | null;
+  rider_photo_url?: string | null;
 }
 
 export interface DeliveryPartner {

@@ -4,6 +4,7 @@ import { useOrders } from "@/hooks/use-orders";
 import { OrderList } from "@/components/orders/OrderList";
 import { dashboardApi } from "@/api/dashboard.api";
 import { Card } from "@/components/ui/card";
+import { ShareShopCard } from "@/components/storefront/ShareShopCard";
 import { Button } from "@/components/ui/button";
 import { vendorRoutes } from "@/config/routes.config";
 import type { DashboardSummaryCard } from "@/types/dashboard";
@@ -33,6 +34,8 @@ export default function Dashboard() {
           ))}
         </div>
       )}
+
+      <ShareShopCard />
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Recent orders</h2>

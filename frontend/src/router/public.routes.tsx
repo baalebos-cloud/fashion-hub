@@ -10,6 +10,7 @@ import FindDesigner from "@/pages/public/FindDesigner";
 import VendorMarketplace from "@/pages/public/VendorMarketplace";
 import ProductDetails from "@/pages/public/ProductDetails";
 import ProfessionalProfile from "@/pages/public/ProfessionalProfile";
+import Storefront from "@/pages/public/Storefront";
 import Pricing from "@/pages/public/Pricing";
 import Contact from "@/pages/public/Contact";
 import Terms from "@/pages/public/Terms";
@@ -33,6 +34,7 @@ export const publicRouteObjects: RouteObject[] = [
   { path: publicRoutes.vendorMarketplace, element: withLayout(VendorMarketplace) },
   { path: "/products/:productId", element: withLayout(ProductDetails) },
   { path: "/professionals/:professionalId", element: withLayout(ProfessionalProfile) },
+  { path: "/s/:handle", element: withLayout(Storefront) },
   { path: publicRoutes.pricing, element: withLayout(Pricing) },
   { path: publicRoutes.contact, element: withLayout(Contact) },
   { path: publicRoutes.terms, element: withLayout(Terms) },

@@ -50,6 +50,7 @@ from app.api.v1 import (
     refund_idempotency,
     reviews,
     search,
+    storefronts,
     saga,
     tailors,
     users,
@@ -67,6 +68,7 @@ api_router.include_router(addresses.router)
 api_router.include_router(users.router)
 api_router.include_router(customers.router)
 api_router.include_router(professionals.router)
+api_router.include_router(storefronts.router)
 api_router.include_router(tailors.router)
 api_router.include_router(designers.router)
 api_router.include_router(vendors.router)

@@ -48,11 +48,21 @@ def customer_order_delivery(
         return None
     partner = db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery.delivery_partner_id else None
     rider = db.get(User, partner.user_id) if partner else None
+    completed = None
+    if partner:
+        from sqlalchemy import func
+        completed = int(db.query(func.count(Delivery.id)).filter(
+            Delivery.delivery_partner_id == partner.id, Delivery.status == "delivered").scalar() or 0)
     return {
         "id": delivery.id, "order_id": delivery.order_id,
         "status": delivery.status, "delivery_fee": delivery.delivery_fee,
         "rider_name": rider.full_name if rider else None,
         "rider_phone": rider.phone_number if rider else None,
+        "rider_verified": bool(partner.is_verified) if partner else None,
+        "rider_rating": float(partner.average_rating or 0) if partner else None,
+        "rider_vehicle_type": partner.vehicle_type if partner else None,
+        "rider_completed_deliveries": completed,
+        "rider_photo_url": rider.profile_photo_url if rider else None,
     }
 
 

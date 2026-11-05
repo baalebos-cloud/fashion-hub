@@ -20,3 +20,9 @@ class DeliveryResponse(BaseModel):
 class DeliveryTrackingResponse(DeliveryResponse):
     rider_name: Optional[str] = None
     rider_phone: Optional[str] = None
+    # Public rider card so customers can check who is coming before handover.
+    rider_verified: Optional[bool] = None
+    rider_rating: Optional[float] = None
+    rider_vehicle_type: Optional[str] = None
+    rider_completed_deliveries: Optional[int] = None
+    rider_photo_url: Optional[str] = None
