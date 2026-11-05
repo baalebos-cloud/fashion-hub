@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MEASUREMENT_DRAFT_PREFIX } from "@/lib/auth/account-isolation";
 import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/use-auth";
@@ -28,7 +29,7 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
   const [step, setStep] = useState<"measure" | "review">("measure");
   const [isRestored, setIsRestored] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const draftKey = user?.id ? `seam:measurements:draft:${user.id}` : null;
+  const draftKey = user?.id ? `${MEASUREMENT_DRAFT_PREFIX}${user.id}` : null;
   const names = requiredFields?.length
     ? measurementNames.filter((name) => requiredFields.includes(name))
     : [...measurementNames];

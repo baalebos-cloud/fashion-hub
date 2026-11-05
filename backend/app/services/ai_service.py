@@ -47,17 +47,20 @@ class AIService:
         from app.repositories.ai_repository import AIRepository
         rows = AIRepository(self.db).list_messages(conversation.id)
         history = [{"role": m.role, "content": m.content} for m in rows[-25:]]
+        from app.services.ai_profile_context import build_profile_context
+        profile_context = build_profile_context(self.db, user)
         answer = None
         if settings.VERTEX_AI_ENABLED:
             from app.services.vertex_service import VertexUnavailable, get_vertex_service
             try:
-                answer = get_vertex_service().ask_seam(history, user_role=user.role)
+                answer = get_vertex_service().ask_seam(
+                    history, user_role=user.role, profile_context=profile_context)
             except VertexUnavailable:
                 logger.warning("tailora_vertex_unavailable_using_fallback")
         if answer is None and settings.AI_FALLBACK_PROVIDER.lower() == "groq" and settings.GROQ_API_KEY:
             try:
                 safe_role = user.role if user.role in {"customer", "tailor", "designer", "vendor", "delivery_partner", "admin"} else "guest"
-                system_prompt = tailora_response_rules(safe_role)
+                system_prompt = tailora_response_rules(safe_role) + " " + profile_context
                 response = LLMClient()._complete_groq(
                     [ChatMessage(role="system", content=system_prompt)]
                     + [ChatMessage(role=m["role"], content=m["content"]) for m in history],
