@@ -9,7 +9,8 @@ class DispatchWaypoint(BaseModel):
     latitude: float | None = Field(None, ge=-90, le=90)
     longitude: float | None = Field(None, ge=-180, le=180)
     contact_name: str | None = None
-    contact_phone: str | None = None
+    # Real numbers are never returned; parties call each other via POST /calls.
+    can_call: bool = False
 
 
 class DeliveryTripResponse(BaseModel):

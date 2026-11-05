@@ -126,6 +126,16 @@ class Settings(BaseSettings):
     EMAIL_USERNAME: Optional[str] = None
     EMAIL_PASSWORD: Optional[str] = None
     EMAIL_USE_TLS: bool = True
+    # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
+    # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
+    VOICE_PROVIDER: Optional[str] = None
+    AT_USERNAME: Optional[str] = None
+    AT_API_KEY: Optional[str] = Field(None, repr=False)
+    AT_VOICE_NUMBER: Optional[str] = None  # Tailora's virtual number, E.164, e.g. +2341...
+    AT_ENVIRONMENT: str = "sandbox"  # sandbox | production
+    VOICE_WEBHOOK_SECRET: Optional[str] = Field(None, repr=False)
+    VOICE_CALLBACK_WINDOW_HOURS: int = 2
+    VOICE_MAX_CALL_SECONDS: int = 900
     SMS_PROVIDER: Optional[str] = None
     SMS_API_KEY: Optional[str] = None
     PUSH_PROVIDER: Optional[str] = None

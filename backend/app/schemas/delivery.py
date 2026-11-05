@@ -19,7 +19,7 @@ class DeliveryResponse(BaseModel):
 
 class DeliveryTrackingResponse(DeliveryResponse):
     rider_name: Optional[str] = None
-    rider_phone: Optional[str] = None
+    # No rider_phone: customers reach riders through masked calls (POST /calls).
     # Public rider card so customers can check who is coming before handover.
     rider_verified: Optional[bool] = None
     rider_rating: Optional[float] = None
