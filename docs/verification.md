@@ -42,9 +42,13 @@ NIN_PROVIDER=prembly
 NIN_API_KEY=<Prembly key>
 KYB_PROVIDER=prembly            # or manual
 PREMBLY_API_KEY=                # optional; defaults to NIN_API_KEY
-PREMBLY_CAC_URL=https://api.prembly.com/verification/cac
+PREMBLY_CAC_URL=https://api.prembly.com/verification/cac/advance
 IDENTITY_ENCRYPTION_KEY=<Fernet key>
 ```
 
-Prembly has published more than one CAC endpoint URL. Confirm the current one
-in Prembly's Verification Services Directory and set `PREMBLY_CAC_URL`.
+The default `PREMBLY_CAC_URL` is Prembly's CAC Advanced API route, the same
+`api.prembly.com/verification/<product>` style as the NIN check
+(`/verification/vnin-basic`) that is live in production. The CAC Advanced
+product must be enabled on your Prembly account. An HTTP 404 means the URL is
+wrong, never that the company is missing, so it is held for manual review. Response codes: `00` found, `01` not found (the applicant is asked to
+check the number), `02` or anything unexpected (held for manual review).

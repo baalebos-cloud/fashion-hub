@@ -170,7 +170,7 @@ class Settings(BaseSettings):
     KYB_PROVIDER: str = "manual"  # manual | prembly
     # Prembly key for CAC lookups; falls back to NIN_API_KEY (same Prembly account).
     PREMBLY_API_KEY: Optional[str] = Field(None, repr=False)
-    PREMBLY_CAC_URL: str = "https://api.prembly.com/verification/cac"
+    PREMBLY_CAC_URL: str = "https://api.prembly.com/verification/cac/advance"
 
     # --- WhatsApp notifications ---
     WHATSAPP_PROVIDER: Optional[str] = None

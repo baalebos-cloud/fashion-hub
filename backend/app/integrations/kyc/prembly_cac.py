@@ -40,8 +40,9 @@ def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
     except httpx.HTTPError:
         logger.warning("kyb_provider_request_failed provider=prembly")
         raise ExternalProviderError("Business lookup is temporarily unavailable.") from None
-    if response.status_code == 404:
-        raise NotFoundError("We couldn't find that registration number with CAC.")
+    # An HTTP 404 means the endpoint URL is wrong, not that the company is missing:
+    # Prembly reports "no record" as response_code 01 in a normal 200 reply. Never
+    # turn a misconfiguration into "your registration number doesn't exist".
     if response.status_code != 200:
         logger.warning("kyb_provider_http_error provider=prembly status=%d", response.status_code)
         raise ExternalProviderError("Business lookup is temporarily unavailable.")
@@ -51,9 +52,16 @@ def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
         raise ExternalProviderError("Business lookup returned an invalid response.") from None
     if not isinstance(payload, dict):
         raise ExternalProviderError("Business lookup returned an invalid response.")
-    if payload.get("status") is not True or str(payload.get("response_code", "00")) != "00":
-        # Prembly signals "no record" this way; a typo is the most likely cause.
+    # Prembly response codes: 00 success, 01 not found, 02 service unavailable.
+    # Only an explicit 01 is reported to the user as "not found" (likely a typo).
+    # 02 and anything unrecognised go to manual review rather than rejecting a
+    # real business because the registry or provider misbehaved.
+    code = str(payload.get("response_code") or "").strip()
+    if code == "01":
         raise NotFoundError("We couldn't find that registration number with CAC.")
+    if code != "00" or payload.get("status") is False:
+        logger.warning("kyb_provider_unavailable provider=prembly code=%s", code[:8] or "missing")
+        raise ExternalProviderError("The CAC register is temporarily unavailable.")
     record = payload.get("data")
     if isinstance(record, list):
         record = record[0] if record else None
