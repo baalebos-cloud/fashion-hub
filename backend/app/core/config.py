@@ -139,6 +139,10 @@ class Settings(BaseSettings):
     DISPATCH_AUTO_OFFER_TTL_SECONDS: int = 90
     DISPATCH_AUTO_OFFER_MAX_ATTEMPTS: int = 5
     DISPATCH_AUTO_OFFER_RADIUS_KM: float = 20.0
+    # Shareable recipient tracking links (phase 4).
+    TRACKING_LINK_TTL_HOURS: int = 168          # 7 days
+    TRACKING_LINK_AFTER_DELIVERY_HOURS: int = 48  # links stop working this long after delivery
+    TRACKING_LINK_MAX_ACTIVE: int = 3
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
     VOICE_PROVIDER: Optional[str] = None

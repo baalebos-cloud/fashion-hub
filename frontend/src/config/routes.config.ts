@@ -14,6 +14,7 @@ export const publicRoutes = {
   vendorMarketplace: "/marketplace",
   professionalProfile: (id: string) => `/professionals/${id}`,
   storefront: (handle: string) => `/s/${handle}`,
+  publicTracking: (token: string) => `/track/${token}`,
   productDetails: (id: string) => `/products/${id}`,
   pricing: "/pricing",
   contact: "/contact",

@@ -11,6 +11,7 @@ import VendorMarketplace from "@/pages/public/VendorMarketplace";
 import ProductDetails from "@/pages/public/ProductDetails";
 import ProfessionalProfile from "@/pages/public/ProfessionalProfile";
 import Storefront from "@/pages/public/Storefront";
+import PublicTracking from "@/pages/public/PublicTracking";
 import Pricing from "@/pages/public/Pricing";
 import Contact from "@/pages/public/Contact";
 import Terms from "@/pages/public/Terms";
@@ -35,6 +36,7 @@ export const publicRouteObjects: RouteObject[] = [
   { path: "/products/:productId", element: withLayout(ProductDetails) },
   { path: "/professionals/:professionalId", element: withLayout(ProfessionalProfile) },
   { path: "/s/:handle", element: withLayout(Storefront) },
+  { path: "/track/:token", element: withLayout(PublicTracking) },
   { path: publicRoutes.pricing, element: withLayout(Pricing) },
   { path: publicRoutes.contact, element: withLayout(Contact) },
   { path: publicRoutes.terms, element: withLayout(Terms) },
