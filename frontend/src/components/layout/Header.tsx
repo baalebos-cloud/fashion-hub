@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { useNotifications } from "@/hooks/use-notifications";
@@ -17,21 +17,31 @@ const PUBLIC_NAV = [
   { label: "How it works", to: publicRoutes.howItWorks },
 ];
 
-export function Header() {
+export interface HeaderProps {
+  /** Rendered before the logo, e.g. the dashboard menu button on phones. */
+  leading?: ReactNode;
+  /** Dashboards span the full width next to the sidebar instead of the centred marketing column. */
+  fullWidth?: boolean;
+}
+
+export function Header({ leading, fullWidth = false }: HeaderProps = {}) {
   const { user, logOut } = useAuth();
   const { unreadCount } = useNotifications(Boolean(user));
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <header className="sticky top-0 z-40 border-b border-line bg-paper/95 backdrop-blur-sm">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 lg:px-6">
-        {/* Brand */}
-        <Link
-          to={user ? ROLE_HOME_PATH[user.role] : publicRoutes.home}
-          className="font-display text-xl text-ink"
-        >
-          Tailora
-        </Link>
+      <div className={cn("flex h-16 items-center justify-between px-4 lg:px-6", !fullWidth && "mx-auto max-w-6xl")}>
+        <div className="flex items-center gap-1">
+          {leading}
+          {/* Brand */}
+          <Link
+            to={user ? ROLE_HOME_PATH[user.role] : publicRoutes.home}
+            className="font-display text-xl text-ink"
+          >
+            Tailora
+          </Link>
+        </div>
 
         {/* Desktop nav — public only */}
         {!user && (

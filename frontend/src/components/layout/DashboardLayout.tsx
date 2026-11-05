@@ -13,13 +13,11 @@ import type { UserRole } from "@/types/auth";
 export function DashboardLayout({ role, children }: { role: UserRole; children: ReactNode }) {
   return (
     <div className="flex h-screen flex-col">
-      <div className="flex items-center border-b border-line px-2 md:hidden">
-        <MobileNavigation role={role} />
-      </div>
-      <Header />
+      <Header fullWidth leading={<MobileNavigation role={role} />} />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar role={role} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">{children}</main>
+        {/* Bottom padding keeps the floating "Ask Tailora" button from covering the last content. */}
+        <main className="flex-1 overflow-y-auto p-4 pb-28 lg:p-8 lg:pb-28">{children}</main>
       </div>
     </div>
   );
