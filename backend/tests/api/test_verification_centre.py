@@ -186,8 +186,30 @@ def test_cac_client_parses_prembly_and_maps_errors(monkeypatch):
     missing = MagicMock(status_code=200, json=lambda: {"status": False, "response_code": "01"})
     with pytest.raises(NotFoundError):
         prembly_cac.lookup_cac("1", "RC", http_post=lambda *a, **k: missing)
+    # 02 (registry down), unknown codes, or status false without "01" must never
+    # tell a real business their number doesn't exist: they go to manual review.
+    for body in ({"status": False, "response_code": "02"}, {"status": True, "response_code": "99"},
+                 {"status": False}, {"detail": "error"}):
+        reply = MagicMock(status_code=200, json=lambda body=body: body)
+        with pytest.raises(ExternalProviderError):
+            prembly_cac.lookup_cac("1", "RC", http_post=lambda *a, reply=reply, **k: reply)
     with pytest.raises(ExternalProviderError):
         prembly_cac.lookup_cac("1", "RC", http_post=lambda *a, **k: MagicMock(status_code=500))
     monkeypatch.setattr(settings, "KYB_PROVIDER", "manual")
     with pytest.raises(ExternalProviderError):
         prembly_cac.lookup_cac("1", "RC", http_post=lambda *a, **k: ok)
+
+
+def test_registry_outage_code_sends_kyb_to_manual_review(db, make_user, http, monkeypatch):
+    from app.core.config import settings
+    monkeypatch.setattr(settings, "KYB_PROVIDER", "prembly")
+    monkeypatch.setattr(settings, "PREMBLY_API_KEY", "test-only")
+    vendor = make_user(role="vendor")
+    db.add(Vendor(user_id=vendor.id, business_name="Lace World"))
+    db.commit()
+    down = MagicMock(status_code=200, json=lambda: {"status": False, "response_code": "02"})
+    monkeypatch.setattr(prembly_cac.httpx, "post", lambda *a, **k: down)
+    http.current[0] = vendor
+    response = http.post("/api/v1/kyb", json=kyb_body())
+    assert response.status_code == 201, response.text
+    assert response.json()["status"] == "under_review"

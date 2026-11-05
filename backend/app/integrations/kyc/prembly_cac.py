@@ -51,9 +51,16 @@ def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
         raise ExternalProviderError("Business lookup returned an invalid response.") from None
     if not isinstance(payload, dict):
         raise ExternalProviderError("Business lookup returned an invalid response.")
-    if payload.get("status") is not True or str(payload.get("response_code", "00")) != "00":
-        # Prembly signals "no record" this way; a typo is the most likely cause.
+    # Prembly response codes: 00 success, 01 not found, 02 service unavailable.
+    # Only an explicit 01 is reported to the user as "not found" (likely a typo).
+    # 02 and anything unrecognised go to manual review rather than rejecting a
+    # real business because the registry or provider misbehaved.
+    code = str(payload.get("response_code") or "").strip()
+    if code == "01":
         raise NotFoundError("We couldn't find that registration number with CAC.")
+    if code != "00" or payload.get("status") is False:
+        logger.warning("kyb_provider_unavailable provider=prembly code=%s", code[:8] or "missing")
+        raise ExternalProviderError("The CAC register is temporarily unavailable.")
     record = payload.get("data")
     if isinstance(record, list):
         record = record[0] if record else None

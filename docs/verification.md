@@ -42,9 +42,11 @@ NIN_PROVIDER=prembly
 NIN_API_KEY=<Prembly key>
 KYB_PROVIDER=prembly            # or manual
 PREMBLY_API_KEY=                # optional; defaults to NIN_API_KEY
-PREMBLY_CAC_URL=https://api.prembly.com/verification/cac
+PREMBLY_CAC_URL=https://api.prembly.com/api/v1/verification/api/cac_advance/
 IDENTITY_ENCRYPTION_KEY=<Fernet key>
 ```
 
-Prembly has published more than one CAC endpoint URL. Confirm the current one
-in Prembly's Verification Services Directory and set `PREMBLY_CAC_URL`.
+The default `PREMBLY_CAC_URL` is the CAC Advanced endpoint from Prembly's
+current KYB guide; the CAC Advanced product must be enabled on your Prembly
+account. Response codes: `00` found, `01` not found (the applicant is asked to
+check the number), `02` or anything unexpected (held for manual review).
