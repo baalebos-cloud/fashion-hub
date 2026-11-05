@@ -11,3 +11,8 @@ export function formatCurrency(amount: number, currency: string = "NGN", locale 
     return `${currency} ${amount.toFixed(2)}`;
   }
 }
+
+/** Whole-naira display for fares and quick prices, e.g. ₦2,100. */
+export function formatNaira(amount: number): string {
+  return "₦" + Math.round(amount).toLocaleString("en-NG");
+}

@@ -9,6 +9,7 @@ from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
+from app.schemas.dispatch_marketplace import DeliveryJourney
 from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
 from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse, RiderSharingSession
@@ -63,6 +64,17 @@ def customer_order_delivery(
         "rider_completed_deliveries": completed,
         "rider_photo_url": rider.profile_photo_url if rider else None,
     }
+
+
+@router.get("/orders/{order_id}/journey", response_model=DeliveryJourney)
+def order_journey(
+    order_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Logistics-style milestones with times, plus an approximate live ETA while in transit."""
+    from app.services.dispatch_marketplace_service import DispatchMarketplaceService
+    return DispatchMarketplaceService(db).journey(order_id=order_id, actor=user)
 
 
 @router.get("/{delivery_id}", response_model=DeliveryResponse)
