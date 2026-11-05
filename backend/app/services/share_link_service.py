@@ -69,7 +69,10 @@ class ShareLinkService:
                 and self._effective_expiry(link, order) > utcnow())
 
     def create(self, *, order_id, actor: User, label: str | None = None) -> tuple[DeliveryShareLink, str]:
-        order = self._owned_order(order_id, actor)
+        self._owned_order(order_id, actor)
+        # Lock the order so concurrent creates count and revoke against the same link set.
+        from app.repositories.order_repository import OrderRepository
+        order = OrderRepository(self.db).get_by_id_for_update(order_id)
         if order.status in CLOSED_STATUSES:
             raise ConflictError("Tracking links are only available for orders that are still on their way.")
         live = [link for link in self.db.query(DeliveryShareLink)

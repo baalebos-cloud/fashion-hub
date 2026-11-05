@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { ShareTrackingCard } from "@/components/dispatch/ShareTrackingCard";
 import PublicTracking from "@/pages/public/PublicTracking";
 import { trackingLinksApi } from "@/api/tracking-links.api";
+import { ApiError } from "@/lib/api/errors";
 
 vi.mock("@/api/tracking-links.api", () => ({
   trackingLinksApi: { create: vi.fn(), list: vi.fn(), revoke: vi.fn(), publicView: vi.fn() },
@@ -62,5 +63,39 @@ describe("public tracking page", () => {
     vi.mocked(trackingLinksApi.publicView).mockRejectedValue(new Error("not found"));
     renderPublic();
     expect(await screen.findByRole("heading", { name: /isn't available/ })).toBeTruthy();
+  });
+});
+
+describe("review fixes", () => {
+  it("clears an open page once the link is turned off (404), instead of showing stale status", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(trackingLinksApi.publicView).mockResolvedValueOnce({
+        tracking_number: "TL-1", seller_name: "Kemi Couture", kind: "garment", status: "out_for_delivery",
+        delivery_status: "in_transit", dropoff_area: null, eta_minutes: 9, eta_basis: "live_gps_estimate", rider: null,
+        link_expires_at: later, milestones: [] });
+      renderPublic();
+      expect(await screen.findByText("9 min")).toBeTruthy();
+      vi.mocked(trackingLinksApi.publicView).mockRejectedValue(new ApiError("gone", "not_found", 404, null));
+      await act(async () => { await vi.advanceTimersByTimeAsync(30_000); });
+      expect(screen.getByRole("heading", { name: /isn't available/ })).toBeTruthy();
+      expect(screen.queryByText("9 min")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps existing links manageable after receipt but stops creating new ones", async () => {
+    vi.mocked(trackingLinksApi.list).mockResolvedValue([{ id: "l1", label: "Mum", created_at: later, expires_at: later,
+      active: true, revoked: false, access_count: 0, last_accessed_at: null }]);
+    render(<ShareTrackingCard orderId="o1" orderNumber="TL-1" allowCreate={false} />);
+    expect(await screen.findByRole("button", { name: "Turn off" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Create tracking link" })).toBeNull();
+  });
+
+  it("hides entirely after receipt when no links are live", async () => {
+    const { container } = render(<ShareTrackingCard orderId="o1" orderNumber="TL-1" allowCreate={false} />);
+    await waitFor(() => expect(trackingLinksApi.list).toHaveBeenCalled());
+    expect(container.textContent).toBe("");
   });
 });

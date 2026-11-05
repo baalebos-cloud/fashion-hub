@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { trackingLinksApi, type PublicTracking as Tracking } from "@/api/tracking-links.api";
+import { isApiError } from "@/lib/api/errors";
 import { Card } from "@/components/ui/card";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { VerificationBadge } from "@/components/profile/VerificationBadge";
@@ -35,7 +36,13 @@ export default function PublicTracking() {
     let active = true;
     trackingLinksApi.publicView(token)
       .then((data) => { if (active) { setTracking(data); setState("ready"); document.title = `Tracking ${data.tracking_number} · Tailora`; } })
-      .catch(() => { if (active) setState((current) => (current === "ready" ? current : "missing")); });
+      .catch((err: unknown) => {
+        if (!active) return;
+        // 404 means the link was turned off or expired: stop showing the old status.
+        // Anything else (network blip, 429, 5xx) keeps the last good view on screen.
+        if (isApiError(err) && err.status === 404) { setTracking(null); setState("missing"); }
+        else setState((current) => (current === "ready" ? current : "missing"));
+      });
     const timer = window.setTimeout(() => setTick((t) => t + 1), REFRESH_MS);
     return () => { active = false; window.clearTimeout(timer); };
   }, [token, tick]);

@@ -42,8 +42,9 @@ export default function OrderDetails() {
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
       {order.order_type === "customer_order" && <DeliveryJourney orderId={order.id} />}
-      {order.order_type === "customer_order" && ["ready_for_delivery", "shipped", "out_for_delivery", "delivered"].includes(order.status) && (
-        <ShareTrackingCard orderId={order.id} orderNumber={order.order_number} />
+      {order.order_type === "customer_order" && ["ready_for_delivery", "shipped", "out_for_delivery", "delivered", "received", "completed"].includes(order.status) && (
+        <ShareTrackingCard orderId={order.id} orderNumber={order.order_number}
+          allowCreate={!["received", "completed"].includes(order.status)} />
       )}
       <OrderContacts orderId={order.id} />
       {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} />}

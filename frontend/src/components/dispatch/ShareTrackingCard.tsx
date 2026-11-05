@@ -9,7 +9,11 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
  * Lets the buyer share a delivery-only tracking link with whoever is receiving the
  * package (no Tailora account needed). The full link is shown once, when created.
  */
-export function ShareTrackingCard({ orderId, orderNumber }: { orderId: string; orderNumber: string }) {
+export function ShareTrackingCard({ orderId, orderNumber, allowCreate = true }: {
+  orderId: string; orderNumber: string;
+  /** False once the order is received/completed: existing links can still be turned off. */
+  allowCreate?: boolean;
+}) {
   const [links, setLinks] = useState<ShareLinkSummary[]>([]);
   const [created, setCreated] = useState<CreatedShareLink | null>(null);
   const [label, setLabel] = useState("");
@@ -42,6 +46,7 @@ export function ShareTrackingCard({ orderId, orderNumber }: { orderId: string; o
   }
 
   const active = links.filter((l) => l.active);
+  if (!allowCreate && active.length === 0 && !created) return null;
   const whatsapp = created
     ? `https://wa.me/?text=${encodeURIComponent(`Track delivery ${orderNumber} on Tailora: ${created.url}`)}`
     : "";
@@ -68,7 +73,7 @@ export function ShareTrackingCard({ orderId, orderNumber }: { orderId: string; o
             <Button size="sm" variant="ghost" onClick={() => setCreated(null)}>Done</Button>
           </div>
         </div>
-      ) : (
+      ) : allowCreate && (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
           <label className="flex-1 text-xs text-ink-soft">
             Who is it for? (optional, only you see this)
