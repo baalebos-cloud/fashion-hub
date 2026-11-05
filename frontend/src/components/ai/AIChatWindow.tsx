@@ -91,7 +91,7 @@ export function AIChatWindow({ role }: { role: UserRole }) {
           <div className="my-auto">
             <div className="font-display text-[19px] text-ink">Lost, or just curious?</div>
             <p className="mt-1.5 max-w-[30ch] text-[13.5px] leading-relaxed text-ink-soft">
-              Ask about an order, a tailor, or how something in Fashion Hub works. Tailora only tells you where to go —
+              Ask about an order, a tailor, or how something on Tailora works. Tailora only tells you where to go —
               it never moves money or changes an order for you.
             </p>
             <AIQuickActions role={role} onSelect={sendMessage} />

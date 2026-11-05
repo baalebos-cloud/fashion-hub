@@ -30,7 +30,7 @@ export function Header() {
           to={user ? ROLE_HOME_PATH[user.role] : publicRoutes.home}
           className="font-display text-xl text-ink"
         >
-          Fashion Hub
+          Tailora
         </Link>
 
         {/* Desktop nav — public only */}

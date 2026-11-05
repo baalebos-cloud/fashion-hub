@@ -6,7 +6,7 @@ export const appConfig = {
   defaultLocale: "en-US",
   defaultCurrency: "NGN",
   defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-  supportEmail: "support@fashionhub.example",
+  supportEmail: "support@tailora.example",
   pagination: {
     defaultPageSize: 20,
     maxPageSize: 100,

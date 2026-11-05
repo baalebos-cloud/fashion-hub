@@ -66,7 +66,7 @@ export default function Home() {
         />
         <div className="relative mx-auto max-w-3xl">
           <span className="mb-4 inline-block rounded-full border border-brass/40 px-4 py-1 text-xs font-medium tracking-widest text-brass uppercase">
-            Nigeria's fashion marketplace
+            Nigeria’s fashion marketplace
           </span>
           <h1 className="mt-4 font-display text-4xl leading-tight text-paper sm:text-5xl lg:text-6xl">
             Custom clothing,<br />made by people who<br />

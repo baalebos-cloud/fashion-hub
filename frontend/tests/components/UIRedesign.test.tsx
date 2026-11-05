@@ -179,7 +179,7 @@ describe("SignupForm", () => {
 describe("Header (unauthenticated)", () => {
   it("renders the brand name", () => {
     wrap(<Header />);
-    expect(screen.getByText("Fashion Hub")).toBeTruthy();
+    expect(screen.getByText("Tailora")).toBeTruthy();
   });
 
   it("renders public nav links on desktop", () => {
@@ -235,7 +235,7 @@ describe("Sidebar", () => {
 describe("Footer", () => {
   it("renders brand name and tagline", () => {
     wrap(<Footer />);
-    expect(screen.getByRole("link", { name: "Fashion Hub" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Tailora" })).toBeTruthy();
     expect(screen.getByText(/nigeria's marketplace/i)).toBeTruthy();
   });
 

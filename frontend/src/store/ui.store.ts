@@ -14,10 +14,10 @@ interface UIState {
  * it's a harmless UI preference, unlike auth tokens (see lib/auth/token.ts
  * for why those use sessionStorage instead). */
 export const useUIStore = create<UIState>((set, get) => ({
-  isSidebarCollapsed: getLocalItem("fashionhub.sidebar_collapsed", false),
+  isSidebarCollapsed: getLocalItem("tailora.sidebar_collapsed", false),
   toggleSidebar: () => {
     const next = !get().isSidebarCollapsed;
-    setLocalItem("fashionhub.sidebar_collapsed", next);
+    setLocalItem("tailora.sidebar_collapsed", next);
     set({ isSidebarCollapsed: next });
   },
   activeModal: null,
