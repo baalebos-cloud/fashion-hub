@@ -189,17 +189,26 @@ def get_professional(professional_id: UUID, db: Session = Depends(get_db)):
 def update_my_business_location(
     latitude: float = Query(..., ge=-90, le=90),
     longitude: float = Query(..., ge=-180, le=180),
-    formatted_address: str | None = None,
+    formatted_address: str | None = Query(None, max_length=512),
+    city: str | None = Query(None, max_length=128),
+    state_region: str | None = Query(None, max_length=128),
+    country: str | None = Query(None, max_length=128),
     current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
     db: Session = Depends(get_db),
 ):
     from app.models.location import Location
 
+    def clean(value: str | None) -> str | None:
+        return value.strip() or None if value else None
+
     professional = db.query(Professional).filter(Professional.user_id == current_user.id).first()
     if not professional:
         raise NotFoundError("Professional profile not found for this account.")
 
-    location = Location(latitude=latitude, longitude=longitude, location_type="tailor_shop", formatted_address=formatted_address)
+    # City/state feed the public shop page's area line ("Ikeja, Lagos").
+    location = Location(latitude=latitude, longitude=longitude, location_type="tailor_shop",
+                        formatted_address=clean(formatted_address), city=clean(city),
+                        state_region=clean(state_region), country=clean(country))
     db.add(location)
     db.flush()
 

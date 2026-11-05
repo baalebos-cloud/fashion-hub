@@ -24,7 +24,7 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
   const hasPin = Number.isFinite(values.latitude) && Number.isFinite(values.longitude);
   function applyLocation(location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) {
     setValues((old) => ({ ...old, latitude: location.latitude, longitude: location.longitude,
-      formatted_address: location.formatted_address && !location.formatted_address.startsWith("Pinned location (") ? location.formatted_address : "",
+      formatted_address: location.formatted_address ?? "",
       city: location.city || "", state_region: location.state_region || "",
       country: location.country?.toUpperCase() === "NIGERIA" ? "NG" : old.country,
     }));

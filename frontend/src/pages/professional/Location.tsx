@@ -32,6 +32,9 @@ export default function Location() {
         latitude: location.latitude,
         longitude: location.longitude,
         formattedAddress: location.formatted_address ?? undefined,
+        city: location.city ?? undefined,
+        stateRegion: location.state_region ?? undefined,
+        country: location.country ?? undefined,
       });
       setSaved(location);
       showToast("Business location saved.", "success");
