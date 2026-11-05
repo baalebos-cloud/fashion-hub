@@ -1,4 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { deliveriesApi } from "@/api/deliveries.api";
+import type { DeliveryTrip } from "@/types/delivery";
+import { DispatchTripCard } from "@/components/delivery/DispatchTripCard";
 import { ReportIssueModal } from "@/components/delivery/ReportIssueModal";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -12,6 +15,13 @@ export default function DeliveryDetails() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
   const navigate = useNavigate();
   const [showIssue, setShowIssue] = useState(false);
+  const [trip, setTrip] = useState<DeliveryTrip | null>(null);
+  useEffect(() => {
+    if (!deliveryId) return;
+    let active = true;
+    deliveriesApi.getTrip(deliveryId).then(data => { if (active) setTrip(data); }).catch(() => {});
+    return () => { active = false; };
+  }, [deliveryId]);
   const { delivery, isLoading, error } = useDelivery(deliveryId);
 
   if (error) return <p role="alert" className="text-thread">{error}</p>;
@@ -28,6 +38,7 @@ export default function DeliveryDetails() {
       )}
       {showIssue && <ReportIssueModal deliveryId={delivery.id} onClose={() => setShowIssue(false)} />}
       <div className="text-lg font-medium text-ink">{formatCurrency(delivery.delivery_fee)}</div>
+      {trip && <DispatchTripCard trip={trip} />}
       {delivery.status === "assigned" && (
         <Button className="self-start" onClick={() => navigate(deliveryRoutes.pickup(delivery.id))}>
           Confirm pickup

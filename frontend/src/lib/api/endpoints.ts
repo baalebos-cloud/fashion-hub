@@ -107,6 +107,11 @@ export const endpoints = {
     details: (id: string) => `/deliveries/${id}`,
     pickedUp: (id: string) => `/deliveries/${id}/picked-up`,
     delivered: (id: string) => `/deliveries/${id}/delivered`,
+    trip: (id: string) => `/deliveries/${id}/trip`,
+    handoverCode: (id: string) => `/deliveries/${id}/handover-code`,
+    position: (id: string) => `/deliveries/${id}/position`,
+    positionStart: (id: string) => `/deliveries/${id}/position/start`,
+    byOrder: (orderId: string) => `/deliveries/orders/${orderId}/tracking`,
   },
   deliveryRequests: {
     available: "/delivery-requests/available",
@@ -187,6 +192,7 @@ export const endpoints = {
   },
 
   adminCommerce: { summary: "/admin/commerce-summary" },
+  adminDispatch: { board: "/admin/dispatch-board" },
 
   dashboard: {
     summary: "/dashboard",
