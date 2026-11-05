@@ -166,6 +166,11 @@ class Settings(BaseSettings):
     # --- NIN identity verification (KYC) ---
     NIN_PROVIDER: str = "manual"
     NIN_API_KEY: Optional[str] = None
+    # Business (CAC) lookups for KYB. "manual" sends every submission to admin review.
+    KYB_PROVIDER: str = "manual"  # manual | prembly
+    # Prembly key for CAC lookups; falls back to NIN_API_KEY (same Prembly account).
+    PREMBLY_API_KEY: Optional[str] = Field(None, repr=False)
+    PREMBLY_CAC_URL: str = "https://api.prembly.com/verification/cac"
 
     # --- WhatsApp notifications ---
     WHATSAPP_PROVIDER: Optional[str] = None
