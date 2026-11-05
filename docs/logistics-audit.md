@@ -24,7 +24,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 14 | Structured delivery event log with idempotency keys | Partially implemented | `OrderTimelineEntry` + `tracking_events` table (unused for status events) |
 | 15 | Sequential auto-offers with TTL (feature-flagged) | Implemented, test-verified (phase 3); off by default | `services/auto_dispatch_service.py`, `dispatch_job_offers` (0022), `tests/api/test_auto_dispatch.py` |
 | 16 | Road-based route distance/ETA (Routes API or OSM) | Missing | Haversine × road factor only, labelled as estimate |
-| 17 | Shareable recipient tracking link (no account) | Missing | — |
+| 17 | Shareable recipient tracking link (no account) | Implemented, test-verified (phase 4) | `services/share_link_service.py`, `delivery_share_links` (0023), `tests/api/test_tracking_links.py` |
 | 18 | Pickup verification (package count/reference) | Partially implemented | Pickup is assigned-rider only; no package-count check |
 | 19 | Handover OTP expiry/rotation | Defective (low risk) | Code is deterministic per delivery, never expires (attempt-limited only) |
 | 20 | Notifications for dispatch events | Partially implemented | In-app notifications on status change; no rider-approaching/ETA events |
@@ -43,7 +43,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | **1 (this PR)** | Materials leg: vendor pickup location, vendor-order dispatch through the existing request/offer/claim/handover flow, rider pickup/delivery transitions for materials, tailor receipt confirmation, UI on vendor and tailor order pages | — |
 | 2 (#131) | Admin dispatch actions: cancel/reassign with audit log and concurrency checks; issue resolution | 1 |
 | 3 (#132) | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
-| 4 | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
+| 4 (#133) | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |
 | 6 | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
 | 7+ | Multi-stop, external carriers, AI recommendations | Operational data, commercial agreements |

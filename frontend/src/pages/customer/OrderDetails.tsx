@@ -1,6 +1,7 @@
 import { useParams } from "react-router-dom";
 import { OrderContacts } from "@/components/calls/OrderContacts";
 import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
+import { ShareTrackingCard } from "@/components/dispatch/ShareTrackingCard";
 import { CustomerDeliveryTracking } from "@/components/delivery/CustomerDeliveryTracking";
 import { SandboxSagaStatus } from "@/components/orders/SandboxSagaStatus";
 import { useOrder } from "@/hooks/use-order";
@@ -41,6 +42,10 @@ export default function OrderDetails() {
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
       {order.order_type === "customer_order" && <DeliveryJourney orderId={order.id} />}
+      {order.order_type === "customer_order" && ["ready_for_delivery", "shipped", "out_for_delivery", "delivered", "received", "completed"].includes(order.status) && (
+        <ShareTrackingCard orderId={order.id} orderNumber={order.order_number}
+          allowCreate={!["received", "completed"].includes(order.status)} />
+      )}
       <OrderContacts orderId={order.id} />
       {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} />}
       <SandboxSagaStatus orderId={order.id} />

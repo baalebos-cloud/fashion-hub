@@ -54,6 +54,7 @@ from app.api.v1 import (
     storefronts,
     saga,
     tailors,
+    tracking_links,
     users,
     verification,
     vendor_categories,
@@ -110,6 +111,7 @@ api_router.include_router(notifications.router)
 api_router.include_router(messages.router)
 api_router.include_router(calls.router)
 api_router.include_router(verification.router)
+api_router.include_router(tracking_links.router)
 api_router.include_router(ai.router)
 api_router.include_router(ai_commerce.router)
 api_router.include_router(ai_navigation.router)

@@ -251,7 +251,16 @@ class DispatchMarketplaceService:
                     or (partner is not None and str(partner.user_id) == str(actor.id)))
         if not is_party:
             raise NotFoundError("Order not found.")
+        return self.build_journey(order, delivery, partner)
 
+    def build_journey(self, order: Order, delivery: Delivery | None = None, partner: DeliveryPartner | None = None,
+                      *, resolve_current: bool = False) -> dict:
+        """Milestones and live ETA for one order. Callers are responsible for access control."""
+        if resolve_current:
+            delivery = (self.db.query(Delivery).filter(Delivery.order_id == order.id, Delivery.status != "cancelled")
+                        .order_by(Delivery.created_at.desc()).first())
+            partner = (self.db.get(DeliveryPartner, delivery.delivery_partner_id)
+                       if delivery and delivery.delivery_partner_id else None)
         # Without a live run, prefer an open rider search (e.g. after a release) over cancelled history.
         request = self.db.get(DeliveryRequest, delivery.delivery_request_id) if delivery else (
             self.db.query(DeliveryRequest).filter(DeliveryRequest.order_id == order.id)
