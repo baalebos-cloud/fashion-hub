@@ -20,7 +20,9 @@ export default function Measurements() {
 
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       {!error && !isLoading && profiles.length === 0 && !isAdding && (
-        <EmptyState title="No measurement profiles yet" description="Add one to make ordering faster next time." />
+        <EmptyState title="No measurement profiles yet"
+          description="Add one to make ordering faster. You can type your measurements or let Tailora draft them from your photos."
+          action={<Button onClick={() => setIsAdding(true)}>Add measurements</Button>} />
       )}
 
       <div className="flex flex-col gap-4">

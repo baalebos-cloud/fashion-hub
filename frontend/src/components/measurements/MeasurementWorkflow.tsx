@@ -8,7 +8,7 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MeasurementGuide } from "./MeasurementGuide";
-import { MeasurementScanner } from "./MeasurementScanner";
+import { MeasurementScanner, type AppliedSuggestions } from "./MeasurementScanner";
 import {
   measurementSchema, measurementNames, measurementFieldsInCentimetres,
   type MeasurementInput,
@@ -29,6 +29,8 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
   const [step, setStep] = useState<"measure" | "review">("measure");
   const [isRestored, setIsRestored] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  /** Fields filled from photos, flagged until the customer edits them. */
+  const [photoSources, setPhotoSources] = useState<AppliedSuggestions>({});
   const draftKey = user?.id ? `${MEASUREMENT_DRAFT_PREFIX}${user.id}` : null;
   const names = requiredFields?.length
     ? measurementNames.filter((name) => requiredFields.includes(name))
@@ -104,6 +106,7 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
       await createProfile(value.label, undefined, measurementFieldsInCentimetres(value));
       if (draftKey) { try { localStorage.removeItem(draftKey); } catch { /* no-op */ } }
       reset(defaultInput);
+      setPhotoSources({});
       setStep("measure");
       onSaved?.();
     } catch (err) {
@@ -128,6 +131,19 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
           <option value="in">Inches</option>
         </select>
       </label>
+      <MeasurementScanner onApply={(fields) => {
+        // Suggestions arrive in centimetres; switch the form to cm first so nothing is misread.
+        changeUnit("cm");
+        const applied: AppliedSuggestions = {};
+        for (const name of names) {
+          const suggestion = fields[name];
+          if (!suggestion) continue;
+          setValue(`values.${name}`, suggestion.value, { shouldValidate: true });
+          applied[name] = suggestion;
+        }
+        setPhotoSources(applied);
+        setStep("measure");
+      }} />
       <div className="grid grid-cols-2 gap-3">
         {names.map((name) => (
           <label key={name} className="text-sm capitalize text-ink">
@@ -136,22 +152,24 @@ export function MeasurementWorkflow({ onSaved, requiredFields }: MeasurementWork
               {...register(`values.${name}`, {
                 setValueAs: (value: string) => value === "" ? undefined : Number(value),
               })}
-              onInput={() => setStep("measure")}
+              onInput={() => {
+                setStep("measure");
+                setPhotoSources((all) => { const next = { ...all }; delete next[name]; return next; });
+              }}
               aria-invalid={Boolean(errors.values?.[name])} />
+            {photoSources[name] && (
+              <span className="text-[11px] normal-case text-[#8a5f1f]">
+                {photoSources[name]?.source === "tape" ? "From your tape photo, please confirm" : "Photo estimate, please confirm"}
+              </span>
+            )}
             {errors.values?.[name] && <span role="alert" className="text-xs text-thread">{errors.values[name]?.message}</span>}
           </label>
         ))}
       </div>
-      <MeasurementScanner onApply={(fields) => {
-        setValue("unit", "cm");
-        for (const name of ["chest", "waist", "hip"] as const) {
-          if (fields[name] !== undefined) setValue(`values.${name}`, fields[name], { shouldValidate: true });
-        }
-        setStep("measure");
-      }} />
       <MeasurementGuide />
       {step === "review" && (
-        <p role="status" className="text-sm">Please verify the measurement values and unit above. Measurements are saved to your profile in centimetres.</p>
+        <p role="status" className="text-sm">Please verify the measurement values and unit above. Measurements are saved to your profile in centimetres.
+          {Object.keys(photoSources).length > 0 && " Values from photos are drafts until you confirm them here."}</p>
       )}
       {serverError && <p role="alert" className="text-sm text-thread">{serverError}</p>}
       <div className="flex gap-2">
