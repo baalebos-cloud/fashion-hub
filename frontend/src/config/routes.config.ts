@@ -13,6 +13,7 @@ export const publicRoutes = {
   findDesigner: "/find-a-designer",
   vendorMarketplace: "/marketplace",
   professionalProfile: (id: string) => `/professionals/${id}`,
+  storefront: (handle: string) => `/s/${handle}`,
   productDetails: (id: string) => `/products/${id}`,
   pricing: "/pricing",
   contact: "/contact",
