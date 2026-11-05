@@ -128,6 +128,7 @@ class DispatchAdminService:
         self._notify([order.seller_user_id, order.buyer_user_id], "dispatch.released", "Finding a new rider",
                      f"We're finding a new rider for order {order.order_number}.")
         self.db.commit()
+        InternalCourierService(self.db)._start_auto_offers(fresh.id)
         return fresh
 
     def reassign(self, *, delivery_id, partner_id, admin: User, reason: str, ip: str | None = None):
@@ -173,6 +174,10 @@ class DispatchAdminService:
         self.db.query(DeliveryOffer).filter(DeliveryOffer.delivery_request_id == request.id,
                                             DeliveryOffer.status == "pending").update(
             {DeliveryOffer.status: "declined"}, synchronize_session=False)
+        from app.models.dispatch_job_offer import DispatchJobOffer
+        self.db.query(DispatchJobOffer).filter(DispatchJobOffer.delivery_request_id == request.id,
+                                               DispatchJobOffer.status == "offered").update(
+            {DispatchJobOffer.status: "withdrawn"}, synchronize_session=False)
         self.db.add(OrderTimelineEntry(order_id=order.id, from_status=order.status, to_status=order.status,
                                        actor_user_id=admin.id, note=f"Rider search cancelled by admin: {reason}"))
         self._audit(admin, "dispatch.request_cancelled", request.id, ip, reason=reason, order_id=str(order.id))

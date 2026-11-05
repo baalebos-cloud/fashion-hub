@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.exceptions import ConflictError, ForbiddenError, InvalidStateTransitionError, NotFoundError
 from app.core.timezone import utcnow
+from app.core.logging import get_logger
 from app.models.address import Address
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
@@ -25,6 +26,8 @@ from app.repositories.order_repository import OrderRepository
 
 # Each order is its own delivery leg: a customer garment (tailor -> customer) or
 # a materials order (vendor -> tailor). Statuses below are per order type.
+logger = get_logger(__name__)
+
 REQUESTABLE_BY_TYPE = {
     "customer_order": {"ready_for_delivery", "shipped"},
     "vendor_order": {"ready_for_pickup"},
@@ -139,7 +142,18 @@ class InternalCourierService:
         self.db.add(request)
         self.db.commit()
         self.db.refresh(request)
+        self._start_auto_offers(request.id)
         return request
+
+    def _start_auto_offers(self, request_id) -> None:
+        from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
+        if not auto_offers_enabled():
+            return
+        try:
+            AutoDispatchService(self.db).offer_next(request_id)
+        except Exception as exc:  # noqa: BLE001 - the open job board still works if offering fails.
+            self.db.rollback()
+            logger.warning("auto_dispatch_start_failed", extra={"error_type": type(exc).__name__})
 
     @staticmethod
     def _suggested_fee(order, pickup, dropoff):
@@ -155,8 +169,15 @@ class InternalCourierService:
         return suggested_fare(km)
 
     def list_available(self, *, actor, limit=20):
-        self._verified_available_partner(actor)
+        partner = self._verified_available_partner(actor)
+        from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
+        held = set()
+        if auto_offers_enabled():
+            auto = AutoDispatchService(self.db)
+            auto.advance_expired()
+            held = auto.held_request_ids(exclude_partner_id=partner.id)
         return (self.db.query(DeliveryRequest).join(Order, Order.id == DeliveryRequest.order_id)
+                .filter(DeliveryRequest.id.notin_(held) if held else True)
                 .filter(DeliveryRequest.status == "requested",
                         or_(*[(Order.order_type == kind) & Order.status.in_(states)
                               for kind, states in REQUESTABLE_BY_TYPE.items()]))
@@ -182,6 +203,9 @@ class InternalCourierService:
         order = self.db.get(Order, request.order_id)
         if not is_dispatchable(order):
             raise ConflictError("This order is no longer ready for dispatch.")
+        from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
+        if auto_offers_enabled() and AutoDispatchService(self.db).held_by_other(request.id, partner.id):
+            raise ConflictError("This job is reserved for another rider right now. Try again shortly.")
         return self.assign(request=request, order=order, partner=partner, fee=request.proposed_fee)
 
     def assign(self, *, request, order, partner, fee, accepted_offer_id=None):
@@ -199,6 +223,11 @@ class InternalCourierService:
             delivery_fee=fee if fee is not None else order.delivery_fee,
         )
         self.db.add(delivery)
+        from app.models.dispatch_job_offer import DispatchJobOffer
+        self.db.query(DispatchJobOffer).filter(
+            DispatchJobOffer.delivery_request_id == request.id, DispatchJobOffer.status == "offered",
+        ).update({DispatchJobOffer.status: "withdrawn", DispatchJobOffer.responded_at: utcnow()},
+                 synchronize_session=False)
         for offer in self.db.query(DeliveryOffer).filter(
                 DeliveryOffer.delivery_request_id == request.id, DeliveryOffer.status == "pending"):
             offer.status = "accepted" if accepted_offer_id and offer.id == accepted_offer_id else "declined"

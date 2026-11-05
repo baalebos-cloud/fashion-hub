@@ -9,7 +9,7 @@ from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.schemas.delivery import DeliveryResponse
 from app.schemas.delivery_request import DeliveryRequestResponse
-from app.schemas.dispatch_marketplace import DispatchJob, MakeOfferRequest, OfferResponse, SellerDispatchView
+from app.schemas.dispatch_marketplace import DispatchJob, MakeOfferRequest, OfferResponse, ReservedJob, SellerDispatchView
 from app.services.dispatch_marketplace_service import DispatchMarketplaceService
 from app.services.internal_courier_service import InternalCourierService
 
@@ -34,6 +34,35 @@ def available_deliveries(
     # Priced job cards with pickup/drop-off *areas* only; no exact addresses,
     # coordinates or customer identity before a rider is assigned.
     return DispatchMarketplaceService(db).job_board(actor=user, limit=limit)
+
+
+@router.get("/job-offers/mine", response_model=list[ReservedJob])
+def my_reserved_jobs(
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """Jobs Tailora has reserved for this rider (auto-dispatch). Empty while auto-offers are off."""
+    return DispatchMarketplaceService(db).reserved_for_me(actor=user)
+
+
+@router.post("/job-offers/{offer_id}/accept", response_model=DeliveryResponse)
+def accept_reserved_job(
+    offer_id: uuid.UUID,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    from app.services.auto_dispatch_service import AutoDispatchService
+    return AutoDispatchService(db).accept(offer_id=offer_id, actor=user)
+
+
+@router.post("/job-offers/{offer_id}/decline", status_code=204)
+def decline_reserved_job(
+    offer_id: uuid.UUID,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    from app.services.auto_dispatch_service import AutoDispatchService
+    AutoDispatchService(db).decline(offer_id=offer_id, actor=user)
 
 
 @router.post("/{request_id}/offers", response_model=OfferResponse, status_code=201)

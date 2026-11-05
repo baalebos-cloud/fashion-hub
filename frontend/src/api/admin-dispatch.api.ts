@@ -6,8 +6,11 @@ export interface AdminDispatchBoard {
   active_count: number;
   available_verified_riders: number;
   open_issue_count: number;
+  auto_offers_enabled: boolean;
   pending: Array<{ id: string; order_id: string; order_number: string | null; order_type: string | null;
-    status: string; created_at: string }>;
+    status: string; created_at: string;
+    /** Auto-dispatch: rider currently holding the exclusive offer, if any. */
+    offered_to?: string | null; offer_expires_at?: string | null; offer_attempt?: number | null }>;
   active: Array<{
     id: string;
     order_id: string;

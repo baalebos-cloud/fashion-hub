@@ -122,7 +122,10 @@ export default function Deliveries() {
           </section>
 
           <section className="space-y-3" aria-label="Unassigned delivery requests">
-            <h2 className="font-display text-lg">Waiting for a rider</h2>
+            <div className="flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="font-display text-lg">Waiting for a rider</h2>
+              <span className="text-xs text-ink-soft">Auto-offers {board.auto_offers_enabled ? "on" : "off"}</span>
+            </div>
             {board.pending.length === 0 && <p className="text-sm text-ink-soft">No requests awaiting assignment.</p>}
             {board.pending.map((request) => (
               <Card key={request.id} className="flex flex-col gap-2 p-4 text-sm">
@@ -130,6 +133,12 @@ export default function Deliveries() {
                   <p>{orderLabel(request)}</p>
                   <span className="text-xs text-ink-soft">Requested <DateTimeDisplay value={request.created_at} format="relative" /></span>
                 </div>
+                {request.offered_to && request.offer_expires_at && (
+                  <p className="text-xs text-[#2c3e9e]">
+                    Offered to {request.offered_to} (attempt {request.offer_attempt}) · expires{" "}
+                    <DateTimeDisplay value={request.offer_expires_at} format="relative" />
+                  </p>
+                )}
                 <DispatchAction label="Stop rider search" confirmLabel="Stop search" variant="danger"
                   onConfirm={async (reason) => { await adminDispatchApi.cancelRequest(request.id, reason); refresh(); }} />
               </Card>

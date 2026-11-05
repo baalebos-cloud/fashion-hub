@@ -12,6 +12,9 @@ class DispatchRequestSummary(BaseModel):
     order_type: str | None = None
     status: str
     created_at: datetime
+    offered_to: str | None = None
+    offer_expires_at: datetime | None = None
+    offer_attempt: int | None = None
 
 
 class DispatchRunSummary(BaseModel):
@@ -32,6 +35,7 @@ class DispatchBoardResponse(BaseModel):
     active_count: int
     available_verified_riders: int
     open_issue_count: int = 0
+    auto_offers_enabled: bool = False
     pending: list[DispatchRequestSummary]
     active: list[DispatchRunSummary]
 

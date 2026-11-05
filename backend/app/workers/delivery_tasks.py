@@ -53,3 +53,15 @@ def notify_dispatch_issue_task(issue_id: str):
                 body="A courier reported an issue affecting an order. Review the delivery details.",
                 metadata_json={"issue_id": issue_id, "delivery_id": str(issue.delivery_id)},
             ))
+
+
+@celery_app.task(name="app.workers.delivery_tasks.advance_expired_job_offers_task")
+def advance_expired_job_offers_task():
+    """Expire lapsed exclusive job offers and pass each job to the next rider (no-op when disabled)."""
+    from app.core.database import SessionLocal
+    from app.services.auto_dispatch_service import AutoDispatchService
+    db = SessionLocal()
+    try:
+        return AutoDispatchService(db).advance_expired()
+    finally:
+        db.close()

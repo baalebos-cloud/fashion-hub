@@ -95,6 +95,8 @@ def dispatch_board(
     by_id = {p.id: (p, u) for p, u in partners}
     service = DispatchAdminService(db)
     issue_counts = service.open_issue_counts([d.id for d in active])
+    from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
+    offer_status = AutoDispatchService(db).admin_status([p.id for p in pending]) if auto_offers_enabled() else {}
     from app.models.delivery_issue import DispatchIssueReport
     return {
         "unassigned_count": pending_query.count(),
@@ -103,12 +105,14 @@ def dispatch_board(
             DeliveryPartner.is_verified.is_(True),
             DeliveryPartner.is_available.is_(True),
         ).count(),
+        "auto_offers_enabled": auto_offers_enabled(),
         "open_issue_count": db.query(DispatchIssueReport).filter(
             DispatchIssueReport.status.notin_(("RESOLVED", "REROUTED"))).count(),
         "pending": [
             {"id": p.id, "order_id": p.order_id, "status": p.status, "created_at": p.created_at,
              "order_number": orders[p.order_id].order_number if p.order_id in orders else None,
-             "order_type": orders[p.order_id].order_type if p.order_id in orders else None}
+             "order_type": orders[p.order_id].order_type if p.order_id in orders else None,
+             **offer_status.get(p.id, {})}
             for p in pending
         ],
         "active": [

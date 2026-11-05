@@ -90,30 +90,45 @@ class DispatchMarketplaceService:
             self.db.commit()
 
     # ---- rider side ----------------------------------------------------
+    def job_card(self, request: DeliveryRequest, partner: DeliveryPartner | None) -> dict:
+        """What a rider sees before claiming: fare, areas and distance, never exact addresses."""
+        pickup, dropoff, km = self._route(request)
+        fare = self._fare(request, km)
+        low, high = offer_bounds(fare)
+        mine = (self.db.query(DeliveryOffer).filter_by(delivery_request_id=request.id,
+                                                      delivery_partner_id=partner.id).first()
+                if partner else None)
+        return {
+            "id": request.id, "order_id": request.order_id, "status": request.status,
+            "suggested_fare": float(fare), "currency": "NGN",
+            "offer_min": float(low), "offer_max": float(high),
+            "approx_road_km": road_km(km),
+            "pickup_area": _area(pickup), "dropoff_area": _area(dropoff),
+            "posted_at": request.created_at,
+            "my_offer": ({"id": mine.id, "amount": float(mine.amount), "status": mine.status,
+                          "eta_to_pickup_minutes": mine.eta_to_pickup_minutes,
+                          "expires_at": mine.expires_at} if mine else None),
+        }
+
     def job_board(self, *, actor, limit=20) -> list[dict]:
         requests = self.courier.list_available(actor=actor, limit=limit)
         partner = self.db.query(DeliveryPartner).filter_by(user_id=actor.id).first()
         self._expire_stale()
-        jobs = []
-        for request in requests:
-            pickup, dropoff, km = self._route(request)
-            fare = self._fare(request, km)
-            low, high = offer_bounds(fare)
-            mine = (self.db.query(DeliveryOffer).filter_by(delivery_request_id=request.id,
-                                                          delivery_partner_id=partner.id).first()
-                    if partner else None)
-            jobs.append({
-                "id": request.id, "order_id": request.order_id, "status": request.status,
-                "suggested_fare": float(fare), "currency": "NGN",
-                "offer_min": float(low), "offer_max": float(high),
-                "approx_road_km": road_km(km),
-                "pickup_area": _area(pickup), "dropoff_area": _area(dropoff),
-                "posted_at": request.created_at,
-                "my_offer": ({"id": mine.id, "amount": float(mine.amount), "status": mine.status,
-                              "eta_to_pickup_minutes": mine.eta_to_pickup_minutes,
-                              "expires_at": mine.expires_at} if mine else None),
-            })
-        return jobs
+        return [self.job_card(request, partner) for request in requests]
+
+    def reserved_for_me(self, *, actor) -> list[dict]:
+        """Jobs auto-offered exclusively to this rider, with their expiry."""
+        from app.services.auto_dispatch_service import AutoDispatchService
+        partner = self.db.query(DeliveryPartner).filter_by(user_id=actor.id).first()
+        if partner is None:
+            return []
+        result = []
+        for offer in AutoDispatchService(self.db).offers_for_partner(partner.id):
+            request = self.db.get(DeliveryRequest, offer.delivery_request_id)
+            if request is not None:
+                result.append({"id": offer.id, "expires_at": offer.expires_at, "attempt": offer.attempt,
+                               "job": self.job_card(request, partner)})
+        return result
 
     def make_offer(self, *, request_id, actor, amount: Decimal, eta_to_pickup_minutes: int) -> DeliveryOffer:
         partner = self.courier._verified_available_partner(actor)
@@ -121,6 +136,9 @@ class DispatchMarketplaceService:
         order = self.db.get(Order, request.order_id) if request else None
         if not request or request.status != "requested" or not is_dispatchable(order):
             raise NotFoundError("Available delivery request not found.")
+        from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
+        if auto_offers_enabled() and AutoDispatchService(self.db).held_by_other(request.id, partner.id):
+            raise ConflictError("This job is reserved for another rider right now. Try again shortly.")
         _, _, km = self._route(request)
         low, high = offer_bounds(self._fare(request, km))
         if not (low <= amount <= high):
