@@ -40,8 +40,9 @@ def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
     except httpx.HTTPError:
         logger.warning("kyb_provider_request_failed provider=prembly")
         raise ExternalProviderError("Business lookup is temporarily unavailable.") from None
-    if response.status_code == 404:
-        raise NotFoundError("We couldn't find that registration number with CAC.")
+    # An HTTP 404 means the endpoint URL is wrong, not that the company is missing:
+    # Prembly reports "no record" as response_code 01 in a normal 200 reply. Never
+    # turn a misconfiguration into "your registration number doesn't exist".
     if response.status_code != 200:
         logger.warning("kyb_provider_http_error provider=prembly status=%d", response.status_code)
         raise ExternalProviderError("Business lookup is temporarily unavailable.")
