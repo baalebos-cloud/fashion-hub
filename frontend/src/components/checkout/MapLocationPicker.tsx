@@ -37,6 +37,7 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
   const [addressDetails, setAddressDetails] = useState<{ city: string | null; state_region: string | null; country: string | null }>({ city: null, state_region: null, country: null });
   const requestVersion = useRef(0);
   const [selectionError, setSelectionError] = useState<string | null>(null);
+  const [addressNotFound, setAddressNotFound] = useState(false);
   const [isResolving, setResolving] = useState(false);
   const onSelectRef = useRef(onSelect);
   onSelectRef.current = onSelect;
@@ -54,7 +55,9 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
     const version = ++requestVersion.current;
     setSelectedPoint({ lat: latitude, lng: longitude });
     setAddressDetails({ city: null, state_region: null, country: null });
-    setResolvedAddress(`Pinned location (${latitude.toFixed(5)}, ${longitude.toFixed(5)})`);
+    // Coordinates are shown beside the field, never put into it as if they were an address.
+    setResolvedAddress("");
+    setAddressNotFound(false);
     setSelectionError(null);
     setResolving(true);
     resolvingRef.current?.(true);
@@ -67,9 +70,10 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
         setAddressDetails({ city: address.city, state_region: address.state_region, country: address.country });
         onChangeRef.current?.({ latitude, longitude, formatted_address: address.formatted_address, city: address.city, state_region: address.state_region, country: address.country });
       }
+      else if (requestVersion.current === version) setAddressNotFound(true);
     } catch {
-      if (requestVersion.current === version)
-        setSelectionError("Address could not be verified by the available map providers. Enter the correct street address manually or save the pin.");
+      // Not an error for the user: the pin is valid, only the street name lookup failed.
+      if (requestVersion.current === version) setAddressNotFound(true);
     } finally {
       if (requestVersion.current === version) { setResolving(false); resolvingRef.current?.(false); }
     }
@@ -153,11 +157,35 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
         isLoading={isLocating || isResolving} className="self-start">
         Use my current location
       </Button>
-      {mode === "shop" && selectedPoint && <label className="text-sm text-ink">Shop address (editable)<input aria-label="Shop address" className="mt-1 w-full rounded border border-line bg-paper p-2" value={resolvedAddress} onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} /></label>}
-      {mode === "shop" && selectedPoint && <Button type="button" onClick={saveSelection}>Save shop location</Button>}
-      {isResolving && <p role="status" className="text-sm text-ink-soft">Finding the selected address…</p>}
-      {selectionError && mode === "shop" && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
-      {selectionError && mode === "delivery" && <p role="status" className="text-sm text-ink-soft">Some address details could not be found automatically. Complete the fields below.</p>}
+      {selectedPoint && (
+        <p className="text-xs text-ink-soft" aria-live="polite">
+          Pin placed at {selectedPoint.lat.toFixed(5)}, {selectedPoint.lng.toFixed(5)}
+        </p>
+      )}
+      {isResolving && <p role="status" className="text-sm text-ink-soft">Finding the street address for your pin…</p>}
+      {addressNotFound && !isResolving && (
+        <p role="status" className="rounded-lg bg-[#fbf0dd] px-3 py-2 text-sm text-[#8a5f1f]">
+          {mode === "shop"
+            ? "We couldn't find the street name for this pin automatically. Type your shop's address below; your pin position is kept."
+            : "We couldn't find the street name for this pin automatically. Complete the address fields below; your pin position is kept."}
+        </p>
+      )}
+      {mode === "shop" && selectedPoint && (
+        <label className="text-sm text-ink">
+          Shop address
+          <input aria-label="Shop address" value={resolvedAddress} disabled={isResolving}
+            placeholder="Street address, e.g. 14 Iworoko Road, Ado-Ekiti"
+            className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brass focus:outline-none"
+            onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} />
+          <span className="mt-1 block text-xs text-ink-soft">Customers and riders see this address, so make it easy to find.</span>
+        </label>
+      )}
+      {mode === "shop" && selectedPoint && (
+        <Button type="button" onClick={saveSelection} disabled={isResolving || resolvedAddress.trim().length < 5}>
+          Save shop location
+        </Button>
+      )}
+      {selectionError && <p role="alert" className="text-sm text-thread">{selectionError}</p>}
       {geolocationError && (
         <p role="alert" className="text-sm text-thread">
           {geolocationErrorCode === "PERMISSION_DENIED"

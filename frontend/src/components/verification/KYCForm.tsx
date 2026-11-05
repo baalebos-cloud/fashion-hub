@@ -131,7 +131,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
           <AddressMapPicker label="Home address" onAddressSelect={(location) => {
             setHomeLocation({ latitude: location.latitude, longitude: location.longitude, formatted_address: location.formatted_address ?? undefined });
             setManualAddress((old) => ({ ...old,
-              street: location.formatted_address && !location.formatted_address.startsWith("Pinned location (") ? location.formatted_address : "",
+              street: location.formatted_address ?? "",
               city: location.city ?? "", state: location.state_region ?? "",
             }));
           }} />

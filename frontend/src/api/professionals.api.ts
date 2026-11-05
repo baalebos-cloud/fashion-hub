@@ -44,9 +44,15 @@ export const professionalsApi = {
    * Location row AND links it via Professional.location_id in one call,
    * unlike the generic locations.api.ts::create, which only creates a
    * standalone Location with nothing pointing back at it. */
-  async updateMyLocation(payload: { latitude: number; longitude: number; formattedAddress?: string }): Promise<Professional> {
+  async updateMyLocation(payload: {
+    latitude: number; longitude: number; formattedAddress?: string;
+    city?: string; stateRegion?: string; country?: string;
+  }): Promise<Professional> {
     const response = await apiClient.patch<Professional>("/professionals/me/location", null, {
-      params: { latitude: payload.latitude, longitude: payload.longitude, formatted_address: payload.formattedAddress },
+      params: {
+        latitude: payload.latitude, longitude: payload.longitude, formatted_address: payload.formattedAddress,
+        city: payload.city, state_region: payload.stateRegion, country: payload.country,
+      },
     });
     return response.data;
   },
