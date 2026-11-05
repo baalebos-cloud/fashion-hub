@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { router } from "@/router";
 import { AIAssistant } from "@/components/ai/AIAssistant";
@@ -9,10 +9,9 @@ import { ToastProvider } from "@/components/ui/toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth.store";
 import { authRoutes } from "@/config/routes.config";
+import { queryClient } from "@/lib/query-client";
+import "@/lib/auth/account-isolation";
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 1000 * 60 * 5, retry: 1, refetchOnWindowFocus: false } },
-});
 
 const AUTH_PATHS: string[] = Object.values(authRoutes);
 
