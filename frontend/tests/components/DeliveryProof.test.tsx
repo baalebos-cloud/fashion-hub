@@ -14,8 +14,9 @@ vi.mock("@/api/deliveries.api", () => ({
   deliveriesApi: { getByOrder: vi.fn(), getPickupCode: vi.fn(), rotatePickupCode: vi.fn(), markPickedUp: vi.fn() },
 }));
 vi.mock("@/api/admin-dispatch.api", () => ({ adminDispatchApi: { events: vi.fn() } }));
+const hookDelivery = { id: "d1", order_id: "o1", status: "assigned", delivery_fee: 2500, pickup_code_required: true };
 vi.mock("@/hooks/use-delivery", () => ({
-  useDelivery: () => ({ delivery: { id: "d1", order_id: "o1", status: "assigned", delivery_fee: 2500 }, isLoading: false, error: null }),
+  useDelivery: () => ({ delivery: hookDelivery, isLoading: false, error: null }),
 }));
 vi.mock("@/lib/utils/errors", () => ({
   getDisplayErrorMessage: (err: unknown, fallback?: string) => (err instanceof Error ? err.message : fallback ?? "error"),
@@ -101,6 +102,24 @@ describe("rider pickup", () => {
     // Network failure: same key retried. Definite rejection: next attempt gets a new key.
     expect(keys).toEqual(["key-1", "key-1", "key-2"]);
     expect(vi.mocked(deliveriesApi.markPickedUp).mock.calls[0][1]).toEqual({ pickup_code: "730155", package_count: 2 });
+  });
+});
+
+describe("rider pickup with the code switched off", () => {
+  it("lets the rider confirm with just the package count", async () => {
+    hookDelivery.pickup_code_required = false;
+    try {
+      render(<MemoryRouter initialEntries={["/delivery/d1/pickup"]}><Routes>
+        <Route path="/delivery/:deliveryId/pickup" element={<Pickup />} />
+        <Route path="*" element={<p>navigated</p>} /></Routes></MemoryRouter>);
+      expect(screen.queryByLabelText("Pickup code")).toBeNull();
+      vi.mocked(deliveriesApi.markPickedUp).mockResolvedValueOnce({ id: "d1", order_id: "o1", status: "in_transit", delivery_fee: 2500 });
+      fireEvent.click(screen.getByRole("button", { name: /picked up the package/ }));
+      expect(await screen.findByText("navigated")).toBeTruthy();
+      expect(vi.mocked(deliveriesApi.markPickedUp).mock.calls[0][1]).toEqual({ package_count: 1 });
+    } finally {
+      hookDelivery.pickup_code_required = true;
+    }
   });
 });
 

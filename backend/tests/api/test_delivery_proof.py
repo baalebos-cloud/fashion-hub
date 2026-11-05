@@ -76,6 +76,10 @@ def test_only_the_seller_sees_the_pickup_code_and_the_rider_must_enter_it(run):
     done = http.post(base + "/picked-up", json={"pickup_code": issued["pickup_code"], "package_count": 3})
     assert done.status_code == 200, done.text
     assert done.json()["status"] == "in_transit" and done.json()["package_count"] == 3
+    assert done.json()["pickup_code_required"] is True
+    # The buyer's tracking view carries the count for the handover check.
+    tracking = _as(run, "buyer").get(f"/api/v1/deliveries/orders/{run['order'].id}/tracking").json()
+    assert tracking["package_count"] == 3
     db.expire_all()
     assert db.query(DeliveryCode).filter_by(purpose="pickup").one().used_at is not None
     # Once collected, the seller's code is gone.
@@ -160,5 +164,6 @@ def test_pickup_code_can_be_switched_off(run, monkeypatch):
     base = run["base"]
     assert _as(run, "seller").get(base + "/pickup-code").json() == {
         "delivery_id": str(run["delivery"].id), "required": False, "pickup_code": None, "expires_at": None}
+    assert _as(run, "rider").get(base).json()["pickup_code_required"] is False
     done = _as(run, "rider").post(base + "/picked-up")
     assert done.status_code == 200 and done.json()["package_count"] == 1

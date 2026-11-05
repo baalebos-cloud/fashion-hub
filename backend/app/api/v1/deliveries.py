@@ -60,6 +60,7 @@ def customer_order_delivery(
     return {
         "id": delivery.id, "order_id": delivery.order_id,
         "status": delivery.status, "delivery_fee": delivery.delivery_fee,
+        "package_count": delivery.package_count,
         "rider_name": rider.full_name if rider else None,
         "rider_verified": bool(partner.is_verified) if partner else None,
         "rider_rating": float(partner.average_rating or 0) if partner else None,

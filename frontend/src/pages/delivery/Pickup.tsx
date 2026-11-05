@@ -26,13 +26,14 @@ export default function Pickup() {
 
   if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !delivery) return <LoadingScreen label="Loading delivery…" />;
+  const codeRequired = delivery.pickup_code_required !== false;
 
   async function handleConfirm() {
     if (!deliveryId) return;
     setActionError(null);
     setIsConfirming(true);
     try {
-      await deliveriesApi.markPickedUp(deliveryId, { pickup_code: pickupCode, package_count: packageCount }, attemptKey.current);
+      await deliveriesApi.markPickedUp(deliveryId, codeRequired ? { pickup_code: pickupCode, package_count: packageCount } : { package_count: packageCount }, attemptKey.current);
       navigate(deliveryRoutes.navigation(deliveryId));
     } catch (err) {
       // A definite rejection (wrong code, wrong state) starts a new attempt; a dropped
@@ -47,12 +48,12 @@ export default function Pickup() {
   return (
     <div className="flex max-w-sm flex-col gap-4">
       <h1 className="font-display text-xl text-ink">Confirm pickup</h1>
-      <label className="block text-sm text-ink">Pickup code from the seller
+      {codeRequired && <label className="block text-sm text-ink">Pickup code from the seller
         <input aria-label="Pickup code" value={pickupCode} inputMode="numeric" autoComplete="one-time-code"
           className="mt-2 w-full rounded border border-line p-3 tracking-widest"
           onChange={(event) => setPickupCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
           maxLength={6} placeholder="6-digit code" />
-      </label>
+      </label>}
       <div className="text-sm text-ink">
         <p id="package-count-label">Packages collected</p>
         <div className="mt-2 flex items-center gap-3" role="group" aria-labelledby="package-count-label">
@@ -67,7 +68,7 @@ export default function Pickup() {
       </div>
       <p className="text-xs text-ink-soft">Check the order number on the package matches before you leave.</p>
       <Button onClick={() => void handleConfirm()} isLoading={isConfirming}
-        disabled={isConfirming || pickupCode.length !== 6}>I've picked up the package</Button>
+        disabled={isConfirming || (codeRequired && pickupCode.length !== 6)}>I've picked up the package</Button>
       {actionError && <p role="alert" className="text-sm text-thread">{actionError}</p>}
     </div>
   );

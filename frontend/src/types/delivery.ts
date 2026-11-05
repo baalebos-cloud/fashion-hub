@@ -16,6 +16,8 @@ export interface Delivery {
   delivery_fee: number;
   /** Packages the rider confirmed at pickup. */
   package_count?: number | null;
+  /** False while the pickup-code rollout flag is off: the rider skips the code. */
+  pickup_code_required?: boolean;
   proof_of_delivery_url?: string | null;
   rider_name?: string | null;
   rider_verified?: boolean | null;

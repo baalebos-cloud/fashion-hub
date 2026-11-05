@@ -1,6 +1,8 @@
 import uuid
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+from app.core.config import settings
 
 
 class MarkDeliveredRequest(BaseModel):
@@ -20,6 +22,12 @@ class DeliveryResponse(BaseModel):
     status: str
     delivery_fee: float
     package_count: Optional[int] = None
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def pickup_code_required(self) -> bool:
+        """Tells the rider app whether to ask for the seller's pickup code."""
+        return settings.DELIVERY_PICKUP_CODE_REQUIRED
 
     model_config = {"from_attributes": True}
 
