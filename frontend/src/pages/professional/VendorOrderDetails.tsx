@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 import { OrderContacts } from "@/components/calls/OrderContacts";
+import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
+import { CustomerDeliveryTracking } from "@/components/delivery/CustomerDeliveryTracking";
+import { ordersApi } from "@/api/orders.api";
 import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { OrderItems } from "@/components/orders/OrderItems";
@@ -22,6 +25,21 @@ export default function VendorOrderDetails() {
   const [now, setNow] = useState(Date.now());
   const [isCancelling, setIsCancelling] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
+  const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  // The order loads once; while a rider is moving the materials, re-check its status so
+  // "Confirm materials received" appears as soon as delivery completes, without a reload.
+  const loadedId = order?.id;
+  const loadedStatus = order?.status;
+  useEffect(() => {
+    if (!loadedId) return;
+    const status = liveStatus ?? loadedStatus;
+    if (!status || !["ready_for_pickup", "picked_up", "in_transit"].includes(status)) return;
+    const timer = window.setInterval(() => {
+      ordersApi.getById(loadedId).then((fresh) => setLiveStatus(fresh.status)).catch(() => {});
+    }, 15000);
+    return () => window.clearInterval(timer);
+  }, [loadedId, loadedStatus, liveStatus]);
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
@@ -58,6 +76,22 @@ export default function VendorOrderDetails() {
         </>}
         <Button variant="secondary" onClick={() => { void cancelOrder(); }} isLoading={isCancelling}>Cancel unpaid order</Button>
       </>}
+      {!unpaid && ["ready_for_pickup", "picked_up", "in_transit", "delivered", "received", "completed"].includes(liveStatus ?? order.status) && (
+        <DeliveryJourney orderId={order.id} />
+      )}
+      {!unpaid && <CustomerDeliveryTracking orderId={order.id} />}
+      {(liveStatus ?? order.status) === "delivered" && (
+        <div className="flex flex-col gap-2 rounded-card border border-line p-4">
+          <p className="text-sm text-ink">Check the materials, then confirm you received them. This completes the materials order.</p>
+          <Button className="self-start" isLoading={confirming} onClick={async () => {
+            setConfirming(true); setActionError(null);
+            try { setLiveStatus((await ordersApi.confirmMaterialsReceived(order.id)).status); }
+            catch (err) { setActionError(getDisplayErrorMessage(err)); }
+            finally { setConfirming(false); }
+          }}>Confirm materials received</Button>
+        </div>
+      )}
+      {liveStatus === "completed" && <p role="status" className="text-sm text-[#256a3f]">Materials received. Thank you!</p>}
       {!unpaid && <OrderContacts orderId={order.id} />}
       {error && <p role="alert">{error}</p>}
       {actionError && <p role="alert">{actionError}</p>}

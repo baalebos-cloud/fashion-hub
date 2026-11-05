@@ -41,3 +41,27 @@ class VendorFulfillmentService:
         self.db.commit()
         self.db.refresh(order)
         return order
+
+    def confirm_received(self, *, order_id, actor, note: str | None = None):
+        """The buying tailor/designer confirms the materials arrived (delivered -> received -> completed).
+
+        Only the materials order changes; the linked customer garment order is untouched.
+        """
+        order = self.orders.get_by_id_for_update(order_id)
+        if not order or order.order_type != "vendor_order" or str(order.buyer_user_id) != str(actor.id):
+            raise NotFoundError("Order not found.")
+        if order.status == VendorOrderStatus.COMPLETED.value:
+            return order  # idempotent: a second tap changes nothing
+        if order.status != VendorOrderStatus.DELIVERED.value:
+            raise InvalidStateTransitionError("You can confirm receipt once the rider has delivered the materials.")
+        now = utcnow()
+        for current, target, stamp in ((VendorOrderStatus.DELIVERED, VendorOrderStatus.RECEIVED, "received_at"),
+                                       (VendorOrderStatus.RECEIVED, VendorOrderStatus.COMPLETED, "completed_at")):
+            order.status = target.value
+            setattr(order, stamp, now)
+            self.db.add(OrderTimelineEntry(order_id=order.id, from_status=current.value, to_status=target.value,
+                                           actor_user_id=actor.id,
+                                           note=note if target == VendorOrderStatus.RECEIVED else "Materials order completed."))
+        self.db.commit()
+        self.db.refresh(order)
+        return order
