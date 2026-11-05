@@ -90,3 +90,42 @@ background GPS, and photo/signature proof. Straight-line haversine is
 
 Only the Fashion Hub service/project and its PR branch are in scope.
 Do not invoke live settlement or modify the Sage reference repository.
+
+## Fares, rider offers and the delivery journey
+
+**Suggested fare.** When a seller requests a courier, the request gets a
+suggested fare unless the order already carries a delivery fee:
+`DISPATCH_BASE_FARE + DISPATCH_PER_KM_FARE × road km`, where road km is the
+straight-line pickup→drop-off distance × `DISPATCH_ROAD_FACTOR` (1.35),
+rounded to the nearest ₦50 with a `DISPATCH_MIN_FARE` floor. Missing pins
+fall back to the minimum fare.
+
+**Job board.** `GET /delivery-requests/available` now returns priced job
+cards: suggested fare, allowed offer range, approximate road km, and pickup
+and drop-off **areas** (city/state). Exact addresses, coordinates and contacts
+are still only available after assignment.
+
+**Two ways to take a job.**
+1. *Accept at the suggested fare* (`POST /delivery-requests/{id}/accept`),
+   an instant atomic claim as before. The delivery fee is the suggested fare.
+2. *Offer your own fare* (`POST /delivery-requests/{id}/offers`): an amount
+   within 80–200% of the suggested fare plus minutes to pickup. One live offer
+   per rider per job; offers expire after `DISPATCH_OFFER_TTL_MINUTES` (10).
+   Riders can withdraw (`DELETE .../offers/mine`).
+
+The order's seller sees live offers, cheapest first, each with a rider card
+(first name, verified, rating, vehicle, completed deliveries) at
+`GET /delivery-requests/orders/{order_id}/dispatch`, and accepts one with
+`POST /delivery-requests/offers/{offer_id}/accept`. Acceptance re-checks under
+row locks that the job is still open, the offer is unexpired and the rider is
+still verified and available, then uses the same assignment path as instant
+claims; all other pending offers are declined.
+
+**Delivery journey.** `GET /deliveries/orders/{order_id}/journey` (buyer,
+seller, assigned rider, admin) returns a tracking number and ordered
+milestones (placed, paid, accepted, in production, ready, looking for a rider,
+rider assigned, picked up, delivered, received) with timestamps and
+`done/current/upcoming` states. While the rider shares GPS and the delivery
+is in transit, it adds an approximate ETA and remaining distance labelled
+`live_gps_estimate`. It is straight-line × road factor at typical city
+speeds, not traffic-aware routing.

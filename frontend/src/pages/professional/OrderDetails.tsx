@@ -1,5 +1,7 @@
 import { useParams } from "react-router-dom";
 import { OrderContacts } from "@/components/calls/OrderContacts";
+import { DispatchOffers } from "@/components/dispatch/DispatchOffers";
+import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
 import { useState } from "react";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Button } from "@/components/ui/button";
@@ -20,6 +22,7 @@ export default function OrderDetails() {
   const [dispatching, setDispatching] = useState(false);
   const [dispatchResult, setDispatchResult] = useState<string | null>(null);
   const [dispatchError, setDispatchError] = useState<string | null>(null);
+  const [dispatchRefresh, setDispatchRefresh] = useState(0);
 
   async function dispatch() {
     if (!orderId) return;
@@ -27,7 +30,10 @@ export default function OrderDetails() {
     setDispatchError(null);
     try {
       const request = await deliveryRequestsApi.requestForOrder(orderId);
-      setDispatchResult("Courier request " + request.status + ". Verified couriers can claim it in their dashboard.");
+      setDispatchResult(request.status === "requested"
+        ? "Riders nearby can now accept your job or send fare offers below."
+        : "Courier request " + request.status + ".");
+      setDispatchRefresh((n) => n + 1);
     } catch (err) {
       setDispatchError(getDisplayErrorMessage(err));
     } finally {
@@ -69,6 +75,10 @@ export default function OrderDetails() {
         </div>
       )}
 
+      {order.order_type === "customer_order" && (
+        <DispatchOffers orderId={order.id} refreshKey={dispatchRefresh} onAssigned={() => setDispatchRefresh((n) => n + 1)} />
+      )}
+      {order.order_type === "customer_order" && <DeliveryJourney key={dispatchRefresh} orderId={order.id} />}
       <OrderContacts orderId={order.id} />
 
       <div>

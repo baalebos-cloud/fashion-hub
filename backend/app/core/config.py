@@ -126,6 +126,13 @@ class Settings(BaseSettings):
     EMAIL_USERNAME: Optional[str] = None
     EMAIL_PASSWORD: Optional[str] = None
     EMAIL_USE_TLS: bool = True
+    # --- Dispatch pricing (naira). Suggested fare = base + per_km * road_km, min fare applies. ---
+    DISPATCH_BASE_FARE: int = 500
+    DISPATCH_PER_KM_FARE: int = 150
+    DISPATCH_MIN_FARE: int = 1000
+    # Straight-line distance is multiplied by this to approximate road distance.
+    DISPATCH_ROAD_FACTOR: float = 1.35
+    DISPATCH_OFFER_TTL_MINUTES: int = 10
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
     VOICE_PROVIDER: Optional[str] = None

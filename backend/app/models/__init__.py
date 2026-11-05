@@ -59,6 +59,7 @@ from app.models.referral import Referral
 from app.models.payout import Payout
 from app.models.storefront_handle import StorefrontHandle
 from app.models.call_session import CallSession
+from app.models.delivery_offer import DeliveryOffer
 
 __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
@@ -69,7 +70,7 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession",
+    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer",
 ]
 
 from app.models.saga import SagaStepLog, LedgerEntry

@@ -101,13 +101,26 @@ class InternalCourierService:
             pickup_location_id=pickup_snapshot.id,
             dropoff_location_id=dropoff_snapshot.id,
             package_description="Customer fashion order " + order.order_number,
-            proposed_fee=order.delivery_fee,
+            proposed_fee=self._suggested_fee(order, pickup_snapshot, dropoff_snapshot),
             status="requested",
         )
         self.db.add(request)
         self.db.commit()
         self.db.refresh(request)
         return request
+
+    @staticmethod
+    def _suggested_fee(order, pickup, dropoff):
+        """Keep a fee already priced into the order; otherwise suggest one from distance."""
+        from app.services.dispatch_pricing import suggested_fare
+        if order.delivery_fee and float(order.delivery_fee) > 0:
+            return order.delivery_fee
+        try:
+            km = estimate_straight_line_km(validate_point(pickup.latitude, pickup.longitude),
+                                           validate_point(dropoff.latitude, dropoff.longitude))
+        except Exception:  # noqa: BLE001 - bad pins fall back to the minimum fare.
+            km = None
+        return suggested_fare(km)
 
     def list_available(self, *, actor, limit=20):
         self._verified_available_partner(actor)
@@ -136,6 +149,12 @@ class InternalCourierService:
         order = self.db.get(Order, request.order_id)
         if not order or order.order_type != "customer_order" or order.status not in REQUESTABLE:
             raise ConflictError("This order is no longer ready for dispatch.")
+        return self.assign(request=request, order=order, partner=partner, fee=request.proposed_fee)
+
+    def assign(self, *, request, order, partner, fee, accepted_offer_id=None):
+        """Assign a locked request to a locked, available partner. Shared by instant
+        claims and accepted fare offers; caller must hold both row locks."""
+        from app.models.delivery_offer import DeliveryOffer
         if self.db.query(Delivery).filter_by(order_id=order.id).first():
             raise ConflictError("This order already has an assigned delivery.")
         request.status = "assigned"
@@ -143,9 +162,12 @@ class InternalCourierService:
         delivery = Delivery(
             delivery_request_id=request.id, order_id=order.id,
             delivery_partner_id=partner.id, status="assigned", provider="internal",
-            delivery_fee=order.delivery_fee,
+            delivery_fee=fee if fee is not None else order.delivery_fee,
         )
         self.db.add(delivery)
+        for offer in self.db.query(DeliveryOffer).filter(
+                DeliveryOffer.delivery_request_id == request.id, DeliveryOffer.status == "pending"):
+            offer.status = "accepted" if accepted_offer_id and offer.id == accepted_offer_id else "declined"
         self.db.commit()
         self.db.refresh(delivery)
         return delivery
