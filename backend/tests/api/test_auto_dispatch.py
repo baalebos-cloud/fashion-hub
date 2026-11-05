@@ -187,3 +187,49 @@ def test_disabled_flag_keeps_the_open_board_only(db, make_user, monkeypatch):
     finally:
         app.dependency_overrides.clear()
     assert db.query(DispatchJobOffer).filter_by(delivery_request_id=uuid.UUID(rid)).count() == 0
+
+
+def test_switching_the_flag_off_voids_existing_reservations(auto, monkeypatch):
+    http, current, db, rid = auto["http"], auto["current"], auto["db"], auto["request_id"]
+    offer = _offers(db, rid)[0]
+    monkeypatch.setattr(settings, "DISPATCH_AUTO_OFFER_ENABLED", False)
+    current[0] = auto["riders"]["near"][0]
+    assert http.get("/api/v1/delivery-requests/job-offers/mine").json() == []
+    assert http.post(f"/api/v1/delivery-requests/job-offers/{offer.id}/accept").status_code == 409
+    current[0] = auto["riders"]["mid"][0]  # the open board is the only path again
+    assert any(j["id"] == str(rid) for j in http.get("/api/v1/delivery-requests/available").json())
+    assert http.post(f"/api/v1/delivery-requests/{rid}/accept").status_code == 200
+
+
+def _second_job(db, make_user, http, current):
+    seller, buyer = make_user(role="tailor"), make_user()
+    order = OrderService(db).create_customer_order(**catalog_request(db, buyer, seller))
+    shop = Location(location_type="tailor_shop", city="Ikeja", state_region="Lagos", latitude=SHOP[0], longitude=SHOP[1])
+    db.add(shop)
+    db.flush()
+    db.query(Professional).filter_by(user_id=seller.id).one().location_id = shop.id
+    order.status = "ready_for_delivery"
+    db.commit()
+    current[0] = seller
+    return uuid.UUID(http.post(f"/api/v1/delivery-requests/orders/{order.id}").json()["id"])
+
+
+def test_a_rider_holds_one_reservation_at_a_time(auto, make_user):
+    http, current, db, rid = auto["http"], auto["current"], auto["db"], auto["request_id"]
+    second = _second_job(db, make_user, http, current)
+    assert _offers(db, rid)[0].delivery_partner_id == auto["riders"]["near"][1].id
+    assert _offers(db, second)[0].delivery_partner_id == auto["riders"]["mid"][1].id  # near is already holding one
+
+
+def test_accepting_a_job_passes_the_riders_other_reservations_on(auto, make_user):
+    http, current, db, rid = auto["http"], auto["current"], auto["db"], auto["request_id"]
+    second = _second_job(db, make_user, http, current)
+    # Simulate a race that reserved a second job for the same rider.
+    stray = _offers(db, second)[0]
+    stray.delivery_partner_id = auto["riders"]["near"][1].id
+    db.commit()
+    current[0] = auto["riders"]["near"][0]
+    assert http.post(f"/api/v1/delivery-requests/job-offers/{_offers(db, rid)[0].id}/accept").status_code == 200
+    second_offers = _offers(db, second)
+    assert second_offers[0].status == "withdrawn"
+    assert second_offers[-1].status == "offered" and second_offers[-1].delivery_partner_id != auto["riders"]["near"][1].id

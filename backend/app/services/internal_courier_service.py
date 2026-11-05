@@ -228,11 +228,21 @@ class InternalCourierService:
             DispatchJobOffer.delivery_request_id == request.id, DispatchJobOffer.status == "offered",
         ).update({DispatchJobOffer.status: "withdrawn", DispatchJobOffer.responded_at: utcnow()},
                  synchronize_session=False)
+        # The rider is now busy: jobs still reserved for them elsewhere go to the next rider.
+        stranded = [row[0] for row in self.db.query(DispatchJobOffer.delivery_request_id).filter(
+            DispatchJobOffer.delivery_partner_id == partner.id, DispatchJobOffer.status == "offered").all()]
+        if stranded:
+            self.db.query(DispatchJobOffer).filter(
+                DispatchJobOffer.delivery_partner_id == partner.id, DispatchJobOffer.status == "offered",
+            ).update({DispatchJobOffer.status: "withdrawn", DispatchJobOffer.responded_at: utcnow()},
+                     synchronize_session=False)
         for offer in self.db.query(DeliveryOffer).filter(
                 DeliveryOffer.delivery_request_id == request.id, DeliveryOffer.status == "pending"):
             offer.status = "accepted" if accepted_offer_id and offer.id == accepted_offer_id else "declined"
         self.db.commit()
         self.db.refresh(delivery)
+        for request_id in stranded:
+            self._start_auto_offers(request_id)
         return delivery
 
     def get(self, *, delivery_id, actor):

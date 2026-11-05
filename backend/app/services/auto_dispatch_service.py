@@ -79,6 +79,8 @@ class AutoDispatchService:
         return {row[0] for row in query.all()}
 
     def offers_for_partner(self, partner_id) -> list[DispatchJobOffer]:
+        if not auto_offers_enabled():
+            return []  # flag off: reservations are void, the open board is the only path
         self.advance_expired()
         return (self.db.query(DispatchJobOffer)
                 .filter(DispatchJobOffer.delivery_partner_id == partner_id,
@@ -100,10 +102,14 @@ class AutoDispatchService:
             DispatchJobOffer.delivery_request_id == request.id)
         busy = self.db.query(Delivery.delivery_partner_id).filter(
             Delivery.status.in_(ACTIVE_DELIVERY_STATUSES), Delivery.delivery_partner_id.is_not(None))
+        # One live reservation per rider, so accepting one job never leaves others stranded.
+        reserving = self.db.query(DispatchJobOffer.delivery_partner_id).filter(
+            DispatchJobOffer.status == "offered", DispatchJobOffer.expires_at > utcnow())
         rows = (self.db.query(DeliveryPartner, User).join(User, User.id == DeliveryPartner.user_id)
                 .filter(DeliveryPartner.is_verified.is_(True), DeliveryPartner.is_available.is_(True),
                         DeliveryPartner.vehicle_type.is_not(None), User.is_active.is_(True),
-                        DeliveryPartner.id.notin_(already), DeliveryPartner.id.notin_(busy))
+                        DeliveryPartner.id.notin_(already), DeliveryPartner.id.notin_(busy),
+                        DeliveryPartner.id.notin_(reserving))
                 .all())
         if not rows:
             return []
@@ -187,22 +193,33 @@ class AutoDispatchService:
                 logger.warning("auto_dispatch_advance_failed", extra={"error_type": type(exc).__name__})
         return len(lapsed)
 
-    def _own_offer(self, offer_id, actor: User) -> DispatchJobOffer:
-        offer = (self.db.query(DispatchJobOffer).filter_by(id=offer_id)
-                 .with_for_update().populate_existing().first())
+    def _check_owner(self, offer_id, actor: User) -> DispatchJobOffer:
+        """Ownership check WITHOUT locks; callers lock rows in the shared order afterwards."""
+        offer = self.db.get(DispatchJobOffer, offer_id)
         partner = self.db.get(DeliveryPartner, offer.delivery_partner_id) if offer else None
         if offer is None or partner is None or str(partner.user_id) != str(actor.id):
             raise NotFoundError("Job offer not found.")
         return offer
 
+    def _lock_offer(self, offer_id) -> DispatchJobOffer:
+        return (self.db.query(DispatchJobOffer).filter_by(id=offer_id)
+                .with_for_update().populate_existing().one())
+
+    # Lock order everywhere: delivery partner -> delivery request -> job offer, matching
+    # InternalCourierService.accept()/assign(), so concurrent accepts conflict instead of deadlocking.
     def accept(self, *, offer_id, actor: User) -> Delivery:
-        offer = self._own_offer(offer_id, actor)
-        if offer.status != "offered" or offer.expires_at <= utcnow():
+        if not auto_offers_enabled():
+            raise ConflictError("Reserved jobs are switched off. Check Delivery jobs for open work.")
+        offer = self._check_owner(offer_id, actor)
+        if offer.status != "offered" or offer.expires_at <= utcnow():  # cheap pre-check; re-checked under lock
             raise ConflictError("This offer has expired. Check Delivery jobs for open work.")
         courier = InternalCourierService(self.db)
-        partner = courier._verified_available_partner(actor)
-        request = (self.db.query(DeliveryRequest).filter_by(id=offer.delivery_request_id)
+        partner = courier._verified_available_partner(actor)  # 1. partner
+        request = (self.db.query(DeliveryRequest).filter_by(id=offer.delivery_request_id)  # 2. request
                    .with_for_update().populate_existing().first())
+        offer = self._lock_offer(offer_id)  # 3. offer
+        if offer.status != "offered" or offer.expires_at <= utcnow():
+            raise ConflictError("This offer has expired. Check Delivery jobs for open work.")
         order = self.db.get(Order, request.order_id) if request else None
         if request is None or request.status != "requested" or not is_dispatchable(order):
             offer.status = "withdrawn"
@@ -213,12 +230,15 @@ class AutoDispatchService:
         return courier.assign(request=request, order=order, partner=partner, fee=request.proposed_fee)
 
     def decline(self, *, offer_id, actor: User) -> None:
-        offer = self._own_offer(offer_id, actor)
+        offer = self._check_owner(offer_id, actor)
+        request_id = offer.delivery_request_id
+        (self.db.query(DeliveryRequest).filter_by(id=request_id)  # request before offer
+         .with_for_update().populate_existing().first())
+        offer = self._lock_offer(offer_id)
         if offer.status != "offered":
             raise ConflictError("This offer is no longer open.")
         offer.status = "declined"
         offer.responded_at = utcnow()
-        request_id = offer.delivery_request_id
         self.db.commit()
         self.offer_next(request_id)
 
