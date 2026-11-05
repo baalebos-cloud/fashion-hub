@@ -173,3 +173,33 @@ def test_releasing_a_delivery_reroutes_its_open_issues(board):
     assert http.post(f"/api/v1/admin/dispatch/deliveries/{delivery_id}/release", json=REASON).status_code == 200
     assert http.get("/api/v1/admin/dispatch/issues").json() == []
     assert http.get("/api/v1/admin/dispatch-board").json()["open_issue_count"] == 0
+
+
+def test_release_keeps_a_negotiated_fare_and_journey_shows_the_new_search(db, make_user, board):
+    """A rider offer accepted above the suggested fare survives release; the journey stops showing the old rider."""
+    http, current = board["http"], board["current"]
+    released = http.post(f"/api/v1/admin/dispatch/deliveries/{board['delivery_id']}/release", json=REASON).json()
+    request_id = released["request_id"]
+    current[0] = board["rider_b"]
+    job = next(j for j in http.get("/api/v1/delivery-requests/available").json() if j["id"] == request_id)
+    agreed = job["suggested_fare"] + 1000
+    offer = http.post(f"/api/v1/delivery-requests/{request_id}/offers",
+                      json={"amount": agreed, "eta_to_pickup_minutes": 5}).json()
+    current[0] = board["seller"]
+    negotiated = http.post(f"/api/v1/delivery-requests/offers/{offer['id']}/accept").json()
+    assert negotiated["delivery_fee"] == agreed
+
+    current[0] = board["admin"]
+    reposted = http.post(f"/api/v1/admin/dispatch/deliveries/{negotiated['id']}/release", json=REASON).json()
+    current[0] = board["rider_a"]
+    db.get(DeliveryPartner, board["pa"].id).is_available = True
+    db.commit()
+    job = next(j for j in http.get("/api/v1/delivery-requests/available").json() if j["id"] == reposted["request_id"])
+    assert job["suggested_fare"] == agreed  # not reset to the original suggestion
+
+    current[0] = board["buyer"]
+    journey = http.get(f"/api/v1/deliveries/orders/{board['order'].id}/journey").json()
+    states = {m["key"]: m["state"] for m in journey["milestones"]}
+    assert journey["delivery_status"] is None
+    assert states["dispatch_requested"] == "done" and states["rider_assigned"] == "current"
+    assert not any("Tayo" in m["label"] or "Sola" in m["label"] for m in journey["milestones"])

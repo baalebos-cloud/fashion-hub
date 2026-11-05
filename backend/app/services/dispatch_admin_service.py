@@ -102,11 +102,13 @@ class DispatchAdminService:
                                        actor_user_id=admin.id, note=f"Dispatch {action} by admin: {reason}"))
         return partner
 
-    def _reopen_request(self, request: DeliveryRequest) -> DeliveryRequest:
+    def _reopen_request(self, request: DeliveryRequest, fee) -> DeliveryRequest:
+        # Repost at the fare already agreed for this run (it may come from an accepted
+        # rider offer), not the original suggestion, so a release never re-prices the job.
         fresh = DeliveryRequest(order_id=request.order_id, pickup_location_id=request.pickup_location_id,
                                 dropoff_location_id=request.dropoff_location_id,
                                 package_description=request.package_description,
-                                proposed_fee=request.proposed_fee, status="requested")
+                                proposed_fee=fee if fee is not None else request.proposed_fee, status="requested")
         self.db.add(fresh)
         self.db.flush()
         return fresh
@@ -118,7 +120,7 @@ class DispatchAdminService:
         order, delivery, request = self._lock_delivery(delivery_id)
         partner = self._end_assignment(order=order, delivery=delivery, request=request,
                                        admin=admin, reason=reason, action="released")
-        fresh = self._reopen_request(request)
+        fresh = self._reopen_request(request, delivery.delivery_fee)
         self._audit(admin, "dispatch.released", delivery.id, ip, reason=reason,
                     order_id=str(order.id), new_request_id=str(fresh.id))
         self._notify([partner.user_id if partner else None], "dispatch.released", "Delivery reassigned",
@@ -140,7 +142,7 @@ class DispatchAdminService:
             raise ConflictError("Choose a verified rider who is online.")
         old_partner = self._end_assignment(order=order, delivery=delivery, request=request,
                                            admin=admin, reason=reason, action="reassigned")
-        fresh = self._reopen_request(request)
+        fresh = self._reopen_request(request, delivery.delivery_fee)
         fresh = self.db.query(DeliveryRequest).filter_by(id=fresh.id).with_for_update().one()
         new_delivery = InternalCourierService(self.db).assign(
             request=fresh, order=order, partner=new_partner, fee=delivery.delivery_fee)
