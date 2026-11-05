@@ -42,7 +42,18 @@ export interface DispatchIssue {
 export interface AvailableRider { id: string; first_name: string; vehicle_type: string | null; rating: number }
 
 /** Admin-only dispatch control. Every mutation needs a reason and is audit-logged server-side. */
+export interface DeliveryEvent {
+  id: string;
+  event_type: string;
+  actor_role: string | null;
+  details: Record<string, unknown>;
+  created_at: string;
+}
+
 export const adminDispatchApi = {
+  async events(deliveryId: string): Promise<DeliveryEvent[]> {
+    return (await apiClient.get<DeliveryEvent[]>(`/admin/dispatch/deliveries/${deliveryId}/events`)).data;
+  },
   async board(): Promise<AdminDispatchBoard> {
     return (await apiClient.get<AdminDispatchBoard>(endpoints.adminDispatch.board)).data;
   },

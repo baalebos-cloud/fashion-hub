@@ -14,6 +14,8 @@ export interface Delivery {
   order_id: string;
   status: DeliveryStatus;
   delivery_fee: number;
+  /** Packages the rider confirmed at pickup. */
+  package_count?: number | null;
   proof_of_delivery_url?: string | null;
   rider_name?: string | null;
   rider_verified?: boolean | null;
@@ -21,6 +23,20 @@ export interface Delivery {
   rider_vehicle_type?: string | null;
   rider_completed_deliveries?: number | null;
   rider_photo_url?: string | null;
+}
+
+export interface HandoverCode {
+  delivery_id: string;
+  handover_code: string;
+  expires_at: string;
+  package_count: number | null;
+}
+
+export interface PickupCode {
+  delivery_id: string;
+  required: boolean;
+  pickup_code: string | null;
+  expires_at: string | null;
 }
 
 export interface DeliveryPartner {

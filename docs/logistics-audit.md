@@ -21,12 +21,12 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 11 | Rider issue reports with admin triage | Implemented, test-verified (phase 2) | OPEN → INVESTIGATING → RESOLVED (note required); auto-REROUTED on release/reassign |
 | 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | `InternalCourierService.request` rejects `vendor_order`; vendor orders stall at `ready_for_pickup`; no vendor pickup location endpoint; tailor cannot confirm receipt |
 | 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Blocked by #12 | Orders are already linked (`material_order_parent`, 0010); each order has its own request/delivery |
-| 14 | Structured delivery event log with idempotency keys | Partially implemented | `OrderTimelineEntry` + `tracking_events` table (unused for status events) |
+| 14 | Structured delivery event log with idempotency keys | Implemented, test-verified (phase 6) | `delivery_events` (0024): append-only, ordered by sequence, `Idempotency-Key` on pickup/drop-off, admin view; never stores codes |
 | 15 | Sequential auto-offers with TTL (feature-flagged) | Implemented, test-verified (phase 3); off by default | `services/auto_dispatch_service.py`, `dispatch_job_offers` (0022), `tests/api/test_auto_dispatch.py` |
 | 16 | Road-based route distance/ETA (Routes API or OSM) | Missing | Haversine × road factor only, labelled as estimate |
 | 17 | Shareable recipient tracking link (no account) | Implemented, test-verified (phase 4) | `services/share_link_service.py`, `delivery_share_links` (0023), `tests/api/test_tracking_links.py` |
-| 18 | Pickup verification (package count/reference) | Partially implemented | Pickup is assigned-rider only; no package-count check |
-| 19 | Handover OTP expiry/rotation | Defective (low risk) | Code is deterministic per delivery, never expires (attempt-limited only) |
+| 18 | Pickup verification (package count/reference) | Implemented, test-verified (phase 6) | Seller-held one-time pickup code (`DELIVERY_PICKUP_CODE_REQUIRED`), rider records package count, shown to buyer and at drop-off |
+| 19 | Handover OTP expiry/rotation | Implemented, test-verified (phase 6) | `delivery_codes` (0024): random nonce + HMAC, 30 min expiry with auto-reissue, buyer rotation, burned on use, shared attempt limit |
 | 20 | Notifications for dispatch events | Partially implemented | In-app notifications on status change; no rider-approaching/ETA events |
 | 21 | Admin reassignment / cancellation with audit | Implemented, test-verified (phase 2) | Pre-pickup only; audit log, timeline note, notifications; released rider loses trip access |
 | 22 | Rider earnings ledger and payouts | Partially implemented | Fee recorded on delivery; payouts intentionally disabled (financial gate) |
@@ -45,7 +45,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 3 (#132) | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
 | 4 (#133) | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |
-| 6 | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
+| 6 (this PR) | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
 | 7+ | Multi-stop, external carriers, AI recommendations | Operational data, commercial agreements |
 
 ## Security and financial boundaries (unchanged by Phase 1)

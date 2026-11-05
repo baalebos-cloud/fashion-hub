@@ -8,11 +8,18 @@ class MarkDeliveredRequest(BaseModel):
     handover_code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
 
 
+class MarkPickedUpRequest(BaseModel):
+    # Required when DELIVERY_PICKUP_CODE_REQUIRED is on; the seller reads it to the rider.
+    pickup_code: Optional[str] = Field(None, min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+    package_count: int = Field(1, ge=1, le=50)
+
+
 class DeliveryResponse(BaseModel):
     id: uuid.UUID
     order_id: uuid.UUID
     status: str
     delivery_fee: float
+    package_count: Optional[int] = None
 
     model_config = {"from_attributes": True}
 

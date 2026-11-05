@@ -1,6 +1,8 @@
 """Authorized internal courier delivery lifecycle."""
 import uuid
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Body, Depends, Header
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,7 +12,7 @@ from app.models.user import User
 from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.schemas.dispatch_marketplace import DeliveryJourney
-from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest
+from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest, MarkPickedUpRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
 from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse, RiderSharingSession
 from app.services.internal_courier_service import InternalCourierService
@@ -90,20 +92,30 @@ def delivery_details(
 @router.post("/{delivery_id}/picked-up", response_model=DeliveryResponse)
 def mark_picked_up(
     delivery_id: uuid.UUID,
+    payload: Optional[MarkPickedUpRequest] = Body(None),
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
     db: Session = Depends(get_db),
 ):
-    return InternalCourierService(db).transition(delivery_id=delivery_id, actor=user, action="picked-up")
+    """Rider confirms collection with the seller's pickup code and the number of packages.
+    Send an Idempotency-Key so a retried request after a dropped connection is answered safely."""
+    payload = payload or MarkPickedUpRequest()
+    return InternalCourierService(db).transition(
+        delivery_id=delivery_id, actor=user, action="picked-up", pickup_code_input=payload.pickup_code,
+        package_count=payload.package_count, idempotency_key=idempotency_key)
 
 
 @router.post("/{delivery_id}/delivered", response_model=DeliveryResponse)
 def mark_delivered(
     delivery_id: uuid.UUID,
     payload: MarkDeliveredRequest,
+    idempotency_key: Optional[str] = Header(None, alias="Idempotency-Key"),
     user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
     db: Session = Depends(get_db),
 ):
-    return InternalCourierService(db).transition(delivery_id=delivery_id, actor=user, action="delivered", handover_code_input=payload.handover_code)
+    return InternalCourierService(db).transition(
+        delivery_id=delivery_id, actor=user, action="delivered",
+        handover_code_input=payload.handover_code, idempotency_key=idempotency_key)
 
 
 @router.get("/{delivery_id}/trip", response_model=DeliveryTripResponse)
@@ -121,8 +133,38 @@ def customer_handover_code(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Return OTP only to the delivery's customer after pickup; never to the rider."""
+    """Return the current one-time code only to the delivery's customer after pickup; never to
+    the rider. A lapsed code is replaced automatically."""
     return InternalCourierService(db).customer_handover_code(delivery_id=delivery_id, actor=user)
+
+
+@router.post("/{delivery_id}/handover-code/rotate")
+def rotate_handover_code(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Customer replaces their code (e.g. they read it to the wrong person). The old one stops working."""
+    return InternalCourierService(db).customer_handover_code(delivery_id=delivery_id, actor=user, rotate=True)
+
+
+@router.get("/{delivery_id}/pickup-code")
+def seller_pickup_code(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """The seller's code to give the rider at collection. Never shown to the rider or buyer."""
+    return InternalCourierService(db).seller_pickup_code(delivery_id=delivery_id, actor=user)
+
+
+@router.post("/{delivery_id}/pickup-code/rotate")
+def rotate_pickup_code(
+    delivery_id: uuid.UUID,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return InternalCourierService(db).seller_pickup_code(delivery_id=delivery_id, actor=user, rotate=True)
 
 
 @router.post("/{delivery_id}/position/start", response_model=RiderSharingSession)

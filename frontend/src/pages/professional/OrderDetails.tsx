@@ -2,6 +2,7 @@ import { useParams } from "react-router-dom";
 import { OrderContacts } from "@/components/calls/OrderContacts";
 import { DispatchOffers } from "@/components/dispatch/DispatchOffers";
 import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
+import { PickupCodeCard } from "@/components/dispatch/PickupCodeCard";
 import { useState } from "react";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Button } from "@/components/ui/button";
@@ -77,6 +78,9 @@ export default function OrderDetails() {
 
       {order.order_type === "customer_order" && (
         <DispatchOffers orderId={order.id} refreshKey={dispatchRefresh} onAssigned={() => setDispatchRefresh((n) => n + 1)} />
+      )}
+      {order.order_type === "customer_order" && ["ready_for_delivery", "shipped"].includes(order.status) && (
+        <PickupCodeCard key={dispatchRefresh} orderId={order.id} />
       )}
       {order.order_type === "customer_order" && <DeliveryJourney key={dispatchRefresh} orderId={order.id} />}
       <OrderContacts orderId={order.id} />

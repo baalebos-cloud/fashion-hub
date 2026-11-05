@@ -103,8 +103,10 @@ def test_reassign_moves_the_job_to_a_chosen_online_rider(board):
 
 def test_collected_packages_cannot_be_released(board):
     http, current, delivery_id = board["http"], board["current"], board["delivery_id"]
+    current[0] = board["seller"]
+    pickup_code = http.get(f"/api/v1/deliveries/{delivery_id}/pickup-code").json()["pickup_code"]
     current[0] = board["rider_a"]
-    assert http.post(f"/api/v1/deliveries/{delivery_id}/picked-up").status_code == 200
+    assert http.post(f"/api/v1/deliveries/{delivery_id}/picked-up", json={"pickup_code": pickup_code}).status_code == 200
     current[0] = board["admin"]
     response = http.post(f"/api/v1/admin/dispatch/deliveries/{delivery_id}/release", json=REASON)
     assert response.status_code == 409 and "issue workflow" in response.text

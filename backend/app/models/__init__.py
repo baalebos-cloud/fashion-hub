@@ -62,6 +62,7 @@ from app.models.call_session import CallSession
 from app.models.delivery_offer import DeliveryOffer
 from app.models.dispatch_job_offer import DispatchJobOffer
 from app.models.delivery_share_link import DeliveryShareLink
+from app.models.delivery_proof import DeliveryCode, DeliveryEvent
 
 __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
@@ -72,7 +73,7 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink",
+    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent",
 ]
 
 from app.models.saga import SagaStepLog, LedgerEntry

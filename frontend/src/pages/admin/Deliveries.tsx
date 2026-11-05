@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { DispatchAction } from "@/components/dispatch/DispatchAction";
+import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
 
 const ISSUE_LABEL: Record<string, string> = {
   CUSTOMER_UNREACHABLE: "Customer unreachable", WRONG_ADDRESS: "Wrong address", PACKAGE_DAMAGED: "Package damaged",
@@ -171,6 +172,7 @@ export default function Deliveries() {
                       <ReassignAction deliveryId={run.id} riders={riders} onDone={refresh} />
                     </div>
                   )}
+                  <DeliveryEventLog deliveryId={run.id} />
                 </Card>
               );
             })}

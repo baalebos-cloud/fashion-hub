@@ -5,11 +5,12 @@ import { DeliveryMap } from "./DeliveryMap";
 import { CallButton } from "@/components/calls/CallButton";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { RiderCard } from "@/components/delivery/RiderCard";
+import { OneTimeCode } from "@/components/delivery/OneTimeCode";
 
 export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [riderPosition, setRiderPosition] = useState<RiderPosition | null>(null);
-  const [handoverCode, setHandoverCode] = useState<string | null>(null);
+  const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -18,7 +19,7 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
         const next = await deliveriesApi.getByOrder(orderId);
         if (active) {
           setDelivery(next);
-          if (next?.status !== "in_transit") { setHandoverCode(null); setRiderPosition(null); }
+          if (next?.status !== "in_transit") { setShowCode(false); setRiderPosition(null); }
         }
         if (next?.status === "in_transit") {
           const position = await deliveriesApi.getPosition(next.id).catch(() => null);
@@ -33,16 +34,6 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
     return () => { active = false; window.clearInterval(timer); };
   }, [orderId]);
 
-  async function showCode() {
-    if (!delivery) return;
-    setError(null);
-    try {
-      setHandoverCode(await deliveriesApi.getHandoverCode(delivery.id));
-    } catch {
-      setError("The handover code is unavailable. Check that your courier has picked up the package.");
-    }
-  }
-
   return (
     <section className="space-y-2 rounded-card border border-line p-4" aria-label="Delivery tracking">
       <h2 className="font-medium">Delivery tracking</h2>
@@ -52,15 +43,25 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
       {delivery?.rider_name && ["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status) && (
         <CallButton orderId={orderId} party="rider" label="Call rider" />
       )}
-      {delivery?.status === "in_transit" && (
-        <button type="button" onClick={() => void showCode()} className="rounded border border-line p-2 text-sm">
+      {delivery?.status === "in_transit" && delivery.package_count != null && (
+        <p className="text-sm text-ink-soft">
+          Your rider collected {delivery.package_count} package{delivery.package_count === 1 ? "" : "s"}. Check they're all there.
+        </p>
+      )}
+      {delivery?.status === "in_transit" && !showCode && (
+        <button type="button" onClick={() => setShowCode(true)} className="rounded border border-line p-2 text-sm">
           Show handover code
         </button>
       )}
-      {handoverCode && <p role="status" className="text-sm">
-        Share this code with your assigned rider only when you receive your package:
-        <strong className="ml-2 tracking-widest">{handoverCode}</strong>
-      </p>}
+      {delivery?.status === "in_transit" && showCode && (
+        <OneTimeCode
+          key={delivery.id}
+          label="Handover code"
+          hint="Give this code to your rider only after you have the package in hand."
+          load={async () => { const c = await deliveriesApi.getHandoverCode(delivery.id); return { code: c.handover_code, expiresAt: c.expires_at }; }}
+          rotate={async () => { const c = await deliveriesApi.rotateHandoverCode(delivery.id); return { code: c.handover_code, expiresAt: c.expires_at }; }}
+        />
+      )}
       {delivery?.status === "in_transit" && riderPosition && (
         <div className="space-y-2">
           <p className="text-xs text-ink-soft">

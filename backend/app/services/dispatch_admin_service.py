@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from app.core.exceptions import ConflictError, NotFoundError, ValidationAppError
 from app.core.logging import get_logger
 from app.models.audit_log import AuditLog
+from app.services.delivery_handover import record_event
 from app.models.delivery import Delivery
 from app.models.delivery_issue import DispatchIssueReport
 from app.models.delivery_offer import DeliveryOffer
@@ -121,6 +122,7 @@ class DispatchAdminService:
         partner = self._end_assignment(order=order, delivery=delivery, request=request,
                                        admin=admin, reason=reason, action="released")
         fresh = self._reopen_request(request, delivery.delivery_fee)
+        record_event(self.db, delivery=delivery, event_type="rider_released", actor=admin)
         self._audit(admin, "dispatch.released", delivery.id, ip, reason=reason,
                     order_id=str(order.id), new_request_id=str(fresh.id))
         self._notify([partner.user_id if partner else None], "dispatch.released", "Delivery reassigned",
@@ -147,6 +149,8 @@ class DispatchAdminService:
         fresh = self.db.query(DeliveryRequest).filter_by(id=fresh.id).with_for_update().one()
         new_delivery = InternalCourierService(self.db).assign(
             request=fresh, order=order, partner=new_partner, fee=delivery.delivery_fee)
+        record_event(self.db, delivery=delivery, event_type="rider_reassigned", actor=admin,
+                     new_delivery_id=str(new_delivery.id))
         self._audit(admin, "dispatch.reassigned", delivery.id, ip, reason=reason, order_id=str(order.id),
                     new_delivery_id=str(new_delivery.id), new_partner_id=str(new_partner.id))
         self._notify([old_partner.user_id if old_partner else None], "dispatch.released", "Delivery reassigned",
