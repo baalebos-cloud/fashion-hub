@@ -17,9 +17,9 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 7 | Delivery journey milestones + live ETA labelled as estimate | Implemented, test-verified | `GET /deliveries/orders/{id}/journey` (#125) |
 | 8 | Masked calling between order parties | Implemented, awaiting live provider | `services/masked_call_service.py` (#124), needs Africa's Talking account |
 | 9 | Rider online/offline, verification gate | Implemented, test-verified | `PUT /delivery-partners/me/availability`, `RiderStatusCard` (#127) |
-| 10 | Admin dispatch board (read-only counts) | Partially implemented | `GET /admin/dispatch-board`; no reassign/cancel actions |
-| 11 | Rider issue reports (failed delivery evidence) | Partially implemented | `api/v1/delivery_issues.py`; no admin resolution workflow or reassignment |
-| 12 | **Materials vendor → tailor dispatch (Workflow B)** | **Missing / defective** | `InternalCourierService.request` rejects `vendor_order`; vendor orders stall at `ready_for_pickup`; no vendor pickup location endpoint; tailor cannot confirm receipt |
+| 10 | Admin dispatch control centre | Implemented, test-verified (phase 2) | `services/dispatch_admin_service.py`, `/admin/dispatch/*`, `tests/api/test_dispatch_admin.py` |
+| 11 | Rider issue reports with admin triage | Implemented, test-verified (phase 2) | OPEN → INVESTIGATING → RESOLVED (note required); auto-REROUTED on release/reassign |
+| 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | `InternalCourierService.request` rejects `vendor_order`; vendor orders stall at `ready_for_pickup`; no vendor pickup location endpoint; tailor cannot confirm receipt |
 | 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Blocked by #12 | Orders are already linked (`material_order_parent`, 0010); each order has its own request/delivery |
 | 14 | Structured delivery event log with idempotency keys | Partially implemented | `OrderTimelineEntry` + `tracking_events` table (unused for status events) |
 | 15 | Sequential auto-offers with TTL / auto-assignment | Missing | `DeliveryRequestService.broadcast_to_nearby_partners` raises `NotImplementedError` |
@@ -28,7 +28,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 18 | Pickup verification (package count/reference) | Partially implemented | Pickup is assigned-rider only; no package-count check |
 | 19 | Handover OTP expiry/rotation | Defective (low risk) | Code is deterministic per delivery, never expires (attempt-limited only) |
 | 20 | Notifications for dispatch events | Partially implemented | In-app notifications on status change; no rider-approaching/ETA events |
-| 21 | Admin reassignment / cancellation with audit | Missing | — |
+| 21 | Admin reassignment / cancellation with audit | Implemented, test-verified (phase 2) | Pre-pickup only; audit log, timeline note, notifications; released rider loses trip access |
 | 22 | Rider earnings ledger and payouts | Partially implemented | Fee recorded on delivery; payouts intentionally disabled (financial gate) |
 | 23 | Multi-stop routing, capacity optimisation | Missing (later phase) | — |
 | 24 | External carrier adapters | Missing; scaffold only | `integrations/delivery/provider.py`, no verified Nigerian provider |
@@ -41,7 +41,7 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | Phase | Scope | Depends on |
 |---|---|---|
 | **1 (this PR)** | Materials leg: vendor pickup location, vendor-order dispatch through the existing request/offer/claim/handover flow, rider pickup/delivery transitions for materials, tailor receipt confirmation, UI on vendor and tailor order pages | — |
-| 2 | Admin dispatch actions: cancel/reassign with audit log and concurrency checks; issue resolution | 1 |
+| 2 (#131) | Admin dispatch actions: cancel/reassign with audit log and concurrency checks; issue resolution | 1 |
 | 3 | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
 | 4 | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |

@@ -113,7 +113,8 @@ class OrderService:
             assigned = (
                 self.db.query(Delivery)
                 .join(DeliveryPartner, Delivery.delivery_partner_id == DeliveryPartner.id)
-                .filter(Delivery.order_id == order.id, DeliveryPartner.user_id == actor.id)
+                .filter(Delivery.order_id == order.id, DeliveryPartner.user_id == actor.id,
+                        Delivery.status != "cancelled")
                 .first()
             )
             if not assigned:

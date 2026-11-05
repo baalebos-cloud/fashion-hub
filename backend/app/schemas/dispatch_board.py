@@ -8,6 +8,8 @@ from pydantic import BaseModel
 class DispatchRequestSummary(BaseModel):
     id: uuid.UUID
     order_id: uuid.UUID
+    order_number: str | None = None
+    order_type: str | None = None
     status: str
     created_at: datetime
 
@@ -16,8 +18,12 @@ class DispatchRunSummary(BaseModel):
     id: uuid.UUID
     order_id: uuid.UUID
     status: str
+    order_number: str | None = None
+    order_type: str | None = None
     delivery_partner_id: uuid.UUID | None = None
+    rider_first_name: str | None = None
     vehicle_type: str | None = None
+    open_issue_count: int = 0
     created_at: datetime
 
 
@@ -25,5 +31,19 @@ class DispatchBoardResponse(BaseModel):
     unassigned_count: int
     active_count: int
     available_verified_riders: int
+    open_issue_count: int = 0
     pending: list[DispatchRequestSummary]
     active: list[DispatchRunSummary]
+
+
+class DispatchActionReason(BaseModel):
+    reason: str
+
+
+class ReassignRequest(DispatchActionReason):
+    partner_id: uuid.UUID
+
+
+class IssueUpdateRequest(BaseModel):
+    status: str
+    note: str | None = None

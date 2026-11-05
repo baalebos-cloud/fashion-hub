@@ -5,19 +5,60 @@ export interface AdminDispatchBoard {
   unassigned_count: number;
   active_count: number;
   available_verified_riders: number;
-  pending: Array<{ id: string; order_id: string; status: string; created_at: string }>;
+  open_issue_count: number;
+  pending: Array<{ id: string; order_id: string; order_number: string | null; order_type: string | null;
+    status: string; created_at: string }>;
   active: Array<{
     id: string;
     order_id: string;
+    order_number: string | null;
+    order_type: string | null;
     status: string;
     delivery_partner_id: string | null;
+    rider_first_name: string | null;
     vehicle_type: string | null;
+    open_issue_count: number;
     created_at: string;
   }>;
 }
 
+export interface DispatchIssue {
+  id: string;
+  delivery_id: string;
+  order_id: string;
+  order_number: string;
+  issue_type: string;
+  description: string;
+  status: "OPEN" | "INVESTIGATING";
+  rider_first_name: string;
+  delivery_status: string;
+  has_photo: boolean;
+  created_at: string;
+}
+
+export interface AvailableRider { id: string; first_name: string; vehicle_type: string | null; rating: number }
+
+/** Admin-only dispatch control. Every mutation needs a reason and is audit-logged server-side. */
 export const adminDispatchApi = {
   async board(): Promise<AdminDispatchBoard> {
     return (await apiClient.get<AdminDispatchBoard>(endpoints.adminDispatch.board)).data;
+  },
+  async issues(): Promise<DispatchIssue[]> {
+    return (await apiClient.get<DispatchIssue[]>("/admin/dispatch/issues")).data;
+  },
+  async riders(): Promise<AvailableRider[]> {
+    return (await apiClient.get<AvailableRider[]>("/admin/dispatch/riders")).data;
+  },
+  async release(deliveryId: string, reason: string): Promise<void> {
+    await apiClient.post(`/admin/dispatch/deliveries/${deliveryId}/release`, { reason });
+  },
+  async reassign(deliveryId: string, partnerId: string, reason: string): Promise<void> {
+    await apiClient.post(`/admin/dispatch/deliveries/${deliveryId}/reassign`, { partner_id: partnerId, reason });
+  },
+  async cancelRequest(requestId: string, reason: string): Promise<void> {
+    await apiClient.post(`/admin/dispatch/requests/${requestId}/cancel`, { reason });
+  },
+  async updateIssue(issueId: string, status: "INVESTIGATING" | "RESOLVED", note?: string): Promise<void> {
+    await apiClient.patch(`/admin/dispatch/issues/${issueId}`, { status, note: note?.trim() || null });
   },
 };

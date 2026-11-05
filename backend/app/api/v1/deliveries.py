@@ -43,8 +43,9 @@ def customer_order_delivery(
     if not order or (str(user.id) not in {str(order.buyer_user_id), str(order.seller_user_id)}
                      and user.role != "admin"):
         raise NotFoundError("Delivery not found.")
-    delivery = db.query(Delivery).filter(Delivery.order_id == order.id).order_by(
-        Delivery.created_at.desc()).first()
+    # The current run: a delivery released or reassigned by dispatch is never shown as "your rider".
+    delivery = (db.query(Delivery).filter(Delivery.order_id == order.id, Delivery.status != "cancelled")
+                .order_by(Delivery.created_at.desc()).first())
     if delivery is None:
         return None
     partner = db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery.delivery_partner_id else None
