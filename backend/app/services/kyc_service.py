@@ -48,6 +48,15 @@ class KYCService:
         if not user:
             raise NotFoundError("User not found.")
 
+        latest = (self.db.query(KYCVerification).filter(KYCVerification.user_id == user_id)
+                  .order_by(KYCVerification.created_at.desc()).first())
+        if latest is not None and latest.status in {"pending", "under_review"}:
+            from app.core.exceptions import ConflictError
+            raise ConflictError("Your identity verification is already being reviewed.")
+        if latest is not None and latest.status == "verified":
+            from app.core.exceptions import ConflictError
+            raise ConflictError("Your identity is already verified.")
+
         from app.core.identity_encryption import encrypt_identity
         encrypted_nin = encrypt_identity(nin_number)
         nin_provider = get_nin_provider()

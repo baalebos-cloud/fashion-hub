@@ -18,7 +18,7 @@ import { useTimezone } from "@/hooks/use-timezone";
  * that lookup (not what's typed here) is what gets stored and shown to
  * an admin during review.
  */
-export function KYCForm() {
+export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const { status, isLoading, submit } = useKYC();
   const timeZone = useTimezone();
 
@@ -54,6 +54,7 @@ export function KYCForm() {
         home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
         home_formatted_address: address ?? undefined,
       });
+      onSubmitted?.();
     } catch (err) {
       const isProvider = isApiError(err) && err.code === "external_provider_error";
       setIsProviderError(isProvider);

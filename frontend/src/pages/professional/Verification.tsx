@@ -1,23 +1,10 @@
-import { useAuth } from "@/hooks/use-auth";
-import { KYCForm } from "@/components/verification/KYCForm";
-import { KYBForm } from "@/components/verification/KYBForm";
+import { VerificationCenter } from "@/components/verification/VerificationCenter";
 
 export default function Verification() {
-  const { user } = useAuth();
-
   return (
-    <div className="flex max-w-sm flex-col gap-8">
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Verification</h1>
-      <div>
-        <h2 className="mb-3 text-sm font-medium text-ink-soft">Identity (KYC)</h2>
-        <KYCForm />
-      </div>
-      {(user?.role === "tailor" || user?.role === "designer") && (
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-ink-soft">Business (KYB) — optional</h2>
-          <KYBForm />
-        </div>
-      )}
+      <VerificationCenter />
     </div>
   );
 }

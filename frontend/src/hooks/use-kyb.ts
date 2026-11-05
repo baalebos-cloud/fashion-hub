@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { kybApi } from "@/api/kyb.api";
-import type { KYBStatus } from "@/types/kyb";
+import type { CompanyType, KYBStatus } from "@/types/kyb";
 
 export function useKYB() {
   const [status, setStatus] = useState<KYBStatus | null>(null);
@@ -10,11 +10,12 @@ export function useKYB() {
     kybApi
       .getStatus()
       .then(setStatus)
+      .catch(() => setStatus(null)) // "no submission yet" is a 404, not an error to show
       .finally(() => setIsLoading(false));
   }, []);
 
-  async function submit(registrationNumber: string, documentStorageKeys: string[]) {
-    const result = await kybApi.submit(registrationNumber, documentStorageKeys);
+  async function submit(registrationNumber: string, companyType: CompanyType, documentStorageKeys: string[]) {
+    const result = await kybApi.submit(registrationNumber, companyType, documentStorageKeys);
     setStatus(result);
     return result;
   }

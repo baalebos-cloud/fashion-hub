@@ -1,10 +1,10 @@
-import { KYCForm } from "@/components/verification/KYCForm";
+import { VerificationCenter } from "@/components/verification/VerificationCenter";
 
 export default function Verification() {
   return (
-    <div className="max-w-sm">
-      <h1 className="mb-6 font-display text-xl text-ink">Verification</h1>
-      <KYCForm />
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-6">
+      <h1 className="font-display text-xl text-ink">Verification</h1>
+      <VerificationCenter />
     </div>
   );
 }
