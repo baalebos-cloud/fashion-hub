@@ -36,7 +36,7 @@ test("a material order is reviewed separately and a late payment shows review re
   expect(checkoutBody).toMatchObject({ cart_id: "cart", cart_revision: 2, vendor_id: "store-a", delivery_address_id: "address" });
   expect(checkoutBody).not.toHaveProperty("total_amount");
   expect(initialized).toBe(0);
-  await expect(page.getByText(/Final total:/)).toContainText("27.00");
+  await expect(page.getByText(/Final total:/)).toContainText("₦27");
   await expect(page.getByRole("button", { name: "Pay now" })).toBeDisabled();
   await page.getByRole("checkbox").check();
   await expect(page.getByRole("button", { name: "Pay now" })).toBeEnabled();

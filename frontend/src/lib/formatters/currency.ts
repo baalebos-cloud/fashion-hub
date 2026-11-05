@@ -4,7 +4,12 @@
  * backend's authoritative totals. */
 export function formatCurrency(amount: number, currency: string = "NGN", locale = "en-NG"): string {
   try {
-    return new Intl.NumberFormat(locale, { style: "currency", currency }).format(amount);
+    // Whole amounts drop the ".00" (₦86,000); real kobo/cents are always shown (₦86,000.50).
+    const whole = Number.isInteger(Math.round(amount * 100) / 100);
+    return new Intl.NumberFormat(locale, {
+      style: "currency", currency,
+      minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2,
+    }).format(amount);
   } catch {
     // Unsupported currency code — fall back to a plain prefixed number
     // rather than throwing in a render path.
