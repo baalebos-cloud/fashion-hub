@@ -16,7 +16,6 @@ export interface Delivery {
   delivery_fee: number;
   proof_of_delivery_url?: string | null;
   rider_name?: string | null;
-  rider_phone?: string | null;
   rider_verified?: boolean | null;
   rider_rating?: number | null;
   rider_vehicle_type?: string | null;
@@ -37,7 +36,8 @@ export interface DispatchWaypoint {
   latitude: number | null;
   longitude: number | null;
   contact_name: string | null;
-  contact_phone: string | null;
+  /** Whether this stop can be reached through a masked in-app call. */
+  can_call: boolean;
 }
 
 export interface DeliveryTrip extends Delivery {

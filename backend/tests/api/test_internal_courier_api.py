@@ -93,7 +93,10 @@ def test_internal_dispatch_assigned_delivery_and_customer_visibility(db, make_us
             trip = client.get(f"/api/v1/deliveries/{delivery_id}/trip")
             assert trip.status_code == 200
             assert trip.json()["dropoff"]["contact_name"] == "Test Customer"
-            assert trip.json()["dropoff"]["contact_phone"] == "+2348012345678"
+            # The snapshot still lets the rider reach the recipient, but only via
+            # a masked call: the real number never leaves the server.
+            assert trip.json()["dropoff"]["can_call"] is True
+            assert "+2348012345678" not in trip.text and "contact_phone" not in trip.text
             assert client.post(f"/api/v1/delivery-requests/{requested['id']}/accept").status_code in {403, 404}
 
             pickup = f"/api/v1/deliveries/{delivery_id}/picked-up"

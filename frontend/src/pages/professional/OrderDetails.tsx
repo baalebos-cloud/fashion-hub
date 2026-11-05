@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { OrderContacts } from "@/components/calls/OrderContacts";
 import { useState } from "react";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Button } from "@/components/ui/button";
@@ -67,6 +68,8 @@ export default function OrderDetails() {
           {dispatchError && <p role="alert" className="text-sm text-thread">{dispatchError}</p>}
         </div>
       )}
+
+      <OrderContacts orderId={order.id} />
 
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Timeline</h2>

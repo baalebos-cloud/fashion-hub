@@ -11,6 +11,7 @@ from app.api.v1 import (
     ai,
     ai_navigation,
     auth,
+    calls,
     carts,
     categories,
     checkout,
@@ -106,6 +107,7 @@ api_router.include_router(reviews.router)
 api_router.include_router(ratings.router)
 api_router.include_router(notifications.router)
 api_router.include_router(messages.router)
+api_router.include_router(calls.router)
 api_router.include_router(ai.router)
 api_router.include_router(ai_commerce.router)
 api_router.include_router(ai_navigation.router)

@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { OrderContacts } from "@/components/calls/OrderContacts";
 import { useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
@@ -53,6 +54,7 @@ export default function OrderDetails() {
       {action && <Button disabled={submitting} isLoading={submitting}
         onClick={() => advance(action.status)}>{action.label}</Button>}
       {actionError && <p role="alert" className="text-sm text-thread">{actionError}</p>}
+      <OrderContacts orderId={order.id} />
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Fulfillment history</h2>
         <OrderTimeline entries={timeline} />

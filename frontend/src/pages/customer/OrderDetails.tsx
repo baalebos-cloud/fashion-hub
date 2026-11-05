@@ -1,4 +1,5 @@
 import { useParams } from "react-router-dom";
+import { OrderContacts } from "@/components/calls/OrderContacts";
 import { CustomerDeliveryTracking } from "@/components/delivery/CustomerDeliveryTracking";
 import { SandboxSagaStatus } from "@/components/orders/SandboxSagaStatus";
 import { useOrder } from "@/hooks/use-order";
@@ -38,6 +39,7 @@ export default function OrderDetails() {
       </ul>}
       <div className="text-lg font-medium text-ink">{formatCurrency(order.total_amount, order.currency)}</div>
 
+      <OrderContacts orderId={order.id} />
       {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} />}
       <SandboxSagaStatus orderId={order.id} />
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />

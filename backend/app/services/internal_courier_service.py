@@ -187,15 +187,15 @@ class InternalCourierService:
                 "address": pickup.formatted_address,
                 **(origin or {"latitude": None, "longitude": None}),
                 "contact_name": seller.full_name if seller else None,
-                "contact_phone": seller.phone_number if seller else None,
+                "can_call": bool(seller and seller.phone_number),
             },
             "dropoff": {
                 "address": dropoff.formatted_address,
                 **(destination or {"latitude": None, "longitude": None}),
                 "contact_name": (order.delivery_address_snapshot or {}).get("recipient_name")
                     or (address.recipient_name if address else None),
-                "contact_phone": (order.delivery_address_snapshot or {}).get("recipient_phone")
-                    or (address.recipient_phone if address else None),
+                "can_call": bool((order.delivery_address_snapshot or {}).get("recipient_phone")
+                                 or (address.recipient_phone if address else None)),
             },
             "straight_line_km": estimate_straight_line_km(origin, destination),
             "distance_source": "haversine",

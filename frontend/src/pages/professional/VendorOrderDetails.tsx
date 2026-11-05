@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { OrderContacts } from "@/components/calls/OrderContacts";
 import { Link, useParams } from "react-router-dom";
 import { useOrder } from "@/hooks/use-order";
 import { OrderItems } from "@/components/orders/OrderItems";
@@ -57,6 +58,7 @@ export default function VendorOrderDetails() {
         </>}
         <Button variant="secondary" onClick={() => { void cancelOrder(); }} isLoading={isCancelling}>Cancel unpaid order</Button>
       </>}
+      {!unpaid && <OrderContacts orderId={order.id} />}
       {error && <p role="alert">{error}</p>}
       {actionError && <p role="alert">{actionError}</p>}
       <OrderTimeline entries={timeline} />
