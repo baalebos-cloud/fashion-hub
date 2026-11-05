@@ -103,6 +103,8 @@ class Settings(BaseSettings):
     AI_FALLBACK_PROVIDER: str = "groq"
     GROQ_API_KEY: Optional[str] = Field(None, repr=False)
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # Vision-capable Groq model used as the photo-measurement fallback.
+    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
     VERTEX_AI_ENABLED: bool = False
     # Temporary hackathon discoverability; does not grant KYC/KYB approval.

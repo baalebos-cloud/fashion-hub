@@ -2,14 +2,31 @@ import { apiClient } from "@/lib/api/client";
 import { apiConfig } from "@/config/api.config";
 import { getAccessToken } from "@/lib/auth/token";
 
-export interface SuggestedMeasurements {
-  bust: number | null;
-  waist: number | null;
-  hips: number | null;
-  unit: "cm" | "in";
+export type MeasurementFieldName =
+  "chest" | "waist" | "hip" | "inseam" | "shoulder_width" | "sleeve_length" | "neck";
+
+/** One AI-drafted value. "tape" = read off a tape in a photo; "estimate" = inferred using the stated height. */
+export interface MeasurementSuggestion {
+  field_name: MeasurementFieldName;
+  value: number;
+  unit: "cm";
+  source: "tape" | "estimate";
   confidence: number;
-  requires_manual_measurement: boolean;
+}
+
+export interface PhotoMeasurementDraft {
+  fields: MeasurementSuggestion[];
   notes: string;
+  photo_issues: string[];
+  provider: "vertex_ai" | "groq";
+  requires_review: true;
+}
+
+export interface PhotoMeasurementRequest {
+  bodyPhoto?: File | null;
+  tapePhotos?: File[];
+  heightCm?: number | null;
+  garmentType?: string | null;
 }
 
 export interface MaterialSuggestion {
@@ -27,12 +44,16 @@ export interface TailoringSpecification {
 }
 
 export const aiService = {
-  async extractMeasurements(image: File): Promise<SuggestedMeasurements> {
+  /** Drafts the measurement form from the customer's photos. Never saves anything. */
+  async analyzeMeasurementPhotos(request: PhotoMeasurementRequest): Promise<PhotoMeasurementDraft> {
     const payload = new FormData();
-    payload.append("file", image);
-    const result = await apiClient.post<SuggestedMeasurements>("/ai/measurements/extract", payload, {
+    if (request.bodyPhoto) payload.append("body_photo", request.bodyPhoto);
+    for (const photo of request.tapePhotos ?? []) payload.append("tape_photos", photo);
+    if (request.heightCm) payload.append("height_cm", String(request.heightCm));
+    if (request.garmentType) payload.append("garment_type", request.garmentType);
+    const result = await apiClient.post<PhotoMeasurementDraft>("/ai/measurements/analyze", payload, {
       headers: { "Content-Type": undefined },
-      timeout: 45_000,
+      timeout: 60_000,
     });
     return result.data;
   },

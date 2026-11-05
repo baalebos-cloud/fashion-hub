@@ -2,7 +2,7 @@
 from collections.abc import AsyncIterator
 import json
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,6 +12,12 @@ from app.models.user import User
 from app.schemas.vertex_ai import CustomerMeasurementSchema, TailoringSpecSchema
 from app.services.vertex_service import VertexUnavailable, get_vertex_service
 from app.integrations.ai.llm_client import LLMClient, ChatMessage
+from app.core.permissions import Role, require_roles
+from app.core.rate_limit import limiter
+from app.services.photo_measurement_service import (
+    MAX_IMAGE_BYTES, MAX_TAPE_PHOTOS, PhotoMeasurementResult, PhotoMeasurementService,
+    PhotoMeasurementUnavailable,
+)
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
@@ -57,6 +63,47 @@ async def extract_measurements(
         return vertex.extract_measurements_from_image(data)
     except VertexUnavailable as exc:
         raise HTTPException(503, detail=str(exc)) from exc
+
+
+async def _read_photo(upload: UploadFile) -> bytes:
+    data = await upload.read(MAX_IMAGE_BYTES + 1)
+    if not 0 < len(data) <= MAX_IMAGE_BYTES:
+        raise HTTPException(413, "Each photo must be under 5 MB.")
+    return data
+
+
+def get_photo_measurement_service() -> PhotoMeasurementService:
+    return PhotoMeasurementService()
+
+
+@router.post("/measurements/analyze", response_model=PhotoMeasurementResult)
+@limiter.limit("10/hour")
+async def analyze_measurement_photos(
+    request: Request,
+    body_photo: UploadFile | None = File(None),
+    tape_photos: list[UploadFile] = File(default=[]),
+    height_cm: float | None = Form(None, ge=100, le=230),
+    garment_type: str | None = Form(None, max_length=80),
+    user: User = Depends(require_roles(Role.CUSTOMER)),
+    service: PhotoMeasurementService = Depends(get_photo_measurement_service),
+):
+    """Draft the customer's measurement form from their own photos.
+
+    Nothing is saved here: the customer reviews and edits every value, then saves
+    through POST /measurements. Photos stay in memory for this request only.
+    """
+    if len(tape_photos) > MAX_TAPE_PHOTOS:
+        raise HTTPException(422, f"Add at most {MAX_TAPE_PHOTOS} tape-measure photos.")
+    body = await _read_photo(body_photo) if body_photo is not None else None
+    tapes = [await _read_photo(photo) for photo in tape_photos]
+    import asyncio
+    try:
+        return await asyncio.to_thread(service.analyze, body_photo=body, tape_photos=tapes,
+                                       height_cm=height_cm, garment_type=garment_type)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except PhotoMeasurementUnavailable as exc:
+        raise HTTPException(503, str(exc)) from exc
 
 
 @router.post("/spec/estimate", response_model=TailoringSpecSchema)
