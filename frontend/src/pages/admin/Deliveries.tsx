@@ -1,22 +1,71 @@
 import { useEffect, useState } from "react";
-import { adminDispatchApi, type AdminDispatchBoard } from "@/api/admin-dispatch.api";
+import { adminDispatchApi, type AdminDispatchBoard, type AvailableRider, type DispatchIssue } from "@/api/admin-dispatch.api";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
+import { DispatchAction } from "@/components/dispatch/DispatchAction";
 
+const ISSUE_LABEL: Record<string, string> = {
+  CUSTOMER_UNREACHABLE: "Customer unreachable", WRONG_ADDRESS: "Wrong address", PACKAGE_DAMAGED: "Package damaged",
+  TRAFFIC_ACCIDENT_DELAY: "Traffic or accident delay", RECIPIENT_REJECTED: "Recipient rejected", VEHICLE_BREAKDOWN: "Vehicle breakdown",
+};
+const LEG: Record<string, string> = { customer_order: "Garment → customer", vendor_order: "Materials → tailor" };
+
+function orderLabel(row: { order_number: string | null; order_id: string; order_type: string | null }) {
+  return (
+    <>
+      <span className="font-medium text-ink">{row.order_number ?? `Order ${row.order_id.slice(0, 8)}`}</span>
+      {row.order_type && <span className="ml-2 text-xs text-ink-soft">{LEG[row.order_type] ?? row.order_type}</span>}
+    </>
+  );
+}
+
+function ReassignPicker({ riders, value, onChange }: { riders: AvailableRider[]; value: string; onChange: (v: string) => void }) {
+  if (riders.length === 0) return <p className="text-xs text-thread">No verified riders are online right now.</p>;
+  return (
+    <label className="text-xs text-ink-soft">
+      New rider
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none">
+        <option value="">Choose a rider…</option>
+        {riders.map((r) => (
+          <option key={r.id} value={r.id}>
+            {r.first_name}{r.vehicle_type ? ` · ${r.vehicle_type}` : ""}{r.rating > 0 ? ` · ★ ${r.rating.toFixed(1)}` : ""}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function ReassignAction({ deliveryId, riders, onDone }: { deliveryId: string; riders: AvailableRider[]; onDone: () => void }) {
+  const [partnerId, setPartnerId] = useState("");
+  return (
+    <DispatchAction label="Reassign" confirmLabel="Reassign rider" canConfirm={Boolean(partnerId)}
+      extra={<ReassignPicker riders={riders} value={partnerId} onChange={setPartnerId} />}
+      onConfirm={async (reason) => { await adminDispatchApi.reassign(deliveryId, partnerId, reason); onDone(); }} />
+  );
+}
+
+/** Admin dispatch control centre: live board, rider issues, and audited release/reassign/cancel actions. */
 export default function Deliveries() {
   const [board, setBoard] = useState<AdminDispatchBoard | null>(null);
+  const [issues, setIssues] = useState<DispatchIssue[]>([]);
+  const [riders, setRiders] = useState<AvailableRider[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const refresh = () => setRevision((current) => current + 1);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
-    adminDispatchApi.board().then((data) => {
-      if (active) { setBoard(data); setError(null); }
-    }).catch(() => {
-      if (active) setError("Unable to load the dispatch board. Check administrator permissions.");
-    }).finally(() => { if (active) setLoading(false); });
+    Promise.all([adminDispatchApi.board(), adminDispatchApi.issues(), adminDispatchApi.riders()])
+      .then(([boardData, issueData, riderData]) => {
+        if (active) { setBoard(boardData); setIssues(issueData); setRiders(riderData); setError(null); }
+      })
+      .catch(() => { if (active) setError("Unable to load the dispatch board. Check administrator permissions."); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [revision]);
 
@@ -24,48 +73,102 @@ export default function Deliveries() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-xl text-ink">Dispatch operations</h1>
-        <Button variant="secondary" size="sm" disabled={loading}
-          onClick={() => setRevision((current) => current + 1)}>Refresh</Button>
+        <Button variant="secondary" size="sm" disabled={loading} onClick={refresh}>Refresh</Button>
       </div>
       {loading && <p role="status" className="text-sm text-ink-soft">Loading dispatch board…</p>}
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       {board && !error && (
         <>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Card><p className="text-xs text-ink-soft">Awaiting rider</p>
               <p className="text-2xl font-medium">{board.unassigned_count}</p></Card>
             <Card><p className="text-xs text-ink-soft">Active deliveries</p>
               <p className="text-2xl font-medium">{board.active_count}</p></Card>
-            <Card><p className="text-xs text-ink-soft">Verified and available riders</p>
+            <Card><p className="text-xs text-ink-soft">Verified riders online</p>
               <p className="text-2xl font-medium">{board.available_verified_riders}</p></Card>
+            <Card className={board.open_issue_count > 0 ? "border-thread/40" : undefined}>
+              <p className="text-xs text-ink-soft">Open rider issues</p>
+              <p className={board.open_issue_count > 0 ? "text-2xl font-medium text-thread" : "text-2xl font-medium"}>{board.open_issue_count}</p></Card>
           </div>
-          <section className="space-y-3" aria-label="Unassigned delivery requests">
-            <h2 className="font-display text-lg">Unassigned requests</h2>
-            {board.pending.length === 0 && <p className="text-sm text-ink-soft">No requests awaiting assignment.</p>}
-            {board.pending.map((request) => (
-              <div key={request.id} className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-line p-4 text-sm">
-                <span>Order {request.order_id.slice(0, 8)}</span>
-                <span className="text-ink-soft">{request.status.replaceAll("_", " ")}</span>
-              </div>
+
+          <section className="space-y-3" aria-label="Rider issues">
+            <h2 className="font-display text-lg">Rider issues</h2>
+            {issues.length === 0 && <p className="text-sm text-ink-soft">No open issues.</p>}
+            {issues.map((issue) => (
+              <Card key={issue.id} className="flex flex-col gap-2 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium text-ink">{ISSUE_LABEL[issue.issue_type] ?? issue.issue_type}</p>
+                    <p className="text-xs text-ink-soft">{issue.order_number} · reported by {issue.rider_first_name} ·{" "}
+                      <DateTimeDisplay value={issue.created_at} format="relative" />{issue.has_photo ? " · photo attached" : ""}</p>
+                  </div>
+                  <span className={issue.status === "OPEN"
+                    ? "rounded-full bg-[#fbecea] px-2 py-0.5 text-[11px] font-medium text-thread"
+                    : "rounded-full bg-[#e6ecff] px-2 py-0.5 text-[11px] font-medium text-[#2c3e9e]"}>
+                    {issue.status === "OPEN" ? "Open" : "Investigating"}</span>
+                </div>
+                <p className="text-sm text-ink">{issue.description}</p>
+                <div className="flex flex-wrap gap-2">
+                  {issue.status === "OPEN" && (
+                    <Button size="sm" variant="secondary"
+                      onClick={async () => { await adminDispatchApi.updateIssue(issue.id, "INVESTIGATING"); refresh(); }}>
+                      Mark investigating</Button>
+                  )}
+                  <DispatchAction label="Resolve" confirmLabel="Resolve issue" reasonLabel="Resolution note (sent to the rider)"
+                    onConfirm={async (note) => { await adminDispatchApi.updateIssue(issue.id, "RESOLVED", note); refresh(); }} />
+                </div>
+              </Card>
             ))}
           </section>
+
+          <section className="space-y-3" aria-label="Unassigned delivery requests">
+            <h2 className="font-display text-lg">Waiting for a rider</h2>
+            {board.pending.length === 0 && <p className="text-sm text-ink-soft">No requests awaiting assignment.</p>}
+            {board.pending.map((request) => (
+              <Card key={request.id} className="flex flex-col gap-2 p-4 text-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p>{orderLabel(request)}</p>
+                  <span className="text-xs text-ink-soft">Requested <DateTimeDisplay value={request.created_at} format="relative" /></span>
+                </div>
+                <DispatchAction label="Stop rider search" confirmLabel="Stop search" variant="danger"
+                  onConfirm={async (reason) => { await adminDispatchApi.cancelRequest(request.id, reason); refresh(); }} />
+              </Card>
+            ))}
+          </section>
+
           <section className="space-y-3" aria-label="Active delivery assignments">
             <h2 className="font-display text-lg">Active rider assignments</h2>
             {board.active.length === 0 && <p className="text-sm text-ink-soft">No active rider assignments.</p>}
-            {board.active.map((run) => (
-              <div key={run.id} className="flex flex-wrap items-center justify-between gap-2 rounded-card border border-line p-4 text-sm">
-                <div>
-                  <p>Order {run.order_id.slice(0, 8)}</p>
-                  <p className="text-xs text-ink-soft">Courier {run.delivery_partner_id?.slice(0, 8) ?? "Not assigned"}
-                    {run.vehicle_type ? ` · ${run.vehicle_type}` : ""}</p>
-                </div>
-                <span className="capitalize text-ink-soft">{run.status.replaceAll("_", " ")}</span>
-              </div>
-            ))}
+            {board.active.map((run) => {
+              const collected = run.status !== "assigned";
+              return (
+                <Card key={run.id} className="flex flex-col gap-2 p-4 text-sm">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p>{orderLabel(run)}</p>
+                      <p className="text-xs text-ink-soft">
+                        Rider {run.rider_first_name ?? "unknown"}{run.vehicle_type ? ` · ${run.vehicle_type}` : ""}
+                        {run.open_issue_count > 0 && <span className="ml-1 font-medium text-thread">· {run.open_issue_count} open issue{run.open_issue_count > 1 ? "s" : ""}</span>}
+                      </p>
+                    </div>
+                    <span className="capitalize text-ink-soft">{run.status.replaceAll("_", " ")}</span>
+                  </div>
+                  {collected ? (
+                    <p className="text-xs text-ink-soft">Package collected. Handle problems through rider issues.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      <DispatchAction label="Release to job board" confirmLabel="Release rider" variant="danger"
+                        onConfirm={async (reason) => { await adminDispatchApi.release(run.id, reason); refresh(); }} />
+                      <ReassignAction deliveryId={run.id} riders={riders} onDone={refresh} />
+                    </div>
+                  )}
+                </Card>
+              );
+            })}
           </section>
           <p className="text-xs text-ink-soft">
-            Results are limited to the most recent 50 pending and 100 active deliveries.
-            This read-only board does not change rider assignments or payment amounts.
+            Shows the most recent 50 waiting and 100 active deliveries. Every action is recorded in the audit log;
+            no payment or payout is changed.
           </p>
         </>
       )}

@@ -36,7 +36,9 @@ class TrackingService:
         from app.models.delivery import Delivery
         from app.models.delivery_tracking import DeliveryTracking
 
-        delivery = self.db.query(Delivery).filter(Delivery.order_id == order_id).first()
+        delivery = (self.db.query(Delivery)
+                    .filter(Delivery.order_id == order_id, Delivery.status != "cancelled")
+                    .order_by(Delivery.created_at.desc()).first())
         if not delivery:
             return None
         return self.db.query(DeliveryTracking).filter(DeliveryTracking.delivery_id == delivery.id).first()

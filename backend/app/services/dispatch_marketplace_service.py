@@ -224,7 +224,8 @@ class DispatchMarketplaceService:
         order = self.db.get(Order, order_id)
         if order is None:
             raise NotFoundError("Order not found.")
-        delivery = (self.db.query(Delivery).filter(Delivery.order_id == order.id)
+        # The current run only: a run released or reassigned by dispatch is history, not "your rider".
+        delivery = (self.db.query(Delivery).filter(Delivery.order_id == order.id, Delivery.status != "cancelled")
                     .order_by(Delivery.created_at.desc()).first())
         partner = self.db.get(DeliveryPartner, delivery.delivery_partner_id) if delivery and delivery.delivery_partner_id else None
         is_party = (actor.role == "admin"
@@ -233,9 +234,10 @@ class DispatchMarketplaceService:
         if not is_party:
             raise NotFoundError("Order not found.")
 
+        # Without a live run, prefer an open rider search (e.g. after a release) over cancelled history.
         request = self.db.get(DeliveryRequest, delivery.delivery_request_id) if delivery else (
-            self.db.query(DeliveryRequest).filter_by(order_id=order.id)
-            .order_by(DeliveryRequest.created_at.desc()).first())
+            self.db.query(DeliveryRequest).filter(DeliveryRequest.order_id == order.id)
+            .order_by((DeliveryRequest.status == "cancelled").asc(), DeliveryRequest.created_at.desc()).first())
         rider_user = self.db.get(User, partner.user_id) if partner else None
         steps = [
             ("placed", "Order placed", order.ordered_at or order.created_at),

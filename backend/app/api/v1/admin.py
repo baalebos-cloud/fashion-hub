@@ -20,7 +20,7 @@ from app.core.database import get_db
 from app.core.permissions import Role, require_roles
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.services.commerce_dashboard_service import load_commerce_summary
-from app.schemas.dispatch_board import DispatchBoardResponse
+from app.schemas.dispatch_board import DispatchActionReason, DispatchBoardResponse, IssueUpdateRequest, ReassignRequest
 
 from app.core.dependencies import get_current_user
 from app.models.user import User
@@ -85,10 +85,17 @@ def dispatch_board(
     )
     pending = pending_query.order_by(DeliveryRequest.created_at.desc()).limit(50).all()
     active = active_query.order_by(Delivery.created_at.desc()).limit(100).all()
+    from app.models.order import Order
+    from app.services.dispatch_admin_service import DispatchAdminService, _first_name
+    orders = {o.id: o for o in db.query(Order).filter(
+        Order.id.in_({p.order_id for p in pending} | {d.order_id for d in active})).all()} if (pending or active) else {}
     partner_ids = [d.delivery_partner_id for d in active if d.delivery_partner_id]
-    partners = (db.query(DeliveryPartner).filter(DeliveryPartner.id.in_(partner_ids)).all()
-                if partner_ids else [])
-    by_id = {p.id: p for p in partners}
+    partners = (db.query(DeliveryPartner, User).join(User, User.id == DeliveryPartner.user_id)
+                .filter(DeliveryPartner.id.in_(partner_ids)).all() if partner_ids else [])
+    by_id = {p.id: (p, u) for p, u in partners}
+    service = DispatchAdminService(db)
+    issue_counts = service.open_issue_counts([d.id for d in active])
+    from app.models.delivery_issue import DispatchIssueReport
     return {
         "unassigned_count": pending_query.count(),
         "active_count": active_query.count(),
@@ -96,21 +103,85 @@ def dispatch_board(
             DeliveryPartner.is_verified.is_(True),
             DeliveryPartner.is_available.is_(True),
         ).count(),
+        "open_issue_count": db.query(DispatchIssueReport).filter(
+            DispatchIssueReport.status.notin_(("RESOLVED", "REROUTED"))).count(),
         "pending": [
-            {"id": p.id, "order_id": p.order_id, "status": p.status, "created_at": p.created_at}
+            {"id": p.id, "order_id": p.order_id, "status": p.status, "created_at": p.created_at,
+             "order_number": orders[p.order_id].order_number if p.order_id in orders else None,
+             "order_type": orders[p.order_id].order_type if p.order_id in orders else None}
             for p in pending
         ],
         "active": [
             {
                 "id": d.id, "order_id": d.order_id, "status": d.status,
+                "order_number": orders[d.order_id].order_number if d.order_id in orders else None,
+                "order_type": orders[d.order_id].order_type if d.order_id in orders else None,
                 "delivery_partner_id": d.delivery_partner_id,
-                "vehicle_type": (by_id[d.delivery_partner_id].vehicle_type
-                                 if d.delivery_partner_id in by_id else None),
+                "rider_first_name": _first_name(by_id[d.delivery_partner_id][1]) if d.delivery_partner_id in by_id else None,
+                "vehicle_type": by_id[d.delivery_partner_id][0].vehicle_type if d.delivery_partner_id in by_id else None,
+                "open_issue_count": int(issue_counts.get(d.id, 0)),
                 "created_at": d.created_at,
             }
             for d in active
         ],
     }
+
+
+def _client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
+@router.get("/dispatch/riders")
+def dispatch_available_riders(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Verified riders who are online, for dispatcher reassignment. First names only."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    return DispatchAdminService(db).available_riders()
+
+
+@router.post("/dispatch/deliveries/{delivery_id}/release")
+def dispatch_release(delivery_id: UUID, payload: DispatchActionReason, request: Request,
+                     db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Take a not-yet-collected job from its rider and put it back on the job board."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    fresh = DispatchAdminService(db).release(delivery_id=delivery_id, admin=admin,
+                                             reason=payload.reason, ip=_client_ip(request))
+    return {"request_id": str(fresh.id), "status": fresh.status}
+
+
+@router.post("/dispatch/deliveries/{delivery_id}/reassign")
+def dispatch_reassign(delivery_id: UUID, payload: ReassignRequest, request: Request,
+                      db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Move a not-yet-collected job to a chosen verified, online rider."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    delivery = DispatchAdminService(db).reassign(delivery_id=delivery_id, partner_id=payload.partner_id,
+                                                 admin=admin, reason=payload.reason, ip=_client_ip(request))
+    return {"delivery_id": str(delivery.id), "status": delivery.status}
+
+
+@router.post("/dispatch/requests/{request_id}/cancel")
+def dispatch_cancel_request(request_id: UUID, payload: DispatchActionReason, request: Request,
+                            db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Stop the rider search for an order; the seller can request again later."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    record = DispatchAdminService(db).cancel_request(request_id=request_id, admin=admin,
+                                                     reason=payload.reason, ip=_client_ip(request))
+    return {"request_id": str(record.id), "status": record.status}
+
+
+@router.get("/dispatch/issues")
+def dispatch_open_issues(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Rider-reported problems that aren't resolved yet, oldest first."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    return DispatchAdminService(db).open_issues()
+
+
+@router.patch("/dispatch/issues/{issue_id}")
+def dispatch_update_issue(issue_id: UUID, payload: IssueUpdateRequest, request: Request,
+                          db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    from app.services.dispatch_admin_service import DispatchAdminService
+    issue = DispatchAdminService(db).update_issue(issue_id=issue_id, admin=admin, status=payload.status,
+                                                  note=payload.note, ip=_client_ip(request))
+    return {"id": str(issue.id), "status": issue.status}
 
 
 @router.get("/commerce-summary")

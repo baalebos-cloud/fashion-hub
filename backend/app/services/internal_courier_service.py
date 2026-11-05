@@ -62,7 +62,11 @@ class InternalCourierService:
             raise ForbiddenError("Only this order's seller may request delivery.")
         if not is_dispatchable(order):
             raise ConflictError("The order must be ready for pickup before requesting a rider.")
-        existing = (self.db.query(DeliveryRequest).filter_by(order_id=order.id)
+        # Re-requesting is idempotent while a search or run is live; a cancelled
+        # request (admin stopped the search or released a rider) allows a new one.
+        existing = (self.db.query(DeliveryRequest)
+                    .filter(DeliveryRequest.order_id == order.id,
+                            DeliveryRequest.status.in_(("requested", "assigned")))
                     .order_by(DeliveryRequest.created_at.desc()).first())
         if existing:
             return existing
@@ -184,7 +188,8 @@ class InternalCourierService:
         """Assign a locked request to a locked, available partner. Shared by instant
         claims and accepted fare offers; caller must hold both row locks."""
         from app.models.delivery_offer import DeliveryOffer
-        if self.db.query(Delivery).filter_by(order_id=order.id).first():
+        if self.db.query(Delivery.id).filter(Delivery.order_id == order.id,
+                                             Delivery.status != "cancelled").first():
             raise ConflictError("This order already has an assigned delivery.")
         request.status = "assigned"
         partner.is_available = False
@@ -213,6 +218,10 @@ class InternalCourierService:
             or (partner and str(partner.user_id) == str(actor.id))
         )
         if not permitted:
+            raise NotFoundError("Delivery not found.")
+        # A rider released by dispatch immediately loses access to the route and contacts.
+        if (delivery.status == "cancelled" and actor.role == "delivery_partner"
+                and partner is not None and str(partner.user_id) == str(actor.id)):
             raise NotFoundError("Delivery not found.")
         return delivery
 
