@@ -10,6 +10,12 @@ from sqlalchemy import func
 from app.services.spatial_discovery import validated_search
 
 
+def point_geography(latitude: float, longitude: float):
+    """PostGIS geography for a validated point. Proximity search (nearby tailors and
+    vendors) only matches rows where this is set, so every location write needs it."""
+    return func.ST_GeogFromText(f"SRID=4326;POINT({float(longitude)} {float(latitude)})")
+
+
 class LocationService:
     def __init__(self, db: Session):
         self.db = db
@@ -20,7 +26,7 @@ class LocationService:
         lat, lon, _, _, _ = validated_search(latitude=latitude, longitude=longitude)
         location = Location(
             latitude=lat, longitude=lon, location_type=location_type,
-            geom=func.ST_GeogFromText(f"SRID=4326;POINT({lon} {lat})"),
+            geom=point_geography(lat, lon),
             **address_fields,
         )
         self.db.add(location)

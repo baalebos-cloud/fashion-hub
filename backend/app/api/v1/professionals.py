@@ -197,6 +197,7 @@ def update_my_business_location(
     db: Session = Depends(get_db),
 ):
     from app.models.location import Location
+    from app.services.location_service import point_geography
 
     def clean(value: str | None) -> str | None:
         return value.strip() or None if value else None
@@ -206,7 +207,8 @@ def update_my_business_location(
         raise NotFoundError("Professional profile not found for this account.")
 
     # City/state feed the public shop page's area line ("Ikeja, Lagos").
-    location = Location(latitude=latitude, longitude=longitude, location_type="tailor_shop",
+    location = Location(latitude=latitude, longitude=longitude, geom=point_geography(latitude, longitude),
+                        location_type="tailor_shop",
                         formatted_address=clean(formatted_address), city=clean(city),
                         state_region=clean(state_region), country=clean(country))
     db.add(location)

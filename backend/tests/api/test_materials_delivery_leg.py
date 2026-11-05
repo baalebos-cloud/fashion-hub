@@ -81,6 +81,10 @@ def test_materials_leg_from_vendor_to_tailor(materials):
         "latitude": 7.62, "longitude": 5.23, "formatted_address": "3 Fajuyi Market, Ado-Ekiti",
         "city": "Ado-Ekiti", "state_region": "Ekiti"})
     assert saved.status_code == 200 and saved.json()["warehouse_location_id"]
+    from sqlalchemy import text
+    geom = db.execute(text("SELECT ST_AsText(geom) FROM locations WHERE id = :id"),
+                      {"id": saved.json()["warehouse_location_id"]}).scalar()
+    assert geom == "POINT(5.23 7.62)"  # vendor stays discoverable in nearby-vendor search
     requested = http.post(f"/api/v1/delivery-requests/orders/{material.id}")
     assert requested.status_code == 201, requested.text
     request_id = requested.json()["id"]

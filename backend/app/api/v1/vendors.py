@@ -43,6 +43,7 @@ def set_pickup_location(
     """Store pickup point riders collect materials from. Each save creates a new Location,
     so deliveries already dispatched keep their own pickup snapshot."""
     from app.models.location import Location
+    from app.services.location_service import point_geography
 
     def clean(value: str | None) -> str | None:
         return value.strip() or None if value else None
@@ -50,7 +51,8 @@ def set_pickup_location(
     profile = db.query(Vendor).filter_by(user_id=user.id).first()
     if not profile:
         raise NotFoundError('Create your vendor store first.')
-    location = Location(latitude=latitude, longitude=longitude, location_type='vendor_warehouse',
+    location = Location(latitude=latitude, longitude=longitude, geom=point_geography(latitude, longitude),
+                        location_type='vendor_warehouse',
                         formatted_address=clean(formatted_address), city=clean(city),
                         state_region=clean(state_region), country=clean(country))
     db.add(location)

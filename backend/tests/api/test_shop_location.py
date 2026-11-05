@@ -26,6 +26,9 @@ def test_shop_location_keeps_address_city_and_state(db, make_user):
             location = db.get(Location, profile.location_id)
             assert location.formatted_address == "14 Iworoko Road, Ado-Ekiti"
             assert (location.city, location.state_region, location.country) == ("Ado-Ekiti", "Ekiti", "Nigeria")
+            from sqlalchemy import text
+            wkt = db.execute(text("SELECT ST_AsText(geom) FROM locations WHERE id = :id"), {"id": location.id}).scalar()
+            assert wkt == "POINT(5.22103 7.64036)"  # proximity search needs geom
 
             pin_only = http.patch("/api/v1/professionals/me/location",
                                   params={"latitude": 7.6, "longitude": 5.2, "city": "   "})
