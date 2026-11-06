@@ -9,6 +9,24 @@ from app.core.config import settings
 from app.core.exceptions import ExternalProviderError
 
 
+def provider_status() -> dict:
+    """Whether outgoing email can work with the current settings, without sending anything."""
+    if settings.EMAIL_PROVIDER == "resend":
+        if not settings.EMAIL_API_KEY:
+            return {"ready": False, "provider": "resend", "problem": "EMAIL_API_KEY is not set."}
+        if not settings.EMAIL_FROM_ADDRESS or settings.EMAIL_FROM_ADDRESS.endswith(".example"):
+            return {"ready": False, "provider": "resend",
+                    "problem": "EMAIL_FROM_ADDRESS must be an address on a domain verified in Resend."}
+        return {"ready": True, "provider": "resend", "problem": None, "from": settings.EMAIL_FROM_ADDRESS}
+    if settings.EMAIL_PROVIDER == "smtp":
+        if settings.EMAIL_HOST in {"", "localhost", "127.0.0.1"} and settings.APP_ENV in {"staging", "production"}:
+            return {"ready": False, "provider": "smtp", "problem": "EMAIL_HOST points at localhost; set a real SMTP relay."}
+        if settings.EMAIL_FROM_ADDRESS.endswith(".example"):
+            return {"ready": False, "provider": "smtp", "problem": "EMAIL_FROM_ADDRESS is still the placeholder."}
+        return {"ready": True, "provider": "smtp", "problem": None, "from": settings.EMAIL_FROM_ADDRESS}
+    return {"ready": False, "provider": settings.EMAIL_PROVIDER, "problem": "EMAIL_PROVIDER must be resend or smtp."}
+
+
 def send_email(*, to_address: str, subject: str, html_body: str,
                idempotency_key: str | None = None) -> None:
     """Deliver transactional email. A stable key prevents duplicate Resend sends on retries."""

@@ -27,3 +27,6 @@ export const ROLE_HOME_PATH: Record<UserRole, string> = {
   delivery_partner: "/app/delivery",
   admin: "/app/admin",
 };
+
+/** Roles that meet customers in person and must show a profile photo (customers may skip it). */
+export const PHOTO_REQUIRED_ROLES: ReadonlySet<string> = new Set(["tailor", "designer", "vendor", "delivery_partner"]);

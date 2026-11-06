@@ -18,6 +18,8 @@ from app.models.professional import Professional
 from app.models.vendor import Vendor
 from app.services.verification_service import company_names_match, normalize_registration
 
+PHOTO = "/api/v1/media/files/profile-photo.jpg"
+
 
 @pytest.fixture()
 def http(db):
@@ -46,7 +48,7 @@ def test_registration_number_and_name_rules():
 
 
 def test_vendor_kyb_uses_cac_registry_and_blocks_duplicates(db, make_user, http, monkeypatch):
-    vendor = make_user(role="vendor")
+    vendor = make_user(role="vendor", profile_photo_url=PHOTO)
     db.add(Vendor(user_id=vendor.id, business_name="Lace World", is_verified=False))
     db.commit()
     calls = []
@@ -64,7 +66,7 @@ def test_vendor_kyb_uses_cac_registry_and_blocks_duplicates(db, make_user, http,
 
 
 def test_kyb_rejects_unknown_numbers_and_holds_on_outage(db, make_user, http, monkeypatch):
-    tailor = make_user(role="tailor")
+    tailor = make_user(role="tailor", profile_photo_url=PHOTO)
     db.add(Professional(user_id=tailor.id, professional_type="tailor", business_name="Ankara House"))
     db.commit()
     http.current[0] = tailor
@@ -90,7 +92,7 @@ def test_kyc_held_during_nin_outage_reaches_the_admin_queue_and_can_be_approved(
     from cryptography.fernet import Fernet
     from app.core.config import settings
     monkeypatch.setattr(settings, "IDENTITY_ENCRYPTION_KEY", Fernet.generate_key().decode())
-    tailor = make_user(role="tailor", full_name="Kemi Adeyemi")
+    tailor = make_user(role="tailor", full_name="Kemi Adeyemi", profile_photo_url=PHOTO)
     db.add(Professional(user_id=tailor.id, professional_type="tailor", business_name="Kemi Couture"))
     admin = make_user(role="admin")
     db.commit()
@@ -121,7 +123,7 @@ def test_kyc_held_during_nin_outage_reaches_the_admin_queue_and_can_be_approved(
 
 
 def test_vendor_needs_identity_and_business_before_verified(db, make_user, http, monkeypatch):
-    vendor, admin = make_user(role="vendor", full_name="Bisi Ola"), make_user(role="admin")
+    vendor, admin = make_user(role="vendor", full_name="Bisi Ola", profile_photo_url=PHOTO), make_user(role="admin")
     db.add(Vendor(user_id=vendor.id, business_name="Fabric Hub", is_verified=False))
     kyc = KYCVerification(user_id=vendor.id, id_type="nin", status="pending", identity_match=True)
     db.add(kyc)
@@ -146,7 +148,7 @@ def test_vendor_needs_identity_and_business_before_verified(db, make_user, http,
 
 
 def test_rejection_tells_the_applicant_why_and_allows_resubmission(db, make_user, http, monkeypatch):
-    rider, admin = make_user(role="delivery_partner"), make_user(role="admin")
+    rider, admin = make_user(role="delivery_partner", profile_photo_url=PHOTO), make_user(role="admin")
     db.add(DeliveryPartner(user_id=rider.id, is_verified=False))
     kyc = KYCVerification(user_id=rider.id, id_type="nin", status="pending")
     db.add(kyc)
@@ -162,7 +164,7 @@ def test_rejection_tells_the_applicant_why_and_allows_resubmission(db, make_user
 
 
 def test_viewing_the_checklist_never_removes_an_existing_verified_badge(db, make_user, http):
-    tailor = make_user(role="tailor")
+    tailor = make_user(role="tailor", profile_photo_url=PHOTO)
     db.add(Professional(user_id=tailor.id, professional_type="tailor", business_name="Old Atelier", is_verified=True))
     db.commit()
     http.current[0] = tailor
@@ -171,7 +173,7 @@ def test_viewing_the_checklist_never_removes_an_existing_verified_badge(db, make
 
 
 def test_admin_queue_is_admin_only(make_user, http):
-    http.current[0] = make_user(role="vendor")
+    http.current[0] = make_user(role="vendor", profile_photo_url=PHOTO)
     assert http.get("/api/v1/admin/verifications?kind=kyb").status_code == 403
 
 
@@ -209,7 +211,7 @@ def test_registry_outage_code_sends_kyb_to_manual_review(db, make_user, http, mo
     from app.core.config import settings
     monkeypatch.setattr(settings, "KYB_PROVIDER", "prembly")
     monkeypatch.setattr(settings, "PREMBLY_API_KEY", "test-only")
-    vendor = make_user(role="vendor")
+    vendor = make_user(role="vendor", profile_photo_url=PHOTO)
     db.add(Vendor(user_id=vendor.id, business_name="Lace World"))
     db.commit()
     monkeypatch.setattr(prembly_cac.httpx, "post", lambda *a, **k: reply)
@@ -217,3 +219,29 @@ def test_registry_outage_code_sends_kyb_to_manual_review(db, make_user, http, mo
     response = http.post("/api/v1/kyb", json=kyb_body())
     assert response.status_code == 201, response.text
     assert response.json()["status"] == "under_review"
+
+
+def test_riders_vendors_and_tailors_need_a_profile_photo_but_customers_do_not(http, make_user, db):
+    rider, admin = make_user(role="delivery_partner"), make_user(role="admin")
+    http.current[0] = rider
+    blocked = http.post("/api/v1/kyc", json={"nin_number": "12345678901", "document_storage_keys": ["k"]})
+    assert blocked.status_code == 422 and "profile photo" in blocked.text
+    vendor = make_user(role="vendor")
+    http.current[0] = vendor
+    assert "profile photo" in http.post("/api/v1/kyb", json={
+        "business_registration_number": "RC1234567", "company_type": "RC", "document_storage_keys": ["k"]}).text
+    # Can't remove the photo once set; customers can.
+    rider.profile_photo_url = PHOTO
+    db.commit()
+    http.current[0] = rider
+    assert http.patch("/api/v1/users/me", json={"profile_photo_url": ""}).status_code == 422
+    customer = make_user(role="customer", profile_photo_url=PHOTO)
+    http.current[0] = customer
+    assert http.patch("/api/v1/users/me", json={"profile_photo_url": ""}).json()["profile_photo_url"] is None
+    # An admin can't approve someone who still has no photo.
+    pending = KYCVerification(user_id=make_user(role="tailor").id, status="under_review")
+    db.add(pending)
+    db.commit()
+    http.current[0] = admin
+    refused = http.post(f"/api/v1/admin/kyc/{pending.id}/review", json={"approve": True})
+    assert refused.status_code == 422 and "profile photo" in refused.text

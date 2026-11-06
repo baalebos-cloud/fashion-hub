@@ -6,7 +6,7 @@ Rate limiting: apply a strict limiter (see settings.RATE_LIMIT_AUTH) to
 limiter configuration, since these are classic brute-force/enumeration
 targets.
 """
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -33,7 +33,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
 
 @router.post("/signup", response_model=UserResponse, status_code=201)
 @limiter.limit(settings.RATE_LIMIT_AUTH)
-def sign_up(payload: SignUpRequest, request: Request, db: Session = Depends(get_db)):
+def sign_up(payload: SignUpRequest, request: Request, background: BackgroundTasks, db: Session = Depends(get_db)):
     service = AuthService(db)
     user = service.sign_up(
         email=payload.email,
@@ -44,6 +44,7 @@ def sign_up(payload: SignUpRequest, request: Request, db: Session = Depends(get_
         referral_code=payload.referral_code,
     )
     activity_service.record(request, "sign_up", user=user, status_code=201)
+    _send_now(background, user.id)
     return user
 
 
@@ -89,10 +90,32 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
 
 @router.post("/forgot-password", status_code=202)
 @limiter.limit(settings.RATE_LIMIT_AUTH)
-def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+def forgot_password(payload: ForgotPasswordRequest, request: Request, background: BackgroundTasks,
+                    db: Session = Depends(get_db)):
     service = AuthService(db)
     service.request_password_reset(payload.email)
+    _send_now(background)
     return {"message": "If an account with that email exists, a reset link has been sent."}
+
+
+@router.post("/resend-verification", status_code=202)
+@limiter.limit("3/minute")
+def resend_verification(payload: ForgotPasswordRequest, request: Request, background: BackgroundTasks,
+                        db: Session = Depends(get_db)):
+    """Send a new email-confirmation link. Same answer whether or not the account exists."""
+    user = AuthService(db).resend_verification(payload.email)
+    if user is not None:
+        _send_now(background, user.id)
+    return {"message": "If that email has an unconfirmed Tailora account, a new confirmation link is on its way."}
+
+
+def _send_now(background: BackgroundTasks, user_id=None) -> None:
+    """Deliver queued auth email right after the response, without waiting for a worker.
+    The Celery beat drain retries anything the provider refused."""
+    if settings.APP_ENV == "test":
+        return
+    from app.services.auth_email_outbox_service import send_in_background
+    background.add_task(send_in_background, user_id)
 
 
 @router.post("/reset-password", status_code=204)

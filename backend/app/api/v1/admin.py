@@ -10,7 +10,7 @@ business rules delegated to a service, never inline in the route).
 """
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, HTTPException
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 from uuid import UUID
@@ -452,3 +452,34 @@ def audit_logs(limit: int = 100, db: Session = Depends(get_db), admin: User = De
              "resource_id": str(log.resource_id) if log.resource_id else None,
              "actor_email": actor.email if actor else None, "ip_address": log.ip_address,
              "created_at": log.created_at} for log, actor in rows]
+
+
+# ---- Email delivery ---------------------------------------------------------------------------
+@router.get("/email/status")
+def email_status(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Is outgoing email configured, and how many people still haven't confirmed their email?"""
+    from sqlalchemy import func
+    from app.integrations.notifications.email import provider_status
+    from app.services.auth_email_outbox_service import AuthEmailOutboxService
+    unverified = (db.query(func.count(User.id))
+                  .filter(User.is_active.is_(True), User.is_email_verified.is_(False), User.role != "admin").scalar() or 0)
+    return {**provider_status(), "unverified_accounts": unverified,
+            "emails_waiting": AuthEmailOutboxService(db).pending_count()}
+
+
+@router.post("/email/verification-backfill", status_code=202)
+def email_verification_backfill(request: Request, background: BackgroundTasks,
+                                db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Email a fresh confirmation link to everyone who registered but never confirmed."""
+    from app.integrations.notifications.email import provider_status
+    from app.services.auth_email_outbox_service import AuthEmailOutboxService, send_in_background
+    status = provider_status()
+    if not status["ready"]:
+        raise HTTPException(409, f"Email isn't configured yet: {status['problem']}")
+    queued = AuthEmailOutboxService(db).queue_for_unverified()
+    _audit(db, admin, request, "email.verification_backfill", None)
+    db.commit()
+    from app.core.config import settings
+    if settings.APP_ENV != "test":
+        background.add_task(send_in_background, None, 500)
+    return {"queued": queued}

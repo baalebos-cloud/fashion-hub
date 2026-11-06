@@ -13,7 +13,7 @@ def send_verification_email_task(self, user_email: str, token: str):
     try:
         send_email(
             to_address=user_email,
-            subject="Verify your Fashion Hub account",
+            subject="Verify your Tailora account",
             html_body=f"<p>Welcome! Please verify your email: <a href='{verify_url}'>{verify_url}</a></p>",
         )
     except ExternalProviderError as exc:
@@ -30,7 +30,7 @@ def send_password_reset_email_task(self, user_email: str, token: str):
     try:
         send_email(
             to_address=user_email,
-            subject="Reset your Fashion Hub password",
+            subject="Reset your Tailora password",
             html_body=f"<p>Reset your password: <a href='{reset_url}'>{reset_url}</a></p>",
         )
     except ExternalProviderError as exc:
@@ -45,7 +45,7 @@ def send_invoice_email_task(self, user_email: str, invoice_pdf_url: str):
     try:
         send_email(
             to_address=user_email,
-            subject="Your Fashion Hub invoice",
+            subject="Your Tailora invoice",
             html_body=f"<p>Your invoice is ready: <a href='{invoice_pdf_url}'>{invoice_pdf_url}</a></p>",
         )
     except ExternalProviderError as exc:
@@ -54,24 +54,9 @@ def send_invoice_email_task(self, user_email: str, invoice_pdf_url: str):
 
 @celery_app.task(name="app.workers.email_tasks.drain_auth_email_outbox")
 def drain_auth_email_outbox(limit: int = 20):
-    """Recover committed verification/reset email jobs after a Redis outage."""
+    """Retry verification/reset emails the provider didn't accept the first time."""
     from app.core.database import SessionLocal
     from app.services.auth_email_outbox_service import AuthEmailOutboxService
 
-    processed = 0
     with SessionLocal() as db:
-        service = AuthEmailOutboxService(db)
-        for _ in range(min(max(1, limit), 50)):
-            try:
-                if not service.process_one():
-                    break
-            except Exception as exc:
-                from app.core.exceptions import ExternalProviderError
-                if not isinstance(exc, ExternalProviderError):
-                    raise
-                db.rollback()
-                from app.core.logging import get_logger
-                get_logger(__name__).warning("Auth mail remains queued until the configured provider accepts delivery.")
-                break
-            processed += 1
-    return processed
+        return AuthEmailOutboxService(db).send_pending(limit=min(max(1, limit), 50))["sent"]

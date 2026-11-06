@@ -22,7 +22,7 @@ export function ProfilePhoto({ currentUrl, onUploaded }: { currentUrl?: string |
         uploadEndpoint="/media/upload?purpose=avatar"
         currentImageUrl={currentUrl}
         onUploaded={(url) => { void savePhoto(url); }}
-        label="Change photo"
+        label={currentUrl ? "Change photo" : "Upload photo"}
       />
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
     </div>

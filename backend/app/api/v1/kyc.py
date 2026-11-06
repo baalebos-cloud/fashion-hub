@@ -23,6 +23,8 @@ router = APIRouter(prefix="/kyc", tags=["KYC"])
 
 @router.post("", response_model=KYCStatusResponse, status_code=201)
 def submit_kyc(payload: SubmitKYCRequest, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    from app.core.profile_photo import require_profile_photo
+    require_profile_photo(current_user)
     service = KYCService(db)
     return service.submit(
         user_id=current_user.id,
