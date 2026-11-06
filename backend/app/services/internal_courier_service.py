@@ -353,17 +353,24 @@ class InternalCourierService:
             raise ConflictError("GPS sharing is available only after pickup and before handover.")
         return start_sharing(delivery.id)
 
-    def report_position(self, *, delivery_id, actor, latitude, longitude, accuracy_m, share_token):
+    def report_position(self, *, delivery_id, actor, latitude, longitude, accuracy_m, share_token,
+                        recorded_at=None, speed_mps=None):
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
         if delivery.status != "in_transit":
             raise ConflictError("Live GPS is available only after pickup and before handover.")
         point = save_position(
             delivery.id, share_token=share_token, latitude=latitude,
-            longitude=longitude, accuracy_m=accuracy_m,
+            longitude=longitude, accuracy_m=accuracy_m, recorded_at=recorded_at, speed_mps=speed_mps,
         )
-        from app.services.delivery_proximity import check_proximity
-        check_proximity(self.db, delivery, latitude=latitude, longitude=longitude, accuracy_m=accuracy_m)
+        if point.get("accepted"):
+            from app.services.delivery_proximity import check_proximity
+            check_proximity(self.db, delivery, latitude=latitude, longitude=longitude, accuracy_m=accuracy_m)
         return point
+
+    def report_device_state(self, *, delivery_id, actor, share_token, state):
+        delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
+        from app.services.delivery_position import report_device_state
+        report_device_state(delivery.id, share_token=share_token, state=state)
 
     def stop_position(self, *, delivery_id, actor):
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
@@ -482,6 +489,10 @@ class InternalCourierService:
         else:
             delivery.delivered_at = now
             partner.is_available = True
+            try:
+                clear_position(delivery.id)  # tracking ends at handover
+            except Exception:  # noqa: BLE001 - the point expires on its own; never block delivery
+                logger.warning("gps_clear_on_delivery_failed")
         record_event(self.db, delivery=delivery, event_type=event_type, actor=actor, idempotency_key=key,
                      package_count=delivery.package_count,
                      verified_by=f"{purpose}_code" if purpose else "rider_confirmation")

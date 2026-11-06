@@ -6,6 +6,7 @@ import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { DispatchAction } from "@/components/dispatch/DispatchAction";
 import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
 import { RoutingHealth } from "@/components/admin/RoutingHealth";
+import { describeFreshness } from "@/lib/utils/tracking";
 
 const ISSUE_LABEL: Record<string, string> = {
   CUSTOMER_UNREACHABLE: "Customer unreachable", WRONG_ADDRESS: "Wrong address", PACKAGE_DAMAGED: "Package damaged",
@@ -163,7 +164,14 @@ export default function Deliveries() {
                         {run.open_issue_count > 0 && <span className="ml-1 font-medium text-thread">· {run.open_issue_count} open issue{run.open_issue_count > 1 ? "s" : ""}</span>}
                       </p>
                     </div>
-                    <span className="capitalize text-ink-soft">{run.status.replaceAll("_", " ")}</span>
+                    <span className="flex flex-col items-end gap-0.5">
+                      <span className="capitalize text-ink-soft">{run.status.replaceAll("_", " ")}</span>
+                      {run.tracking && (
+                        <span className={`text-xs ${["live", "delayed"].includes(run.tracking.state) ? "text-ink-soft" : "text-thread"}`}>
+                          {describeFreshness(run.tracking.state, run.tracking.age_seconds).label}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   {collected ? (
                     <p className="text-xs text-ink-soft">Package collected. Handle problems through rider issues.</p>

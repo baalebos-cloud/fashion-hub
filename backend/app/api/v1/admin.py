@@ -125,10 +125,18 @@ def dispatch_board(
                 "vehicle_type": by_id[d.delivery_partner_id][0].vehicle_type if d.delivery_partner_id in by_id else None,
                 "open_issue_count": int(issue_counts.get(d.id, 0)),
                 "created_at": d.created_at,
+                "tracking": _tracking(d),
             }
             for d in active
         ],
     }
+
+
+def _tracking(delivery):
+    if delivery.status != "in_transit":
+        return None
+    from app.services.delivery_position import tracking_status
+    return tracking_status(delivery.id)
 
 
 def _client_ip(request: Request) -> str | None:

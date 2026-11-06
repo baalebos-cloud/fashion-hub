@@ -42,5 +42,5 @@ def test_publish_requires_atomic_consent_check(monkeypatch):
     assert "share_token" not in point
     args = fake.eval.call_args.args
     assert "redis.call('GET'" in args[0]
-    assert args[1] == 2
-    assert args[-1] == 90
+    assert args[1] == 3  # consent, point, last fix: checked and written in one script
+    assert args[-1] == delivery_position.MIN_INTERVAL_SECONDS

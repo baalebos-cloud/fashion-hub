@@ -21,6 +21,7 @@ export interface AdminDispatchBoard {
     rider_first_name: string | null;
     vehicle_type: string | null;
     open_issue_count: number;
+    tracking?: { state: string; age_seconds: number | null } | null;
     created_at: string;
   }>;
 }

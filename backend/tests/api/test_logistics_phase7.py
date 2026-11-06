@@ -1,6 +1,7 @@
 """Phase 7: Nigerian address details, rider-approaching/arrived alerts, and the materials leg
 shown on the customer order."""
 import uuid
+from datetime import timedelta
 
 import pytest
 from fastapi.testclient import TestClient
@@ -110,9 +111,14 @@ def moving(db, make_user, client, monkeypatch):
     base = f"/api/v1/deliveries/{delivery.id}/position"
     token = http.post(base + "/start").json()["share_token"]
 
+    clock = [utcnow() - timedelta(seconds=100)]
+
     def ping(lat, lng, accuracy=15):
+        # Real phones send a fix every few seconds; the server ignores points < 3 s apart.
+        clock[0] += timedelta(seconds=5)
         current[0] = rider
-        response = http.post(base, json={"latitude": lat, "longitude": lng, "accuracy_m": accuracy, "share_token": token})
+        response = http.post(base, json={"latitude": lat, "longitude": lng, "accuracy_m": accuracy,
+                                         "share_token": token, "recorded_at": clock[0].isoformat()})
         assert response.status_code == 200, response.text
 
     def alerts():

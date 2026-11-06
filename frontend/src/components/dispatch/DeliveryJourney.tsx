@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Card } from "@/components/ui/card";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
+import { describeFreshness } from "@/lib/utils/tracking";
 import type { DeliveryJourney as Journey } from "@/types/dispatch";
 
 const REFRESH_MS = 20_000;
@@ -43,6 +44,12 @@ export function DeliveryJourney({ orderId }: { orderId: string }) {
                 : "Estimate from the rider's live location"}</span></p>
           )}
         </div>
+      )}
+
+      {journey.tracking && journey.tracking.state !== "live" && journey.tracking.state !== "delayed" && (
+        <p className="mt-3 rounded-lg bg-muslin px-3 py-2 text-xs text-ink-soft" role="status" data-testid="journey-tracking">
+          {describeFreshness(journey.tracking.state, journey.tracking.age_seconds).label}.
+        </p>
       )}
 
       <ol className="mt-4">

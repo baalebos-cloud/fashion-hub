@@ -350,7 +350,7 @@ class DispatchMarketplaceService:
             from app.services.delivery_position import read_position
             position = read_position(delivery.id)
             dropoff = self.db.get(Location, request.dropoff_location_id) if request else None
-            if position and _point(dropoff):
+            if position and position.get("freshness") in {"live", "delayed"} and _point(dropoff):
                 from app.services.route_service import live_route
                 estimate = live_route(delivery.id,
                                       {"latitude": float(position["latitude"]), "longitude": float(position["longitude"])},
@@ -360,7 +360,12 @@ class DispatchMarketplaceService:
                         "basis": "road_route" if estimate.verified else "live_gps_estimate",
                         "route_source": estimate.source, "traffic_aware": estimate.traffic_aware,
                         "route_computed_at": estimate.computed_at,
+                        "freshness": position.get("freshness"),
                         "updated_at": position.get("recorded_at")}
+        tracking = None
+        if delivery and delivery.status == "in_transit":
+            from app.services.delivery_position import tracking_status
+            tracking = tracking_status(delivery.id)  # state only, never coordinates
         return {"order_id": order.id, "tracking_number": order.order_number,
                 "status": order.status, "delivery_status": delivery.status if delivery else None,
-                "milestones": milestones, "live": live}
+                "milestones": milestones, "live": live, "tracking": tracking}

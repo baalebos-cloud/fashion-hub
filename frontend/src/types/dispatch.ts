@@ -61,6 +61,8 @@ export interface DeliveryJourney {
   delivery_status: string | null;
   milestones: JourneyMilestone[];
   live: { eta_minutes: number | null; distance_remaining_km: number | null; basis: "live_gps_estimate" | "road_route"; traffic_aware?: boolean; updated_at: string | null } | null;
+  /** Location state only (never coordinates): live, delayed, last_known, not_sharing, permission_denied… */
+  tracking?: { state: string; age_seconds: number | null; sharing: boolean; device_state: string | null } | null;
   /** Vendor -> tailor material orders feeding a customer order. Never prices or addresses. */
   materials_legs?: MaterialsLeg[];
 }

@@ -43,8 +43,12 @@ export const deliveriesApi = {
   async startPosition(id: string): Promise<string> {
     return (await apiClient.post<{ share_token: string }>(endpoints.deliveries.positionStart(id))).data.share_token;
   },
-  async publishPosition(id: string, payload: Pick<RiderPosition, "latitude" | "longitude" | "accuracy_m"> & { share_token: string }): Promise<RiderPosition> {
+  async publishPosition(id: string, payload: Pick<RiderPosition, "latitude" | "longitude" | "accuracy_m"> & { share_token: string; recorded_at?: string; speed_mps?: number }): Promise<RiderPosition> {
     return (await apiClient.post<RiderPosition>(endpoints.deliveries.position(id), payload)).data;
+  },
+  /** The phone reports why there's no location: permission off, no GPS, or page in background. */
+  async reportPositionState(id: string, shareToken: string, state: "permission_denied" | "unavailable" | "paused"): Promise<void> {
+    await apiClient.post(`${endpoints.deliveries.position(id)}/state`, { share_token: shareToken, state });
   },
   async getPosition(id: string): Promise<RiderPosition | null> {
     return (await apiClient.get<RiderPosition | null>(endpoints.deliveries.position(id))).data;

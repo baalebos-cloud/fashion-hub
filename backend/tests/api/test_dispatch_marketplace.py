@@ -163,11 +163,15 @@ def test_journey_milestones_and_live_eta(dispatch):
     delivery = db.get(Delivery, uuid.UUID(delivery_id))
     delivery.status, delivery.picked_up_at = "in_transit", utcnow()
     db.commit()
-    point = {"latitude": 6.4500, "longitude": 3.4000, "accuracy_m": 10, "recorded_at": "2026-11-05T12:00:00Z"}
+    point = {"latitude": 6.4500, "longitude": 3.4000, "accuracy_m": 10, "recorded_at": "2026-11-05T12:00:00Z",
+             "freshness": "live", "age_seconds": 4}
     with patch("app.services.delivery_position.read_position", return_value=point):
         live = http.get(f"/api/v1/deliveries/orders/{order.id}/journey").json()["live"]
     assert live["basis"] == "live_gps_estimate" and 1 <= live["eta_minutes"] <= 30
     assert 0 < live["distance_remaining_km"] < 10
+    # A "last seen" point is never used for a live ETA.
+    with patch("app.services.delivery_position.read_position", return_value={**point, "freshness": "last_known"}):
+        assert http.get(f"/api/v1/deliveries/orders/{order.id}/journey").json()["live"] is None
 
     current[0] = dispatch["rider_b"]  # not on this order
     assert http.get(f"/api/v1/deliveries/orders/{order.id}/journey").status_code == 404

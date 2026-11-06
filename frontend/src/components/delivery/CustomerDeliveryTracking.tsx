@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { describeFreshness } from "@/lib/utils/tracking";
 import { deliveriesApi } from "@/api/deliveries.api";
 import type { Delivery, RiderPosition } from "@/types/delivery";
 import { DeliveryMap } from "./DeliveryMap";
@@ -12,6 +13,7 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
   const [riderPosition, setRiderPosition] = useState<RiderPosition | null>(null);
   const [showCode, setShowCode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const nextDelay = useRef(20000);
   useEffect(() => {
     let active = true;
     async function refresh() {
@@ -24,14 +26,17 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
         if (next?.status === "in_transit") {
           const position = await deliveriesApi.getPosition(next.id).catch(() => null);
           if (active) setRiderPosition(position);
+          nextDelay.current = position?.freshness === "live" ? 10000 : 20000;
         }
       } catch {
         if (active) { setRiderPosition(null); setError("Delivery tracking is temporarily unavailable."); }
       }
     }
-    void refresh();
-    const timer = window.setInterval(() => void refresh(), 20000);
-    return () => { active = false; window.clearInterval(timer); };
+    // Poll faster while the rider is sharing live; slower otherwise (and pause in background tabs).
+    let timer: number | undefined;
+    const schedule = (ms: number) => { timer = window.setTimeout(async () => { await refresh(); schedule(nextDelay.current); }, ms); };
+    void refresh().then(() => schedule(nextDelay.current));
+    return () => { active = false; if (timer) window.clearTimeout(timer); };
   }, [orderId]);
 
   return (
@@ -62,19 +67,23 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
           rotate={async () => { const c = await deliveriesApi.rotateHandoverCode(delivery.id); return { code: c.handover_code, expiresAt: c.expires_at }; }}
         />
       )}
-      {delivery?.status === "in_transit" && riderPosition && (
-        <div className="space-y-2">
-          <p className="text-xs text-ink-soft">
-            Rider-reported GPS, accuracy ±{Math.round(riderPosition.accuracy_m)} m,
-            updated {new Date(riderPosition.recorded_at).toLocaleTimeString()}.
-          </p>
-          <DeliveryMap currentLat={riderPosition.latitude} currentLng={riderPosition.longitude} />
-        </div>
-      )}
+      {delivery?.status === "in_transit" && riderPosition && (() => {
+        const fresh = describeFreshness(riderPosition.freshness ?? "live", riderPosition.age_seconds);
+        return (
+          <div className="space-y-2">
+            <p className={`text-xs ${fresh.current ? "text-ink-soft" : "font-medium text-thread"}`} data-testid="rider-freshness">
+              {fresh.label}. Rider-reported GPS, accuracy ±{Math.round(riderPosition.accuracy_m)} m.
+            </p>
+            <div className={fresh.current ? "" : "opacity-60"}>
+              <DeliveryMap currentLat={riderPosition.latitude} currentLng={riderPosition.longitude} />
+            </div>
+          </div>
+        );
+      })()}
       {delivery?.status === "in_transit" && !riderPosition && (
         <p className="text-sm text-ink-soft">Your rider is not currently sharing their location.</p>
       )}
-      <p className="text-xs text-ink-soft">Delivery stages and shared GPS refresh every 20 seconds. Arrival times are not estimated.</p>
+      <p className="text-xs text-ink-soft">Updates every 10 seconds while the rider shares live, otherwise every 20 seconds.</p>
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
     </section>
   );
