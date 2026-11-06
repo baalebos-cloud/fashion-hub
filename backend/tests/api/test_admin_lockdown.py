@@ -43,9 +43,10 @@ def _sign_in(http):
     """Full first sign-in: password, set up the authenticator, enter a code."""
     step = _enrol(http)
     assert step["step"] == "enroll" and step["otpauth_uri"].startswith("otpauth://totp/")
-    done = http.post("/api/v1/auth/admin/verify",
-                     json={"challenge": step["challenge"], "code": totp.code_for(step["secret"])})
+    code = totp.code_for(step["secret"])
+    done = http.post("/api/v1/auth/admin/verify", json={"challenge": step["challenge"], "code": code})
     assert done.status_code == 200, done.text
+    _sign_in.last_code = code
     return step["secret"], done.json()
 
 
@@ -62,7 +63,8 @@ def test_owner_signs_in_with_password_and_authenticator_code(http, owner, db):
     # Later sign-ins skip setup and ask only for a code; the same code can't be replayed.
     step = _enrol(http)
     assert step["step"] == "code" and "secret" not in step
-    reused = http.post("/api/v1/auth/admin/verify", json={"challenge": step["challenge"], "code": totp.code_for(secret)})
+    # Resend the exact code already used (recomputing it could land in the next 30 s window).
+    reused = http.post("/api/v1/auth/admin/verify", json={"challenge": step["challenge"], "code": _sign_in.last_code})
     assert reused.status_code == 401
     # Refreshing keeps the admin session valid.
     refreshed = http.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]})
