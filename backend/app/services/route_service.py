@@ -218,7 +218,7 @@ def health() -> dict:
 
 # ---- entry point -------------------------------------------------------------------------------
 def route(origin: dict | None, destination: dict | None, vehicle: str | None = "bike", *,
-          cache_seconds: int | None = None) -> RouteEstimate | None:
+          cache_seconds: int | None = None, bypass_cache: bool = False) -> RouteEstimate | None:
     """Road route when a provider can give one, otherwise the labelled straight-line estimate.
     Returns None only when a point is missing."""
     if origin is None or destination is None:
@@ -233,7 +233,7 @@ def route(origin: dict | None, destination: dict | None, vehicle: str | None = "
     redis = _redis()
     key = _cache_key(provider, origin, destination, vehicle)
     try:
-        hit = redis.get(key) if redis else None
+        hit = redis.get(key) if redis and not bypass_cache else None
         if hit:
             cached = RouteEstimate(**json.loads(hit))
             cached.cached = True
@@ -271,26 +271,51 @@ def route(origin: dict | None, destination: dict | None, vehicle: str | None = "
 
 def live_route(delivery_id, origin: dict | None, destination: dict | None, vehicle: str | None) -> RouteEstimate | None:
     """Rider-to-drop-off route for live ETAs, recomputed at most once per ROUTING_LIVE_ETA_SECONDS
-    per delivery, however many people are watching. Between recomputes the last answer is served."""
+    per delivery, however many people are watching.
+
+    - A fresh live result is reused by everyone until it expires.
+    - Only one request per delivery refreshes it (a short Redis lock); the others reuse the last
+      live answer, or the labelled estimate if there's none yet, instead of calling the provider.
+    - A refresh never reads the ordinary route cache, whose traffic data can be up to 15 min old.
+    """
     if origin is None or destination is None:
         return None
     redis = _redis()
-    key = _key("live", delivery_id)
+    key, last_key, lock_key = _key("live", delivery_id), _key("live-last", delivery_id), _key("live-lock", delivery_id)
+
+    def load(k):
+        raw = redis.get(k) if redis else None
+        if not raw:
+            return None
+        cached = RouteEstimate(**json.loads(raw))
+        cached.cached = True
+        return cached
+
     try:
-        hit = redis.get(key) if redis else None
-        if hit:
-            cached = RouteEstimate(**json.loads(hit))
-            cached.cached = True
-            return cached
+        fresh = load(key)
+        if fresh is not None:
+            return fresh
+        lock_ttl = max(5, int(settings.ROUTING_TIMEOUT_SECONDS * (settings.ROUTING_RETRIES + 1)) + 2)
+        if redis is not None and not redis.set(lock_key, "1", nx=True, ex=lock_ttl):
+            # Someone else is refreshing this delivery right now.
+            return load(last_key) or straight_line_estimate(origin, destination, vehicle, "refresh_in_progress")
     except (RedisError, ValueError, TypeError):
-        pass
-    result = route(origin, destination, vehicle, cache_seconds=0)
+        redis = None  # no shared state: fall through and compute once for this request
     try:
-        if redis and result is not None:
-            redis.set(key, json.dumps(asdict(result)), ex=max(5, settings.ROUTING_LIVE_ETA_SECONDS))
+        result = route(origin, destination, vehicle, cache_seconds=0, bypass_cache=True)
+        if redis is not None and result is not None:
+            payload = json.dumps(asdict(result))
+            redis.set(key, payload, ex=max(5, settings.ROUTING_LIVE_ETA_SECONDS))
+            redis.set(last_key, payload, ex=max(60, settings.ROUTING_LIVE_ETA_SECONDS * 10))
+        return result
     except RedisError:
-        pass
-    return result
+        return result
+    finally:
+        try:
+            if redis is not None:
+                redis.delete(lock_key)
+        except RedisError:
+            pass
 
 
 def stored_route(request) -> dict | None:
