@@ -12,15 +12,15 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 2 | Atomic rider claim, one delivery per order, partner row locks | Implemented, test-verified | `InternalCourierService.accept/assign`, `test_dispatch_marketplace.py` |
 | 3 | Priced jobs (suggested fare from distance, min fare) | Implemented, test-verified | `services/dispatch_pricing.py` (#125) |
 | 4 | inDrive-style rider offers, expiry, seller choice | Implemented, test-verified | `services/dispatch_marketplace_service.py`, `delivery_offers` (0020) |
-| 5 | Customer handover OTP, HMAC-derived (not stored), Redis attempt limit | Implemented, test-verified | `services/delivery_handover.py`, `POST /deliveries/{id}/delivered` |
+| 5 | Customer handover OTP, never stored, Redis attempt limit | Implemented, test-verified (hardened in phase 6, see #19) | `services/delivery_handover.py`, `POST /deliveries/{id}/delivered` |
 | 6 | Consent-based foreground rider GPS, 90 s TTL, revocation, replay protection | Implemented, test-verified | `services/delivery_position.py` (#119) |
 | 7 | Delivery journey milestones + live ETA labelled as estimate | Implemented, test-verified | `GET /deliveries/orders/{id}/journey` (#125) |
 | 8 | Masked calling between order parties | Implemented, awaiting live provider | `services/masked_call_service.py` (#124), needs Africa's Talking account |
 | 9 | Rider online/offline, verification gate | Implemented, test-verified | `PUT /delivery-partners/me/availability`, `RiderStatusCard` (#127) |
 | 10 | Admin dispatch control centre | Implemented, test-verified (phase 2) | `services/dispatch_admin_service.py`, `/admin/dispatch/*`, `tests/api/test_dispatch_admin.py` |
 | 11 | Rider issue reports with admin triage | Implemented, test-verified (phase 2) | OPEN → INVESTIGATING → RESOLVED (note required); auto-REROUTED on release/reassign |
-| 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | `InternalCourierService.request` rejects `vendor_order`; vendor orders stall at `ready_for_pickup`; no vendor pickup location endpoint; tailor cannot confirm receipt |
-| 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Blocked by #12 | Orders are already linked (`material_order_parent`, 0010); each order has its own request/delivery |
+| 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | Vendor pickup location, vendor-order requests/offers/claims, rider pickup/handover for materials, tailor receipt; `tests/api/test_materials_delivery_leg.py` |
+| 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Partially implemented (unblocked by #12) | Each leg is dispatched and tracked on its own order (linked via `material_order_parent`, 0010); no combined view of both legs on the customer order yet |
 | 14 | Structured delivery event log with idempotency keys | Implemented, test-verified (phase 6) | `delivery_events` (0024): append-only, ordered by sequence, `Idempotency-Key` on pickup/drop-off, admin view; never stores codes |
 | 15 | Sequential auto-offers with TTL (feature-flagged) | Implemented, test-verified (phase 3); off by default | `services/auto_dispatch_service.py`, `dispatch_job_offers` (0022), `tests/api/test_auto_dispatch.py` |
 | 16 | Road-based route distance/ETA (Routes API or OSM) | Missing | Haversine × road factor only, labelled as estimate |
@@ -40,12 +40,12 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 
 | Phase | Scope | Depends on |
 |---|---|---|
-| **1 (this PR)** | Materials leg: vendor pickup location, vendor-order dispatch through the existing request/offer/claim/handover flow, rider pickup/delivery transitions for materials, tailor receipt confirmation, UI on vendor and tailor order pages | — |
+| 1 (#130) | Materials leg: vendor pickup location, vendor-order dispatch through the existing request/offer/claim/handover flow, rider pickup/delivery transitions for materials, tailor receipt confirmation, UI on vendor and tailor order pages | — |
 | 2 (#131) | Admin dispatch actions: cancel/reassign with audit log and concurrency checks; issue resolution | 1 |
 | 3 (#132) | Sequential auto-offers (feature-flagged) with TTL and reassignment via Celery | 1, 2 |
 | 4 (#133) | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |
-| 6 (this PR) | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
+| 6 (#134) | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
 | 7+ | Multi-stop, external carriers, AI recommendations | Operational data, commercial agreements |
 
 ## Security and financial boundaries (unchanged by Phase 1)
