@@ -227,7 +227,10 @@ class Settings(BaseSettings):
     def clean_sender(cls, v):
         # Dashboards make it easy to paste "Tailora <hello@x>" with the quotes or a trailing newline.
         if isinstance(v, str):
-            v = v.strip().strip('"').strip("'").strip()
+            v = v.strip()
+            # Only quotes wrapping the whole value; '"Tailora Support" <hello@x>' keeps its own.
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in {'"', "'"}:
+                v = v[1:-1].strip()
         return v
 
     @field_validator("ADMIN_EMAILS", mode="before")

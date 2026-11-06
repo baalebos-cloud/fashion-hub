@@ -12,7 +12,7 @@ from app.core.exceptions import ExternalProviderError
 
 # "hello@tailora.ng" or "Tailora <hello@tailora.ng>": the two forms Resend accepts.
 _ADDRESS = r"[^@\s<>\"']+@[^@\s<>\"']+\.[^@\s<>\"']+"
-_FROM = re.compile(rf"^(?:{_ADDRESS}|[^<>\"@]+ <{_ADDRESS}>)$")
+_FROM = re.compile(rf"^(?:{_ADDRESS}|[^<>\"@]+ <{_ADDRESS}>|\"[^\"<>]+\" <{_ADDRESS}>)$")
 _EMAIL_IN_TEXT = re.compile(r"[^@\s<>\"'`]+@[^@\s<>\"'`]+")
 
 

@@ -162,7 +162,7 @@ def test_a_reset_request_sends_that_persons_email_even_behind_a_backlog(db, make
 
 
 @pytest.mark.parametrize("value,ok", [
-    ("hello@tailora.ng", True), ("Tailora <hello@tailora.ng>", True),
+    ("hello@tailora.ng", True), ("Tailora <hello@tailora.ng>", True), ('"Tailora Support" <hello@tailora.ng>', True),
     ('"Tailora <hello@tailora.ng>"', False), ("Tailora hello@tailora.ng", False),
     ("Tailora <hello@tailora.ng", False), ("no-reply@fashionhub.example", False), ("", False),
 ])
@@ -175,6 +175,8 @@ def test_pasted_quotes_and_newlines_are_cleaned_from_the_sender(monkeypatch):
     from app.core.config import Settings
     monkeypatch.setenv("EMAIL_FROM_ADDRESS", '"Tailora <hello@tailora.ng>"\n')
     assert Settings().EMAIL_FROM_ADDRESS == "Tailora <hello@tailora.ng>"
+    monkeypatch.setenv("EMAIL_FROM_ADDRESS", '"Tailora Support" <hello@tailora.ng>')
+    assert Settings().EMAIL_FROM_ADDRESS == '"Tailora Support" <hello@tailora.ng>'  # its own quotes stay
 
 
 def test_resend_rejection_reason_is_kept_without_email_addresses(monkeypatch):
