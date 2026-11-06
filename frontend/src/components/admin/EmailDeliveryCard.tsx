@@ -11,6 +11,7 @@ interface EmailStatus {
   from?: string;
   unverified_accounts: number;
   emails_waiting: number;
+  last_error: string | null;
 }
 
 /** Admin: is outgoing email working, and send a fresh confirmation link to everyone who never confirmed. */
@@ -66,6 +67,11 @@ export function EmailDeliveryCard() {
       </div>
       {status && status.emails_waiting > 0 && (
         <p className="text-xs text-ink-soft">{status.emails_waiting} confirmation or reset emails are waiting to be sent.</p>
+      )}
+      {status?.last_error && (
+        <p className="rounded-lg bg-muslin px-3 py-2 text-xs text-thread">
+          Last refusal from the email provider: {status.last_error}
+        </p>
       )}
       {message && <p role="status" className="text-xs text-ink">{message}</p>}
       {error && <p role="alert" className="text-xs text-thread">{error}</p>}

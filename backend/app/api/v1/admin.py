@@ -463,8 +463,9 @@ def email_status(db: Session = Depends(get_db), admin: User = Depends(require_ro
     from app.services.auth_email_outbox_service import AuthEmailOutboxService
     unverified = (db.query(func.count(User.id))
                   .filter(User.is_active.is_(True), User.is_email_verified.is_(False), User.role != "admin").scalar() or 0)
+    outbox = AuthEmailOutboxService(db)
     return {**provider_status(), "unverified_accounts": unverified,
-            "emails_waiting": AuthEmailOutboxService(db).pending_count()}
+            "emails_waiting": outbox.pending_count(), "last_error": outbox.last_error()}
 
 
 @router.post("/email/verification-backfill", status_code=202)
