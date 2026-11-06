@@ -156,6 +156,10 @@ class Settings(BaseSettings):
     # Multi-stop routes (logistics phase 4): dispatchers may add a job to a busy rider's route
     # when the planned route stays within capacity and the time limit.
     DISPATCH_MULTISTOP_ENABLED: bool = False
+    # External courier companies (logistics phase 6). Comma list of enabled adapters; empty = none.
+    # "sandbox" is a pretend courier for development and is refused in production.
+    EXTERNAL_COURIERS: Annotated[List[str], NoDecode] = []
+    SANDBOX_COURIER_WEBHOOK_SECRET: Optional[str] = Field(None, repr=False)
     # Control tower alert thresholds (logistics phase 5), in minutes / km.
     DISPATCH_ALERT_UNASSIGNED_MIN: int = 15
     DISPATCH_ALERT_PICKUP_MIN: int = 30
@@ -264,6 +268,13 @@ class Settings(BaseSettings):
             if len(v) >= 2 and v[0] == v[-1] and v[0] in {'"', "'"}:
                 v = v[1:-1].strip()
         return v
+
+    @field_validator("EXTERNAL_COURIERS", mode="before")
+    @classmethod
+    def split_couriers(cls, v):
+        if isinstance(v, str):
+            v = v.split(",")
+        return [item.strip().lower() for item in (v or []) if item and item.strip()]
 
     @field_validator("ADMIN_EMAILS", mode="before")
     @classmethod

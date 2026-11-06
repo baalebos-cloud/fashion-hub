@@ -24,6 +24,7 @@ class DispatchRunSummary(BaseModel):
     order_number: str | None = None
     order_type: str | None = None
     delivery_partner_id: uuid.UUID | None = None
+    provider: str | None = None      # internal, or an outside courier company
     rider_first_name: str | None = None
     vehicle_type: str | None = None
     open_issue_count: int = 0

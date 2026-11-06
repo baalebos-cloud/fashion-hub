@@ -25,6 +25,8 @@ export interface Delivery {
   rider_vehicle_type?: string | null;
   rider_completed_deliveries?: number | null;
   rider_photo_url?: string | null;
+  /** An outside courier company delivering this order, when not a Tailora rider. */
+  courier?: string | null;
 }
 
 export interface HandoverCode {

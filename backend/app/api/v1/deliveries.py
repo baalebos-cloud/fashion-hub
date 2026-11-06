@@ -43,6 +43,15 @@ def my_active_deliveries(
             .order_by(Delivery.created_at.desc()).limit(50).all())
 
 
+def _courier_name(provider: str | None) -> str | None:
+    """Display name when an outside courier company is delivering; None for Tailora riders."""
+    if not provider or provider == "internal":
+        return None
+    from app.integrations.couriers import _ADAPTERS
+    adapter = _ADAPTERS.get(provider)
+    return adapter.display_name if adapter else provider.title()
+
+
 @router.get("/orders/{order_id}/tracking", response_model=DeliveryTrackingResponse | None)
 def customer_order_delivery(
     order_id: uuid.UUID,
@@ -78,6 +87,7 @@ def customer_order_delivery(
         "rider_vehicle_type": partner.vehicle_type if partner else None,
         "rider_completed_deliveries": completed,
         "rider_photo_url": rider.profile_photo_url if rider else None,
+        "courier": _courier_name(delivery.provider),
     }
 
 
