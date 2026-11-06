@@ -90,6 +90,16 @@ class JourneyLive(BaseModel):
     updated_at: str | None
 
 
+class MaterialsLeg(BaseModel):
+    """Vendor -> tailor leg feeding a customer order. No prices, addresses or contacts."""
+    order_id: uuid.UUID
+    vendor_name: str
+    status: str
+    label: str
+    done: bool
+    updated_at: datetime | None = None
+
+
 class DeliveryJourney(BaseModel):
     order_id: uuid.UUID
     tracking_number: str
@@ -97,6 +107,7 @@ class DeliveryJourney(BaseModel):
     delivery_status: str | None
     milestones: list[JourneyMilestone]
     live: JourneyLive | None
+    materials_legs: list[MaterialsLeg] = []
 
 
 class ReservedJob(BaseModel):

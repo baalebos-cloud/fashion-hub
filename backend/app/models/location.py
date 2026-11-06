@@ -30,3 +30,12 @@ class Location(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     state_region: Mapped[str | None] = mapped_column(String(128), nullable=True)
     country: Mapped[str | None] = mapped_column(String(128), nullable=True)
     postal_code: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    # Nigerian addressing: riders navigate by LGA, landmark and nearest bus stop.
+    lga: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    landmark: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    nearest_bus_stop: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    delivery_instructions: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+
+# Address details copied into order snapshots and rider drop-off views.
+LOCAL_ADDRESS_FIELDS = ("lga", "landmark", "nearest_bus_stop", "delivery_instructions")

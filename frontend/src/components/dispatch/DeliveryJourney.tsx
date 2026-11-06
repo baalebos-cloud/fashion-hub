@@ -64,6 +64,25 @@ export function DeliveryJourney({ orderId }: { orderId: string }) {
           );
         })}
       </ol>
+
+      {journey.materials_legs && journey.materials_legs.length > 0 && (
+        <div className="mt-4 border-t border-line pt-3" role="region" aria-label="Materials for this order">
+          <h3 className="text-sm font-medium text-ink">Materials for this order</h3>
+          <ul className="mt-2 flex flex-col gap-2">
+            {journey.materials_legs.map((leg) => (
+              <li key={leg.order_id} className="flex items-start gap-2 text-sm">
+                <span aria-hidden="true" className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${leg.done ? "bg-brass" : "border border-brass"}`} />
+                <div>
+                  <p className="text-ink">{leg.label}</p>
+                  <p className="text-xs text-ink-soft">
+                    From {leg.vendor_name}{leg.updated_at && <> · <DateTimeDisplay value={leg.updated_at} format="relative" /></>}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }

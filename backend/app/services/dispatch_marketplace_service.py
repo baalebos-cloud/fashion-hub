@@ -54,6 +54,21 @@ def _first_name(user: User | None) -> str:
     return ((user.full_name or "").strip().split(" ")[0] if user else "") or "Rider"
 
 
+# Vendor-order statuses worth showing on the customer order (unpaid checkouts are left out).
+MATERIAL_LEG_LABELS = {
+    "paid": "Materials ordered",
+    "confirmed": "Vendor confirmed the materials",
+    "processing": "Vendor is preparing the materials",
+    "ready_for_pickup": "Materials waiting for a rider",
+    "picked_up": "Materials collected by a rider",
+    "in_transit": "Materials on their way to your tailor",
+    "delivered": "Materials delivered to your tailor",
+    "received": "Your tailor has the materials",
+    "completed": "Your tailor has the materials",
+    "cancelled": "Materials order cancelled",
+    "refunded": "Materials order refunded",
+}
+
 class DispatchMarketplaceService:
     def __init__(self, db: Session):
         self.db = db
@@ -251,7 +266,36 @@ class DispatchMarketplaceService:
                     or (partner is not None and str(partner.user_id) == str(actor.id)))
         if not is_party:
             raise NotFoundError("Order not found.")
-        return self.build_journey(order, delivery, partner)
+        journey = self.build_journey(order, delivery, partner)
+        is_rider = actor.role == "delivery_partner"
+        # The materials leg (vendor -> tailor) is useful context for the customer and tailor,
+        # never for the rider of the garment leg.
+        journey["materials_legs"] = [] if is_rider else self.materials_legs(order)
+        return journey
+
+    def materials_legs(self, order: Order) -> list[dict]:
+        """Narrow status of the vendor -> tailor material orders feeding this customer order.
+        No prices, addresses or contacts: just who, how far along, and when."""
+        if order.order_type != "customer_order":
+            return []
+        from app.models.vendor import Vendor
+        children = (self.db.query(Order)
+                    .filter(Order.parent_customer_order_id == order.id, Order.order_type == "vendor_order",
+                            Order.status.in_(list(MATERIAL_LEG_LABELS)))
+                    .order_by(Order.created_at).limit(10).all())
+        legs = []
+        for child in children:
+            vendor = self.db.query(Vendor).filter_by(user_id=child.seller_user_id).first()
+            legs.append({
+                "order_id": child.id,
+                "vendor_name": vendor.business_name if vendor and vendor.business_name else "Materials vendor",
+                "status": child.status,
+                "label": MATERIAL_LEG_LABELS[child.status],
+                "done": child.status in {"delivered", "received", "completed"},
+                "updated_at": child.received_at or child.delivered_at or child.out_for_delivery_at
+                              or child.ready_at or child.paid_at or child.created_at,
+            })
+        return legs
 
     def build_journey(self, order: Order, delivery: Delivery | None = None, partner: DeliveryPartner | None = None,
                       *, resolve_current: bool = False) -> dict:

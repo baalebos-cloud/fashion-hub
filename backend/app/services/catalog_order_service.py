@@ -17,7 +17,7 @@ from app.core.timezone import utcnow
 from app.models.address import Address
 from app.models.customer import Customer
 from app.models.design import Design
-from app.models.location import Location
+from app.models.location import LOCAL_ADDRESS_FIELDS, Location
 from app.models.measurement import Measurement
 from app.models.measurement_profile import MeasurementProfile
 from app.models.order import Order
@@ -125,6 +125,7 @@ class CatalogOrderService:
                 'recipient_name': address.recipient_name, 'recipient_phone': address.recipient_phone,
                 'formatted_address': location.formatted_address, 'city': location.city,
                 'state_region': location.state_region, 'country': location.country, 'postal_code': location.postal_code,
+                **{f: getattr(location, f) for f in LOCAL_ADDRESS_FIELDS},
                 'latitude': float(location.latitude) if location.latitude is not None else None, 'longitude': float(location.longitude) if location.longitude is not None else None,
             },
             measurement_snapshot={'label': profile.label, 'garment_type': profile.garment_type,

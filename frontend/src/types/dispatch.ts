@@ -58,6 +58,17 @@ export interface DeliveryJourney {
   delivery_status: string | null;
   milestones: JourneyMilestone[];
   live: { eta_minutes: number | null; distance_remaining_km: number | null; basis: "live_gps_estimate"; updated_at: string | null } | null;
+  /** Vendor -> tailor material orders feeding a customer order. Never prices or addresses. */
+  materials_legs?: MaterialsLeg[];
+}
+
+export interface MaterialsLeg {
+  order_id: string;
+  vendor_name: string;
+  status: string;
+  label: string;
+  done: boolean;
+  updated_at: string | null;
 }
 
 /** A job Tailora reserved for this rider (auto-dispatch) until expires_at. */

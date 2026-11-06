@@ -46,3 +46,20 @@ it("requires recipient details and persists address with pin coordinates", async
   })));
   await waitFor(() => expect(saved).toHaveBeenCalled());
 });
+
+it("sends the optional LGA, landmark, bus stop and instructions riders navigate by", async () => {
+  vi.mocked(addressesApi.create).mockResolvedValue({
+    id: "a2", is_default: false, label: "Home", recipient_name: "Test Customer", recipient_phone: "08031234567",
+    formatted_address: "x", city: "Ado Ekiti", state_region: "Ekiti", country: "NG", latitude: 7.64037, longitude: 5.22104,
+  });
+  render(<DeliveryAddressForm onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByText("Select test pin"));
+  fillContact();
+  fireEvent.change(screen.getByLabelText("Local government area (LGA)"), { target: { value: "Ado-Ekiti" } });
+  fireEvent.change(screen.getByLabelText("Landmark"), { target: { value: "Behind Fajuyi Park" } });
+  fireEvent.change(screen.getByLabelText("Nearest bus stop"), { target: { value: "Okeyinmi bus stop" } });
+  fireEvent.click(screen.getByText("Save delivery address"));
+  await waitFor(() => expect(addressesApi.create).toHaveBeenCalledWith(expect.objectContaining({
+    lga: "Ado-Ekiti", landmark: "Behind Fajuyi Park", nearest_bus_stop: "Okeyinmi bus stop",
+  })));
+});

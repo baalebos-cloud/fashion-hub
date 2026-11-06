@@ -53,6 +53,10 @@ export interface DispatchWaypoint {
   address: string | null;
   latitude: number | null;
   longitude: number | null;
+  lga?: string | null;
+  landmark?: string | null;
+  nearest_bus_stop?: string | null;
+  delivery_instructions?: string | null;
   contact_name: string | null;
   /** Whether this stop can be reached through a masked in-app call. */
   can_call: boolean;

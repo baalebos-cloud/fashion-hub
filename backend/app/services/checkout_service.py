@@ -10,7 +10,7 @@ from app.core.timezone import utcnow
 from app.models.address import Address
 from app.models.cart import Cart
 from app.models.cart_item import CartItem
-from app.models.location import Location
+from app.models.location import LOCAL_ADDRESS_FIELDS, Location
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.order_timeline import OrderTimelineEntry
@@ -83,6 +83,7 @@ class CheckoutService:
                       delivery_address_snapshot=dict(recipient_name=address.recipient_name, recipient_phone=address.recipient_phone,
                           formatted_address=location.formatted_address, city=location.city, state_region=location.state_region,
                           country=location.country, postal_code=location.postal_code,
+                          **{f: getattr(location, f) for f in LOCAL_ADDRESS_FIELDS},
                           latitude=float(location.latitude) if location.latitude is not None else None, longitude=float(location.longitude) if location.longitude is not None else None), items=snapshots)
         try:
             self.db.add(order)

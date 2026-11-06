@@ -17,9 +17,17 @@ const addressFields = [
   ["country", "Country code (two uppercase letters)", "text", 2],
 ] as const;
 
+// Optional details riders use to find the door (LGA, landmark, nearest bus stop).
+const localFields = [
+  ["lga", "Local government area (LGA)", 128, "e.g. Eti-Osa"],
+  ["landmark", "Landmark", 255, "e.g. Opposite the blue mosque"],
+  ["nearest_bus_stop", "Nearest bus stop", 255, "e.g. Jakande bus stop"],
+  ["delivery_instructions", "Delivery instructions", 500, "e.g. Call at the gate"],
+] as const;
+
 export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onSaved: (address: SavedAddress) => void; initial?: SavedAddress; onSubmitAddress?: (payload: AddressInput) => Promise<SavedAddress> }) {
   const id = useId();
-  const [values, setValues] = useState<AddressInput>(() => initial ? ({ label: initial.label, recipient_name: initial.recipient_name, recipient_phone: initial.recipient_phone, formatted_address: initial.formatted_address, city: initial.city, state_region: initial.state_region, country: initial.country, postal_code: initial.postal_code, latitude: initial.latitude, longitude: initial.longitude }) : ({ label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN }));
+  const [values, setValues] = useState<AddressInput>(() => initial ? ({ label: initial.label, recipient_name: initial.recipient_name, recipient_phone: initial.recipient_phone, formatted_address: initial.formatted_address, city: initial.city, state_region: initial.state_region, country: initial.country, postal_code: initial.postal_code, lga: initial.lga, landmark: initial.landmark, nearest_bus_stop: initial.nearest_bus_stop, delivery_instructions: initial.delivery_instructions, latitude: initial.latitude, longitude: initial.longitude }) : ({ label: "Home", recipient_name: "", recipient_phone: "", formatted_address: "", city: "", state_region: "", country: "NG", latitude: Number.NaN, longitude: Number.NaN }));
   const [isResolving, setIsResolving] = useState(false);
   const hasPin = Number.isFinite(values.latitude) && Number.isFinite(values.longitude);
   function applyLocation(location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) {
@@ -60,6 +68,16 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
             onChange={(e) => setValues((previous) => ({ ...previous, [key]: e.target.value }))} />
         </div>
       ))}
+      <fieldset className="flex flex-col gap-3">
+        <legend className="mb-1 text-xs font-medium text-ink">Help your rider find you (optional)</legend>
+        {localFields.map(([key, label, max, hint]) => (
+          <div key={key}>
+            <label htmlFor={`${id}-${key}`} className="mb-1 block text-xs text-ink-soft">{label}</label>
+            <Input id={`${id}-${key}`} type="text" value={values[key] ?? ""} maxLength={max} placeholder={hint}
+              onChange={(e) => setValues((previous) => ({ ...previous, [key]: e.target.value }))} />
+          </div>
+        ))}
+      </fieldset>
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       <Button type="submit" isLoading={isSaving} disabled={!hasPin || isResolving || isSaving}>Save delivery address</Button>
     </form>
