@@ -91,6 +91,9 @@ class AuthService:
             raise UnauthorizedError("Invalid email or password.")
         if not user.is_active:
             raise UnauthorizedError("This account has been deactivated.")
+        if user.role == "admin":
+            # Admins use the two-step sign-in at /admin/login.
+            raise UnauthorizedError("Admin accounts sign in at /admin/login.")
 
         if updated_hash is not None:
             user.hashed_password = updated_hash
@@ -127,18 +130,23 @@ class AuthService:
         user = self.users.get_by_id(payload["sub"])
         if not user or not user.is_active:
             raise UnauthorizedError("User not found or inactive.")
+        is_admin = user.role == "admin"
+        if is_admin:
+            from app.core.admin_access import admin_email_allowed
+            if not session.mfa_verified or not admin_email_allowed(user.email):
+                raise UnauthorizedError("Admin session required. Sign in at /admin/login.")
 
         new_refresh = create_refresh_token(str(user.id))
         session.revoked = True
         self.db.add(RefreshSession(
             user_id=user.id, refresh_token_hash=self._hash_token(new_refresh),
-            user_agent=session.user_agent, ip_address=session.ip_address,
+            user_agent=session.user_agent, ip_address=session.ip_address, mfa_verified=session.mfa_verified,
             expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS),
         ))
         self.db.commit()
         return {
             "access_token": create_access_token(str(user.id), user.role, {
-                "password_version": password_version(user.hashed_password)
+                "password_version": password_version(user.hashed_password), **({"mfa": True} if is_admin else {}),
             }),
             "refresh_token": new_refresh, "token_type": "bearer",
         }

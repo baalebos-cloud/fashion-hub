@@ -6,10 +6,10 @@ Never hard-code secrets here. This module is imported everywhere via the
 `settings` singleton, so keep it free of side effects other than reading env.
 """
 from functools import lru_cache
-from typing import List, Optional
+from typing import Annotated, List, Optional
 
 from pydantic import Field, field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import NoDecode, BaseSettings, SettingsConfigDict
 
 from app.core.database_url import normalize_database_url
 
@@ -49,6 +49,16 @@ class Settings(BaseSettings):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 14
     PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 30
     EMAIL_VERIFICATION_TOKEN_EXPIRE_MINUTES: int = 60 * 24
+
+    # --- Admin access ---
+    # Only these emails may hold an admin session (comma-separated). In staging/production an
+    # empty list means nobody can use the admin area.
+    ADMIN_EMAILS: Annotated[List[str], NoDecode] = []  # plain comma list, not JSON
+    ADMIN_TOTP_ISSUER: str = "Tailora Admin"
+    # Railway (and most PaaS) put a proxy in front of the app; trust its client-IP headers only there.
+    TRUST_PROXY_HEADERS: bool = False
+    # Activity log (sign-ins and changes, with IP and device) is kept this long, then deleted.
+    ACTIVITY_LOG_RETENTION_DAYS: int = 180
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
@@ -211,6 +221,13 @@ class Settings(BaseSettings):
     @classmethod
     def valid_database_url(cls, value: str) -> str:
         return normalize_database_url(value)
+
+    @field_validator("ADMIN_EMAILS", mode="before")
+    @classmethod
+    def split_admin_emails(cls, v):
+        if isinstance(v, str):
+            v = [item for item in v.split(",")]
+        return [item.strip().lower() for item in (v or []) if item and item.strip()]
 
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod

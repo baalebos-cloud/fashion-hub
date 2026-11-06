@@ -15,6 +15,8 @@ interface AuthState {
   logIn: (payload: LogInPayload) => Promise<User>;
   signUp: (payload: SignUpPayload) => Promise<void>;
   logOut: () => Promise<void>;
+  /** Finish the admin two-step sign-in with the tokens it returned. */
+  completeSignIn: (tokens: { access_token: string; refresh_token: string }) => Promise<User>;
 }
 
 /**
@@ -48,6 +50,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ error: err instanceof Error ? err.message : "Login failed." });
       throw err;
     }
+  },
+
+  completeSignIn: async (tokens) => {
+    setTokens({ accessToken: tokens.access_token, refreshToken: tokens.refresh_token });
+    const user = await restoreSession();
+    if (!user) throw new Error("Could not restore your session. Please try signing in again.");
+    set({ user, isAuthenticated: true, error: null });
+    return user;
   },
 
   signUp: async (payload) => {

@@ -25,7 +25,9 @@ export function AuthGuard() {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={authRoutes.login} state={{ from: location }} replace />;
+    // Admin pages have their own two-step sign-in.
+    const target = location.pathname.startsWith("/app/admin") ? authRoutes.adminLogin : authRoutes.login;
+    return <Navigate to={target} state={{ from: location }} replace />;
   }
 
   return <Outlet />;

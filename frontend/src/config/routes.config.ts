@@ -30,6 +30,7 @@ export const authRoutes = {
   resetPassword: "/reset-password",
   verifyEmail: "/verify-email",
   callback: "/auth/callback",
+  adminLogin: "/admin/login",
 } as const;
 
 export const customerRoutes = {
@@ -144,6 +145,7 @@ export const adminRoutes = {
   disputes: "/app/admin/disputes",
   reports: "/app/admin/reports",
   auditLogs: "/app/admin/audit-logs",
+  security: "/app/admin/security",
   notifications: "/app/admin/notifications",
   settings: "/app/admin/settings",
 } as const;
