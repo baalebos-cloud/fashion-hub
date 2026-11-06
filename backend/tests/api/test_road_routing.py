@@ -207,3 +207,29 @@ def test_admin_can_see_routing_health(dispatch, make_user):
     dispatch["current"][0] = make_user(role="admin")
     body = dispatch["http"].get("/api/v1/admin/routing/health").json()
     assert body["provider"] == "none" and "straight-line" in body["note"]
+
+
+
+def test_live_refresh_ignores_the_ordinary_route_cache(google, monkeypatch):
+    fake = FakeHTTP(google_ok(5000, "600s"), google_ok(5000, "1500s"))
+    monkeypatch.setattr(route_service.httpx, "post", fake)
+    route(YABA, LEKKI, "bike")  # ordinary cache now holds the 10-minute route
+    live = route_service.live_route(uuid.uuid4(), YABA, LEKKI, "bike")
+    assert fake.calls == 2 and live.duration_minutes == 25  # fresh traffic, not the cached 10 min
+
+
+def test_only_one_viewer_refreshes_a_delivery_at_a_time(google, monkeypatch):
+    fake = FakeHTTP(google_ok(5000, "600s"))
+    monkeypatch.setattr(route_service.httpx, "post", fake)
+    delivery = uuid.uuid4()
+    redis = Redis.from_url(settings.REDIS_URL)
+    redis.set(f"routing:live-lock:{delivery}", "1", ex=30)  # another worker is mid-refresh
+    waiting = route_service.live_route(delivery, YABA, LEKKI, "bike")
+    assert fake.calls == 0 and waiting.verified is False and waiting.fallback_reason == "refresh_in_progress"
+    redis.delete(f"routing:live-lock:{delivery}")
+    fresh = route_service.live_route(delivery, YABA, LEKKI, "bike")
+    assert fake.calls == 1 and fresh.verified is True
+    route_service.Redis.from_url(settings.REDIS_URL).delete(f"routing:live:{delivery}")  # expire the fresh copy
+    redis.set(f"routing:live-lock:{delivery}", "1", ex=30)
+    reused = route_service.live_route(delivery, YABA, LEKKI, "bike")
+    assert fake.calls == 1 and reused.verified is True and reused.cached is True  # last good answer reused
