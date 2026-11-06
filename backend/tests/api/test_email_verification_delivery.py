@@ -159,3 +159,46 @@ def test_a_reset_request_sends_that_persons_email_even_behind_a_backlog(db, make
     service.send_pending(user_id=user.id)
     assert [m["to"] for m in mailbox] == ["needs-reset@example.com"]
     assert "Reset your Tailora password" == mailbox[0]["subject"]
+
+
+@pytest.mark.parametrize("value,ok", [
+    ("hello@tailora.ng", True), ("Tailora <hello@tailora.ng>", True), ('"Tailora Support" <hello@tailora.ng>', True),
+    ('"Tailora <hello@tailora.ng>"', False), ("Tailora hello@tailora.ng", False),
+    ("Tailora <hello@tailora.ng", False), ("no-reply@fashionhub.example", False), ("", False),
+])
+def test_sender_address_format_is_checked_before_sending(value, ok):
+    from app.integrations.notifications.email import sender_problem
+    assert (sender_problem(value) is None) is ok
+
+
+def test_pasted_quotes_and_newlines_are_cleaned_from_the_sender(monkeypatch):
+    from app.core.config import Settings
+    monkeypatch.setenv("EMAIL_FROM_ADDRESS", '"Tailora <hello@tailora.ng>"\n')
+    assert Settings().EMAIL_FROM_ADDRESS == "Tailora <hello@tailora.ng>"
+    monkeypatch.setenv("EMAIL_FROM_ADDRESS", '"Tailora Support" <hello@tailora.ng>')
+    assert Settings().EMAIL_FROM_ADDRESS == '"Tailora Support" <hello@tailora.ng>'  # its own quotes stay
+
+
+def test_resend_rejection_reason_is_kept_without_email_addresses(monkeypatch):
+    import httpx
+    from app.integrations.notifications import email as email_module
+    monkeypatch.setattr(settings, "EMAIL_PROVIDER", "resend")
+    monkeypatch.setattr(settings, "EMAIL_API_KEY", "re_test")
+    monkeypatch.setattr(settings, "EMAIL_FROM_ADDRESS", "Tailora <hello@tailora.ng>")
+    reply = httpx.Response(422, json={"statusCode": 422, "name": "validation_error",
+                                      "message": "The tailora.ng domain is not verified. Sender hello@tailora.ng, to kemi@example.com"})
+    monkeypatch.setattr(email_module.httpx, "post", lambda *a, **k: reply)
+    with pytest.raises(ExternalProviderError) as caught:
+        email_module.send_email(to_address="kemi@example.com", subject="s", html_body="<p>x</p>")
+    message = str(caught.value)
+    assert "HTTP 422" in message and "validation_error" in message and "domain is not verified" in message
+    assert "@" not in message
+
+
+def test_admin_sees_the_providers_last_refusal(http, db, make_user, mailbox):
+    client, current = http
+    current[0] = make_user(role="admin")
+    AuthEmailOutboxService(db).enqueue(user=make_user(email="bounce-x@example.com", is_email_verified=False), kind="verification")
+    db.commit()
+    AuthEmailOutboxService(db).send_pending()
+    assert "HTTP 422" in client.get("/api/v1/admin/email/status").json()["last_error"]

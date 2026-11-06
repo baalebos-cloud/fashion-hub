@@ -111,6 +111,14 @@ class AuthEmailOutboxService:
     def pending_count(self) -> int:
         return self._due().count()
 
+    def last_error(self) -> str | None:
+        """The provider's most recent refusal, for the admin's email card."""
+        job = (self.db.query(Notification)
+               .filter(Notification.channel == "email", Notification.event_type.in_(EVENTS),
+                       Notification.sent_at.is_(None), Notification.metadata_json["last_error"].astext.is_not(None))
+               .order_by(Notification.updated_at.desc()).first())
+        return (job.metadata_json or {}).get("last_error") if job else None
+
     def process_one(self, *, user_id=None) -> bool:
         """Send the oldest due email. Returns False when nothing is due. A provider failure
         backs that job off and returns True, so the next job still gets its turn."""
@@ -146,7 +154,8 @@ class AuthEmailOutboxService:
                 metadata["parked"] = True  # stops retrying; a resend request revives it
             job.metadata_json = metadata
             self.db.commit()
-            logger.warning("auth_email_deferred", extra={"job_id": str(job.id), "attempts": attempts})
+            logger.warning("auth_email_deferred", extra={"job_id": str(job.id), "attempts": attempts,
+                                                         "reason": metadata["last_error"]})
             raise
         job.sent_at, job.metadata_json = utcnow(), None
         self.db.commit()

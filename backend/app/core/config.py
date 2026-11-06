@@ -222,6 +222,17 @@ class Settings(BaseSettings):
     def valid_database_url(cls, value: str) -> str:
         return normalize_database_url(value)
 
+    @field_validator("EMAIL_FROM_ADDRESS", mode="before")
+    @classmethod
+    def clean_sender(cls, v):
+        # Dashboards make it easy to paste "Tailora <hello@x>" with the quotes or a trailing newline.
+        if isinstance(v, str):
+            v = v.strip()
+            # Only quotes wrapping the whole value; '"Tailora Support" <hello@x>' keeps its own.
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in {'"', "'"}:
+                v = v[1:-1].strip()
+        return v
+
     @field_validator("ADMIN_EMAILS", mode="before")
     @classmethod
     def split_admin_emails(cls, v):
