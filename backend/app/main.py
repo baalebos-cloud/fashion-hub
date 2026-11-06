@@ -15,7 +15,7 @@ from app.core.config import settings
 from app.core.database import check_database_health
 from app.core.exceptions import register_exception_handlers
 from app.core.logging import configure_logging
-from app.core.middleware import RequestContextMiddleware
+from app.core.middleware import ActivityLogMiddleware, RequestContextMiddleware
 from app.core.redis import check_redis_health
 from app.core.rate_limit import limiter
 
@@ -33,6 +33,7 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+app.add_middleware(ActivityLogMiddleware)
 app.add_middleware(RequestContextMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
@@ -43,7 +44,7 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key", "X-Device-Id"],
     expose_headers=["X-Request-ID", "Retry-After"],
 )
 

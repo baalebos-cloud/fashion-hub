@@ -349,3 +349,106 @@ def fetch_verification_document_content(document_id: UUID, request: Request,
     db.commit()
     return Response(content=media.content, media_type=media.content_type,
                     headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+# ---- Security: who is doing what, from where -------------------------------------------------
+def _activity_row(entry, user):
+    return {"id": str(entry.id), "at": entry.created_at, "event": entry.event,
+            "user_id": str(entry.user_id) if entry.user_id else None,
+            "user_name": user.full_name if user else None, "user_email": user.email if user else None,
+            "role": entry.role or (user.role if user else None),
+            "method": entry.method, "path": entry.path, "status_code": entry.status_code,
+            "ip_address": entry.ip_address, "device_id": entry.device_id, "user_agent": entry.user_agent,
+            "details": entry.details or {}}
+
+
+@router.get("/activity")
+def activity_log(
+    event: str | None = None, user_id: UUID | None = None, email: str | None = None,
+    ip: str | None = None, device_id: str | None = None, before: str | None = None,
+    limit: int = 100, db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Newest first. Filter by event, person (id or email), IP or device; page with `before`."""
+    from datetime import datetime
+    from app.models.activity_log import ActivityLog
+    query = db.query(ActivityLog, User).outerjoin(User, User.id == ActivityLog.user_id)
+    if event:
+        query = query.filter(ActivityLog.event == event)
+    if user_id:
+        query = query.filter(ActivityLog.user_id == user_id)
+    if email:
+        needle = email.strip().lower()
+        # Failed sign-ins have no user, only the email that was tried.
+        query = query.filter((User.email.ilike(f"%{needle}%")) | (ActivityLog.details["email"].astext.ilike(f"%{needle}%")))
+    if ip:
+        query = query.filter(ActivityLog.ip_address == ip.strip())
+    if device_id:
+        query = query.filter(ActivityLog.device_id == device_id.strip())
+    if before:
+        try:
+            query = query.filter(ActivityLog.created_at < datetime.fromisoformat(before))
+        except ValueError as exc:
+            raise HTTPException(422, "before must be an ISO timestamp.") from exc
+    rows = query.order_by(ActivityLog.created_at.desc(), ActivityLog.id.desc()).limit(max(1, min(limit, 200))).all()
+    return [_activity_row(entry, user) for entry, user in rows]
+
+
+@router.get("/activity/summary")
+def activity_summary(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """At-a-glance security picture for the last 24 hours."""
+    from datetime import timedelta
+    from app.core.config import settings
+    from sqlalchemy import func
+    from app.models.activity_log import ActivityLog
+    now = utcnow()
+    day, recent = now - timedelta(hours=24), now - timedelta(minutes=15)
+    def count(*conditions):
+        return db.query(func.count(ActivityLog.id)).filter(*conditions).scalar() or 0
+    failed_by_ip = (db.query(ActivityLog.ip_address, func.count(ActivityLog.id).label("n"))
+                    .filter(ActivityLog.created_at >= day,
+                            ActivityLog.event.in_(["sign_in_failed", "admin_sign_in_failed"]),
+                            ActivityLog.ip_address.is_not(None))
+                    .group_by(ActivityLog.ip_address).order_by(func.count(ActivityLog.id).desc()).limit(5).all())
+    return {
+        "active_now": db.query(func.count(func.distinct(ActivityLog.user_id)))
+                        .filter(ActivityLog.created_at >= recent, ActivityLog.user_id.is_not(None)).scalar() or 0,
+        "sign_ins_24h": count(ActivityLog.created_at >= day, ActivityLog.event.in_(["sign_in", "admin_sign_in"])),
+        "failed_sign_ins_24h": count(ActivityLog.created_at >= day,
+                                     ActivityLog.event.in_(["sign_in_failed", "admin_sign_in_failed"])),
+        "admin_sign_ins_24h": count(ActivityLog.created_at >= day, ActivityLog.event == "admin_sign_in"),
+        "distinct_ips_24h": db.query(func.count(func.distinct(ActivityLog.ip_address)))
+                              .filter(ActivityLog.created_at >= day).scalar() or 0,
+        "top_failed_ips": [{"ip_address": ip, "attempts": n} for ip, n in failed_by_ip],
+        "retention_days": settings.ACTIVITY_LOG_RETENTION_DAYS,
+    }
+
+
+@router.get("/users/{user_id}/footprint")
+def user_footprint(user_id: UUID, db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Every IP and device a person has used, with first and last seen, for tracing an account."""
+    from sqlalchemy import func
+    from app.models.activity_log import ActivityLog
+    person = db.get(User, user_id)
+    if person is None:
+        raise HTTPException(404, "User not found.")
+    def grouped(column):
+        return [{"value": value, "first_seen": first, "last_seen": last, "events": n}
+                for value, first, last, n in db.query(column, func.min(ActivityLog.created_at),
+                                                      func.max(ActivityLog.created_at), func.count(ActivityLog.id))
+                .filter(ActivityLog.user_id == user_id, column.is_not(None))
+                .group_by(column).order_by(func.max(ActivityLog.created_at).desc()).limit(50).all()]
+    return {"user": {"id": str(person.id), "name": person.full_name, "email": person.email, "role": person.role,
+                     "is_active": person.is_active},
+            "ips": grouped(ActivityLog.ip_address), "devices": grouped(ActivityLog.device_id)}
+
+
+@router.get("/audit-logs")
+def audit_logs(limit: int = 100, db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Admin and system actions (approvals, dispatch changes, ...), newest first."""
+    from app.models.audit_log import AuditLog
+    rows = (db.query(AuditLog, User).outerjoin(User, User.id == AuditLog.actor_user_id)
+            .order_by(AuditLog.created_at.desc()).limit(max(1, min(limit, 200))).all())
+    return [{"id": str(log.id), "action": log.action, "resource_type": log.resource_type,
+             "resource_id": str(log.resource_id) if log.resource_id else None,
+             "actor_email": actor.email if actor else None, "ip_address": log.ip_address,
+             "created_at": log.created_at} for log, actor in rows]

@@ -72,3 +72,5 @@ class RefreshSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     ip_address: Mapped[str | None] = mapped_column(String(64), nullable=True)
     revoked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(nullable=False)
+    # True only for sessions that passed the authenticator-app step (required for admins).
+    mfa_verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="false")

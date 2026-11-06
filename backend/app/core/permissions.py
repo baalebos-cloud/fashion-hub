@@ -46,6 +46,11 @@ def require_roles(*allowed_roles: Role):
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="You do not have permission to perform this action.",
             )
+        if current_user.role == "admin":
+            from app.core.admin_access import admin_email_allowed
+            if not admin_email_allowed(current_user.email):
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                    detail="This account is not permitted to use the admin area.")
         return current_user
 
     return _checker

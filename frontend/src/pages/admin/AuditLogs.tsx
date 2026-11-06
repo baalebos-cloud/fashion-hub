@@ -1,26 +1,27 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Table, type Column } from "@/components/ui/table";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { EmptyState } from "@/components/ui/empty-state";
+import { adminSecurityApi, type AuditEntry } from "@/api/admin-security.api";
 
-interface AuditLogRow {
-  id: string;
-  action: string;
-  resource_type: string | null;
-  created_at: string;
-}
-
-/** Read-only view of backend/app/models/audit_log.py rows. Requires a
- * `GET /admin/audit-logs` endpoint, which isn't wired up yet in
- * backend/app/api/v1/admin.py (currently a documented stub). */
+/** Admin and system actions: approvals, rejections, dispatch changes. Newest first. */
 export default function AuditLogs() {
-  const [logs] = useState<AuditLogRow[]>([]);
+  const [logs, setLogs] = useState<AuditEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    adminSecurityApi.auditLogs().then(setLogs).catch(() => setError("Couldn't load the audit log."));
+  }, []);
+
+  if (error) return <p role="alert" className="text-sm text-thread">{error}</p>;
+  if (logs === null) return <p className="text-sm text-ink-soft">Loading…</p>;
   if (logs.length === 0) return <EmptyState title="No audit log entries to show" />;
 
-  const columns: Column<AuditLogRow>[] = [
-    { header: "Action", render: (log) => log.action },
+  const columns: Column<AuditEntry>[] = [
+    { header: "Action", render: (log) => log.action.replace(".", " · ") },
     { header: "Resource", render: (log) => log.resource_type ?? "—" },
+    { header: "By", render: (log) => log.actor_email ?? "System" },
+    { header: "IP address", render: (log) => <span className="font-mono text-xs">{log.ip_address ?? "—"}</span> },
     { header: "When", render: (log) => <DateTimeDisplay value={log.created_at} format="datetime" /> },
   ];
 

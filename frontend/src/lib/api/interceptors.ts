@@ -1,11 +1,13 @@
 import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestConfig } from "axios";
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
 import { toApiError } from "./errors";
+import { getDeviceId } from "@/lib/device/device-id";
 
 export function attachRequestInterceptors(client: AxiosInstance): void {
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
     if (token) config.headers.set("Authorization", `Bearer ${token}`);
+    config.headers.set("X-Device-Id", getDeviceId());
     return config;
   });
 }

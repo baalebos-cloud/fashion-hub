@@ -5,6 +5,7 @@ import ForgotPassword from "@/pages/auth/ForgotPassword";
 import ResetPassword from "@/pages/auth/ResetPassword";
 import VerifyEmail from "@/pages/auth/VerifyEmail";
 import AuthCallback from "@/pages/auth/AuthCallback";
+import AdminLogin from "@/pages/auth/AdminLogin";
 import { authRoutes } from "@/config/routes.config";
 
 export const authRouteObjects: RouteObject[] = [
@@ -14,4 +15,5 @@ export const authRouteObjects: RouteObject[] = [
   { path: authRoutes.resetPassword, element: <ResetPassword /> },
   { path: authRoutes.verifyEmail, element: <VerifyEmail /> },
   { path: authRoutes.callback, element: <AuthCallback /> },
+  { path: authRoutes.adminLogin, element: <AdminLogin /> },
 ];

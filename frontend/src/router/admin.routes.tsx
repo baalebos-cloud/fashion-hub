@@ -18,6 +18,7 @@ import Reviews from "@/pages/admin/Reviews";
 import Disputes from "@/pages/admin/Disputes";
 import Reports from "@/pages/admin/Reports";
 import AuditLogs from "@/pages/admin/AuditLogs";
+import Security from "@/pages/admin/Security";
 import Notifications from "@/pages/admin/Notifications";
 import Settings from "@/pages/admin/Settings";
 
@@ -44,6 +45,7 @@ export const adminRouteObjects: RouteObject[] = [
   { path: "disputes", element: withLayout(Disputes) },
   { path: "reports", element: withLayout(Reports) },
   { path: "audit-logs", element: withLayout(AuditLogs) },
+  { path: "security", element: withLayout(Security) },
   { path: "notifications", element: withLayout(Notifications) },
   { path: "settings", element: withLayout(Settings) },
 ];
