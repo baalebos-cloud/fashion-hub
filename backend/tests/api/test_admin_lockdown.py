@@ -175,3 +175,27 @@ def test_browsers_may_send_the_device_id_header_cross_origin(http):
         "Access-Control-Request-Headers": "content-type,x-device-id"})
     assert preflight.status_code == 200
     assert "x-device-id" in preflight.headers["access-control-allow-headers"].lower()
+
+
+def test_resetting_the_authenticator_ends_open_admin_sessions_immediately(http, owner, db):
+    from app.models.activity_log import AdminCredential
+    _, tokens = _sign_in(http)
+    auth = _bearer(tokens["access_token"])
+    assert http.get("/api/v1/admin/activity", headers=auth).status_code == 200
+    # What `create_admin.py --reset-2fa` does after a lost phone.
+    db.query(AdminCredential).filter_by(user_id=owner.id).delete()
+    db.commit()
+    assert http.get("/api/v1/admin/activity", headers=auth).status_code == 401
+    assert http.post("/api/v1/auth/refresh", json={"refresh_token": tokens["refresh_token"]}).status_code == 401
+    # A token naming no credential never matches an admin without one either.
+    forged = create_access_token(str(owner.id), "admin", {"password_version": password_version(owner.hashed_password), "mfa": True})
+    assert http.get("/api/v1/admin/activity", headers=_bearer(forged)).status_code == 401
+
+
+def test_password_resets_are_logged_against_the_account(http, make_user, db):
+    from app.core.security import create_password_reset_token
+    customer = make_user()
+    token = create_password_reset_token(str(customer.id), customer.hashed_password)
+    assert http.post("/api/v1/auth/reset-password", json={"token": token, "new_password": "Another-Pass-123"}).status_code == 204
+    entry = db.query(ActivityLog).filter_by(event="password_reset", user_id=customer.id).one()
+    assert entry.role == "customer"

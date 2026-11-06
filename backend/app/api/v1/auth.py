@@ -99,8 +99,8 @@ def forgot_password(payload: ForgotPasswordRequest, request: Request, db: Sessio
 @limiter.limit(settings.RATE_LIMIT_AUTH)
 def reset_password(payload: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
     service = AuthService(db)
-    service.reset_password(token=payload.token, new_password=payload.new_password)
-    activity_service.record(request, "password_reset", status_code=204)
+    user = service.reset_password(token=payload.token, new_password=payload.new_password)
+    activity_service.record(request, "password_reset", user=user, status_code=204)
     return None
 
 

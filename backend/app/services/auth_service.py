@@ -133,7 +133,9 @@ class AuthService:
         is_admin = user.role == "admin"
         if is_admin:
             from app.core.admin_access import admin_email_allowed
-            if not session.mfa_verified or not admin_email_allowed(user.email):
+            from app.services.admin_auth_service import active_credential_id
+            credential_id = active_credential_id(self.db, user.id)
+            if not session.mfa_verified or not admin_email_allowed(user.email) or credential_id is None:
                 raise UnauthorizedError("Admin session required. Sign in at /admin/login.")
 
         new_refresh = create_refresh_token(str(user.id))
@@ -146,7 +148,8 @@ class AuthService:
         self.db.commit()
         return {
             "access_token": create_access_token(str(user.id), user.role, {
-                "password_version": password_version(user.hashed_password), **({"mfa": True} if is_admin else {}),
+                "password_version": password_version(user.hashed_password),
+                **({"mfa": True, "mfa_cred": credential_id} if is_admin else {}),
             }),
             "refresh_token": new_refresh, "token_type": "bearer",
         }
@@ -181,7 +184,7 @@ class AuthService:
         self.db.commit()
         self._dispatch_pending_auth_email()
 
-    def reset_password(self, *, token: str, new_password: str) -> None:
+    def reset_password(self, *, token: str, new_password: str) -> User:
         try:
             payload = decode_token(token, expected_type="password_reset")
         except (JWTError, ValueError):
@@ -196,6 +199,7 @@ class AuthService:
         user.hashed_password = hash_password(new_password)
         self.db.query(RefreshSession).filter(RefreshSession.user_id == user.id).update({"revoked": True})
         self.db.commit()
+        return user
 
     @staticmethod
     def _dispatch_pending_auth_email() -> None:

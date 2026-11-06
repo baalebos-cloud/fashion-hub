@@ -50,6 +50,13 @@ def _open(sealed: str) -> str:
         raise ExternalProviderError("Admin sign-in secret could not be read. Reset two-step sign-in.") from exc
 
 
+def active_credential_id(db: Session, user_id) -> str | None:
+    """The admin's confirmed authenticator credential. Admin tokens name it, so resetting the
+    authenticator (which deletes it) ends every admin session at once, not after token expiry."""
+    credential = db.query(AdminCredential).filter_by(user_id=user_id).first()
+    return str(credential.id) if credential and credential.totp_enabled_at else None
+
+
 _DECOY: list[str] = []
 
 
@@ -119,5 +126,6 @@ class AdminAuthService:
                                    expires_at=datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)))
         self.db.commit()
         access = create_access_token(str(user.id), user.role,
-                                     {"password_version": password_version(user.hashed_password), "mfa": True})
+                                     {"password_version": password_version(user.hashed_password), "mfa": True,
+                                      "mfa_cred": str(credential.id)})
         return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}, user

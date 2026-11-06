@@ -51,7 +51,10 @@ def get_current_user(
     if user.role == "admin":
         from app.core.admin_access import admin_email_allowed
         # Admin tokens are only minted after the authenticator-app step, for allow-listed emails.
-        if payload.get("mfa") is not True or not admin_email_allowed(user.email):
+        from app.services.admin_auth_service import active_credential_id
+        credential_id = active_credential_id(db, user.id)
+        if (payload.get("mfa") is not True or not admin_email_allowed(user.email)
+                or credential_id is None or payload.get("mfa_cred") != credential_id):
             raise HTTPException(status_code=401, detail="Admin session required. Sign in at /admin/login.")
     return user
 
