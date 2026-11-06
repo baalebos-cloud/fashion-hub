@@ -481,5 +481,5 @@ def email_verification_backfill(request: Request, background: BackgroundTasks,
     db.commit()
     from app.core.config import settings
     if settings.APP_ENV != "test":
-        background.add_task(send_in_background, None, 500)
+        background.add_task(send_in_background, None, None)  # until every queued email is sent
     return {"queued": queued}
