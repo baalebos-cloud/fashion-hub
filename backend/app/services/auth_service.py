@@ -65,8 +65,8 @@ class AuthService:
                 accepts_new_orders=True,
             ))
         from app.services.auth_email_outbox_service import AuthEmailOutboxService
-        token = create_email_verification_token(str(user.id))
-        AuthEmailOutboxService(self.db).enqueue(user=user, kind="verification", token=token)
+        # The link itself is minted when the email is sent, so it never arrives expired.
+        AuthEmailOutboxService(self.db).enqueue(user=user, kind="verification")
         self.db.commit()
         self.db.refresh(user)
 
@@ -198,6 +198,17 @@ class AuthService:
             raise ValidationAppError("Invalid or already used reset token.")
         user.hashed_password = hash_password(new_password)
         self.db.query(RefreshSession).filter(RefreshSession.user_id == user.id).update({"revoked": True})
+        self.db.commit()
+        return user
+
+    def resend_verification(self, email: str) -> User | None:
+        """Queue a fresh verification email. Silent for unknown or already verified emails,
+        so the response never reveals whether an account exists."""
+        from app.services.auth_email_outbox_service import AuthEmailOutboxService
+        user = self.users.get_by_email(email.lower().strip())
+        if not user or not user.is_active or user.is_email_verified:
+            return None
+        AuthEmailOutboxService(self.db).enqueue(user=user, kind="verification")
         self.db.commit()
         return user
 

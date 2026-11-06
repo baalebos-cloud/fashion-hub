@@ -80,6 +80,8 @@ class VerificationService:
                    document_storage_keys: list[str]) -> KYBVerification:
         if user.role not in KYB_ROLES:
             raise ForbiddenError("Business verification is for vendors, tailors and designers.")
+        from app.core.profile_photo import require_profile_photo
+        require_profile_photo(user)
         if not document_storage_keys:
             raise ValidationAppError("Upload your CAC registration certificate.")
         latest = self.latest_kyb(user.id)
@@ -124,6 +126,10 @@ class VerificationService:
         reason = (reason or "").strip() or None
         if not approve and not reason:
             raise ValidationAppError("Give a reason so the applicant knows what to fix.")
+        owner_for_photo = self.db.get(User, record.user_id if kind == "kyc" else record.business_owner_user_id)
+        if approve and owner_for_photo is not None:
+            from app.core.profile_photo import require_profile_photo
+            require_profile_photo(owner_for_photo, message="This person has no profile photo yet. Ask them to add one before approving.")
         flagged = record.identity_match is False if kind == "kyc" else record.name_match is False
         if approve and flagged and not reason:
             raise ValidationAppError("The name didn't match the official record. Add a note explaining the override.")

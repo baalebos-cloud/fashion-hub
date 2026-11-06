@@ -3,6 +3,7 @@ import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
 import { MobileNavigation } from "./MobileNavigation";
 import type { UserRole } from "@/types/auth";
+import { AccountChecklist } from "@/components/profile/AccountChecklist";
 
 /**
  * Shared shell for every authenticated dashboard (Customer, Professional,
@@ -17,7 +18,7 @@ export function DashboardLayout({ role, children }: { role: UserRole; children: 
       <div className="flex flex-1 overflow-hidden">
         <Sidebar role={role} />
         {/* Bottom padding keeps the floating "Ask Tailora" button from covering the last content. */}
-        <main className="flex-1 overflow-y-auto p-4 pb-28 lg:p-8 lg:pb-28">{children}</main>
+        <main className="flex-1 overflow-y-auto p-4 pb-28 lg:p-8 lg:pb-28"><AccountChecklist />{children}</main>
       </div>
     </div>
   );

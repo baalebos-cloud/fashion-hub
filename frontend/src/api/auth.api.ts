@@ -35,6 +35,11 @@ export const authApi = {
     await apiClient.post(endpoints.auth.logout, { refresh_token: refreshToken });
   },
 
+  /** Always succeeds from the caller's view; never reveals whether the account exists. */
+  async resendVerification(email: string): Promise<void> {
+    await apiClient.post("/auth/resend-verification", { email });
+  },
+
   async verifyEmail(token: string): Promise<void> {
     await apiClient.post(endpoints.auth.verifyEmail, { token });
   },

@@ -6,6 +6,7 @@ import { ROLE_LABELS } from "@/constants/roles";
 import { usersApi } from "@/api/users.api";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import type { User } from "@/types/user";
+import { EmailDeliveryCard } from "@/components/admin/EmailDeliveryCard";
 
 type AdminUser = User & { is_active: boolean; created_at: string | null };
 
@@ -53,6 +54,7 @@ export default function Users() {
 
   return (
     <div>
+      <EmailDeliveryCard />
       <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-xl text-ink">
           Registered users {!isLoading && <span className="ml-2 text-sm font-normal text-ink-soft">({total})</span>}

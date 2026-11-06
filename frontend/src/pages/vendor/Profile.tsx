@@ -4,6 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import type { Vendor } from "@/types/vendor";
+import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
+import { useAuthStore } from "@/store/auth.store";
 
 export default function Profile() {
   const [profile, setProfile] = useState<Vendor | null>(null);
@@ -11,6 +13,8 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((st) => st.user);
+  const refreshUser = useAuthStore((st) => st.refreshUser);
   useEffect(() => {
     let active = true;
     vendorsApi.mine().then((value) => { if (active) setProfile(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); }).finally(() => { if (active) setLoading(false); });
@@ -24,6 +28,11 @@ export default function Profile() {
   }
   return <div className="flex max-w-lg flex-col gap-4">
     <h1 className="font-display text-xl">Vendor business profile</h1>
+    <div className="flex flex-col gap-1">
+      <p className="text-sm font-medium text-ink">Profile photo <span className="text-ink-soft">(required)</span></p>
+      <p className="text-xs text-ink-soft">A clear photo of you or your shop front. Customers and riders see it.</p>
+      <ProfilePhoto currentUrl={user?.profile_photo_url} onUploaded={() => void refreshUser()} />
+    </div>
     {loading ? <p role="status">Loading profile…</p> : profile ? <>
       <p>{profile.business_name}</p><p>{profile.is_verified ? "Verified — active products can appear in the marketplace." : "Awaiting administrator verification. Products stay private until verification."}</p>
     </> : <>

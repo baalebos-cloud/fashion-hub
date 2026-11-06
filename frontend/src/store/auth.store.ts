@@ -17,6 +17,8 @@ interface AuthState {
   logOut: () => Promise<void>;
   /** Finish the admin two-step sign-in with the tokens it returned. */
   completeSignIn: (tokens: { access_token: string; refresh_token: string }) => Promise<User>;
+  /** Re-read the signed-in user after a profile change (photo, name). */
+  refreshUser: () => Promise<void>;
 }
 
 /**
@@ -58,6 +60,11 @@ export const useAuthStore = create<AuthState>((set) => ({
     if (!user) throw new Error("Could not restore your session. Please try signing in again.");
     set({ user, isAuthenticated: true, error: null });
     return user;
+  },
+
+  refreshUser: async () => {
+    const user = await restoreSession();
+    if (user) set({ user });
   },
 
   signUp: async (payload) => {
