@@ -93,8 +93,9 @@ def verify_email(payload: VerifyEmailRequest, db: Session = Depends(get_db)):
 def forgot_password(payload: ForgotPasswordRequest, request: Request, background: BackgroundTasks,
                     db: Session = Depends(get_db)):
     service = AuthService(db)
-    service.request_password_reset(payload.email)
-    _send_now(background)
+    user = service.request_password_reset(payload.email)
+    if user is not None:
+        _send_now(background, user.id)  # this person's email, not whatever is oldest in the queue
     return {"message": "If an account with that email exists, a reset link has been sent."}
 
 

@@ -136,3 +136,26 @@ def test_admin_can_email_everyone_who_never_confirmed(http, db, make_user, monke
     # Running it again doesn't double up anyone still waiting.
     again = client.post("/api/v1/admin/email/verification-backfill").json()["queued"]
     assert db.query(Notification).filter_by(event_type="auth.email_verification", sent_at=None).count() <= again
+
+
+def test_send_everything_drains_past_the_old_batch_size(db, make_user, mailbox):
+    service = AuthEmailOutboxService(db)
+    for _ in range(25):
+        service.enqueue(user=make_user(is_email_verified=False), kind="verification")
+    db.commit()
+    assert service.send_pending(limit=None) == {"sent": 25, "failed": 0}
+    assert service.pending_count() == 0
+
+
+def test_a_reset_request_sends_that_persons_email_even_behind_a_backlog(db, make_user, mailbox, monkeypatch):
+    from app.services.auth_service import AuthService
+    service = AuthEmailOutboxService(db)
+    for _ in range(25):  # older emails waiting
+        service.enqueue(user=make_user(is_email_verified=False), kind="verification")
+    db.commit()
+    person = make_user(email="needs-reset@example.com")
+    user = AuthService(db).request_password_reset("needs-reset@example.com")
+    assert user.id == person.id
+    service.send_pending(user_id=user.id)
+    assert [m["to"] for m in mailbox] == ["needs-reset@example.com"]
+    assert "Reset your Tailora password" == mailbox[0]["subject"]
