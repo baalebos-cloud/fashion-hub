@@ -24,13 +24,7 @@ def main():
         service = AuthEmailOutboxService(db)
         queued = service.queue_for_unverified()
         print(f"Queued {queued} confirmation emails. Sending...")
-        totals = {"sent": 0, "failed": 0}
-        while True:
-            result = service.send_pending(limit=50)
-            totals["sent"] += result["sent"]
-            totals["failed"] += result["failed"]
-            if result["sent"] == 0:
-                break
+        totals = service.send_pending(limit=None)
         print(f"Sent {totals['sent']}. Not accepted by the provider: {totals['failed']} (retried automatically).")
 
 

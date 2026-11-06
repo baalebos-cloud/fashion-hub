@@ -173,16 +173,17 @@ class AuthService:
         user.is_email_verified = True
         self.db.commit()
 
-    def request_password_reset(self, email: str) -> None:
+    def request_password_reset(self, email: str) -> User | None:
         user = self.users.get_by_email(email.lower().strip())
         if not user:
             # Do not reveal whether the email exists.
-            return
+            return None
         from app.services.auth_email_outbox_service import AuthEmailOutboxService
         token = create_password_reset_token(str(user.id), user.hashed_password)
         AuthEmailOutboxService(self.db).enqueue(user=user, kind="password_reset", token=token)
         self.db.commit()
         self._dispatch_pending_auth_email()
+        return user
 
     def reset_password(self, *, token: str, new_password: str) -> User:
         try:

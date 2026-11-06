@@ -33,6 +33,7 @@ KINDS = {
 }
 EVENTS = [info[0] for info in KINDS.values()]
 MAX_ATTEMPTS = 8
+MAX_BATCH = 20000  # safety stop for "send everything" runs
 
 
 def _cipher():
@@ -151,11 +152,12 @@ class AuthEmailOutboxService:
         self.db.commit()
         return True
 
-    def send_pending(self, *, user_id=None, limit: int = 20) -> dict:
-        """Send due emails now. Stops early if the provider is failing for everyone."""
+    def send_pending(self, *, user_id=None, limit: int | None = 20) -> dict:
+        """Send due emails now; `limit=None` keeps going until nothing is due. Stops early if
+        the provider is failing for everyone."""
         from app.core.exceptions import ExternalProviderError
         sent = failed = 0
-        for _ in range(max(1, limit)):
+        for _ in range(MAX_BATCH if limit is None else max(1, limit)):
             try:
                 if not self.process_one(user_id=user_id):
                     break
@@ -178,7 +180,7 @@ class AuthEmailOutboxService:
         return len(users)
 
 
-def send_in_background(user_id=None, limit: int = 20) -> None:
+def send_in_background(user_id=None, limit: int | None = 20) -> None:
     """Run after the response is sent (FastAPI BackgroundTasks), in its own session."""
     from app.core.database import SessionLocal
     db = SessionLocal()
