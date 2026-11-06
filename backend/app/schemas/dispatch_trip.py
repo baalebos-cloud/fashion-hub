@@ -26,4 +26,6 @@ class DeliveryTripResponse(BaseModel):
     dropoff: DispatchWaypoint
     straight_line_km: float | None = None
     distance_source: str = "haversine"
+    # Pickup -> drop-off road route (with the line to draw), only for parties to the order.
+    route: dict | None = None
     # Haversine is a distance bound, not actual driving distance or ETA.

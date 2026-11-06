@@ -149,11 +149,35 @@ class InternalCourierService:
             proposed_fee=self._suggested_fee(order, pickup_snapshot, dropoff_snapshot),
             status="requested",
         )
+        self._attach_route(request, order, pickup_snapshot, dropoff_snapshot)
         self.db.add(request)
         self.db.commit()
         self.db.refresh(request)
         self._start_auto_offers(request.id)
         return request
+
+    @staticmethod
+    def _attach_route(request, order, pickup, dropoff) -> None:
+        """Compute the pickup -> drop-off road route once and keep it on the request. Never
+        blocks the request: a routing failure stores the labelled straight-line estimate."""
+        from app.services import route_service
+        try:
+            estimate = route_service.route(validate_point(pickup.latitude, pickup.longitude),
+                                           validate_point(dropoff.latitude, dropoff.longitude), "bike")
+        except Exception as exc:  # noqa: BLE001 - bad pins: no route, the request still goes out
+            logger.warning("route_attach_failed", extra={"error_type": type(exc).__name__})
+            return
+        if estimate is None:
+            return
+        request.route_distance_km = estimate.distance_km
+        request.route_duration_minutes = estimate.duration_minutes
+        request.route_source = estimate.source
+        request.route_polyline = estimate.polyline
+        request.route_computed_at = utcnow()
+        if (settings.DISPATCH_PRICE_FROM_ROAD_ROUTES and estimate.verified
+                and not (order.delivery_fee and float(order.delivery_fee) > 0)):
+            from app.services.dispatch_pricing import suggested_fare_for_road_km
+            request.proposed_fee = suggested_fare_for_road_km(estimate.distance_km)
 
     def _start_auto_offers(self, request_id) -> None:
         from app.services.auto_dispatch_service import AutoDispatchService, auto_offers_enabled
@@ -276,6 +300,7 @@ class InternalCourierService:
 
     def trip(self, *, delivery_id, actor):
         """Fulfillment contacts and exact pins are available only to parties on this order."""
+        from app.services import route_service
         delivery = self.get(delivery_id=delivery_id, actor=actor)
         request = self.db.get(DeliveryRequest, delivery.delivery_request_id)
         if request is None:
@@ -309,6 +334,8 @@ class InternalCourierService:
                                  or (address.recipient_phone if address else None)),
             },
             "straight_line_km": estimate_straight_line_km(origin, destination),
+            "route": ({**route_service.stored_route(request), "polyline": request.route_polyline}
+                      if route_service.stored_route(request) else None),
             "distance_source": "haversine",
         }
 

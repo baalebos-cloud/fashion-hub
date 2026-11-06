@@ -31,6 +31,7 @@ from app.models.order import Order
 from app.models.user import User
 from app.services.dispatch_pricing import eta_minutes, offer_bounds, road_km, suggested_fare
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
+from app.services.route_service import stored_route
 from app.services.internal_courier_service import InternalCourierService, is_dispatchable
 
 
@@ -118,6 +119,8 @@ class DispatchMarketplaceService:
             "suggested_fare": float(fare), "currency": "NGN",
             "offer_min": float(low), "offer_max": float(high),
             "approx_road_km": road_km(km),
+            # Distance and time only: the route line would reveal exact addresses before claiming.
+            "route": stored_route(request),
             "pickup_area": _area(pickup), "dropoff_area": _area(dropoff),
             "posted_at": request.created_at,
             "my_offer": ({"id": mine.id, "amount": float(mine.amount), "status": mine.status,
@@ -218,7 +221,8 @@ class DispatchMarketplaceService:
                           "expires_at": offer.expires_at, "rider": self._rider_card(partner)})
         return {"request": {"id": request.id, "status": request.status,
                             "suggested_fare": float(self._fare(request, km)),
-                            "approx_road_km": road_km(km), "currency": "NGN"},
+                            "approx_road_km": road_km(km), "currency": "NGN",
+                            "route": stored_route(request)},
                 "offers": cards}
 
     def accept_offer(self, *, offer_id, actor) -> Delivery:
@@ -347,11 +351,15 @@ class DispatchMarketplaceService:
             position = read_position(delivery.id)
             dropoff = self.db.get(Location, request.dropoff_location_id) if request else None
             if position and _point(dropoff):
-                km = estimate_straight_line_km(
-                    {"latitude": float(position["latitude"]), "longitude": float(position["longitude"])},
-                    _point(dropoff))
-                live = {"eta_minutes": eta_minutes(km, partner.vehicle_type if partner else None),
-                        "distance_remaining_km": road_km(km), "basis": "live_gps_estimate",
+                from app.services.route_service import live_route
+                estimate = live_route(delivery.id,
+                                      {"latitude": float(position["latitude"]), "longitude": float(position["longitude"])},
+                                      _point(dropoff), partner.vehicle_type if partner else None)
+                live = {"eta_minutes": estimate.duration_minutes, "distance_remaining_km": estimate.distance_km,
+                        # road_route: a real routing provider; live_gps_estimate: straight-line fallback.
+                        "basis": "road_route" if estimate.verified else "live_gps_estimate",
+                        "route_source": estimate.source, "traffic_aware": estimate.traffic_aware,
+                        "route_computed_at": estimate.computed_at,
                         "updated_at": position.get("recorded_at")}
         return {"order_id": order.id, "tracking_number": order.order_number,
                 "status": order.status, "delivery_status": delivery.status if delivery else None,

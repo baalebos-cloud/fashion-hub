@@ -484,3 +484,11 @@ def email_verification_backfill(request: Request, background: BackgroundTasks,
     if settings.APP_ENV != "test":
         background.add_task(send_in_background, None, None)  # until every queued email is sent
     return {"queued": queued}
+
+
+
+@router.get("/routing/health")
+def routing_health(admin: User = Depends(require_roles(Role.ADMIN))):
+    """Which road-routing provider is in use, is it answering, and is it paused after failures."""
+    from app.services.route_service import health
+    return health()

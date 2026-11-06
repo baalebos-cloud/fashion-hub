@@ -7,7 +7,9 @@ request can be rejected/re-broadcast to another partner without losing the
 audit trail of who rejected it and why.
 """
 import uuid
-from sqlalchemy import Numeric, String, Text
+from datetime import datetime
+
+from sqlalchemy import DateTime, Integer, Numeric, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,3 +27,9 @@ class DeliveryRequest(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     proposed_fee: Mapped[float | None] = mapped_column(Numeric(12, 2), nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="requested", index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Pickup -> drop-off route, computed once when the rider is requested (logistics phase 1).
+    route_distance_km: Mapped[float | None] = mapped_column(Numeric(8, 1), nullable=True)
+    route_duration_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    route_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    route_polyline: Mapped[str | None] = mapped_column(Text, nullable=True)
+    route_computed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

@@ -1,3 +1,5 @@
+import type { RouteSummary } from "@/lib/utils/route";
+
 export interface MyOffer {
   id: string;
   amount: number;
@@ -16,6 +18,7 @@ export interface DispatchJob {
   offer_min: number;
   offer_max: number;
   approx_road_km: number | null;
+  route?: RouteSummary | null;
   pickup_area: string | null;
   dropoff_area: string | null;
   posted_at: string;
@@ -40,7 +43,7 @@ export interface SellerOffer {
 }
 
 export interface SellerDispatchView {
-  request: { id: string; status: string; suggested_fare: number; approx_road_km: number | null; currency: string } | null;
+  request: { id: string; status: string; suggested_fare: number; approx_road_km: number | null; currency: string; route?: RouteSummary | null } | null;
   offers: SellerOffer[];
 }
 
@@ -57,7 +60,7 @@ export interface DeliveryJourney {
   status: string;
   delivery_status: string | null;
   milestones: JourneyMilestone[];
-  live: { eta_minutes: number | null; distance_remaining_km: number | null; basis: "live_gps_estimate"; updated_at: string | null } | null;
+  live: { eta_minutes: number | null; distance_remaining_km: number | null; basis: "live_gps_estimate" | "road_route"; traffic_aware?: boolean; updated_at: string | null } | null;
   /** Vendor -> tailor material orders feeding a customer order. Never prices or addresses. */
   materials_legs?: MaterialsLeg[];
 }

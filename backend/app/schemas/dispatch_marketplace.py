@@ -14,6 +14,18 @@ class MyOffer(BaseModel):
     expires_at: datetime
 
 
+class RouteSummary(BaseModel):
+    """A road route from a routing provider, or the labelled straight-line estimate."""
+    distance_km: float | None
+    duration_minutes: int | None
+    source: str
+    verified: bool
+    traffic_aware: bool = False
+    computed_at: str | None = None
+    cached: bool = False
+    fallback_reason: str | None = None
+
+
 class DispatchJob(BaseModel):
     """What a rider sees before claiming: no exact addresses, contacts or names."""
     id: uuid.UUID
@@ -24,6 +36,7 @@ class DispatchJob(BaseModel):
     offer_min: float
     offer_max: float
     approx_road_km: float | None
+    route: RouteSummary | None = None
     pickup_area: str | None
     dropoff_area: str | None
     posted_at: datetime
@@ -69,6 +82,7 @@ class SellerDispatchRequest(BaseModel):
     suggested_fare: float
     approx_road_km: float | None
     currency: str
+    route: RouteSummary | None = None
 
 
 class SellerDispatchView(BaseModel):
@@ -86,7 +100,10 @@ class JourneyMilestone(BaseModel):
 class JourneyLive(BaseModel):
     eta_minutes: int | None
     distance_remaining_km: float | None
-    basis: Literal["live_gps_estimate"]
+    basis: Literal["live_gps_estimate", "road_route"]
+    route_source: str | None = None
+    traffic_aware: bool = False
+    route_computed_at: str | None = None
     updated_at: str | None
 
 
