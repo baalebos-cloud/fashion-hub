@@ -97,7 +97,9 @@ class AutoDispatchService:
             return _point(self.db.get(Location, user.home_location_id))
         return None
 
-    def ranked_candidates(self, request: DeliveryRequest) -> list[tuple[DeliveryPartner, float | None]]:
+    def eligible_candidates(self, request: DeliveryRequest) -> list[tuple[DeliveryPartner, dict | None]]:
+        """Hard constraints only: verified, online, has a vehicle, active account, not busy, not
+        already offered or holding another reservation, and within the radius when located."""
         already = self.db.query(DispatchJobOffer.delivery_partner_id).filter(
             DispatchJobOffer.delivery_request_id == request.id)
         busy = self.db.query(Delivery.delivery_partner_id).filter(
@@ -111,23 +113,36 @@ class AutoDispatchService:
                         DeliveryPartner.id.notin_(already), DeliveryPartner.id.notin_(busy),
                         DeliveryPartner.id.notin_(reserving))
                 .all())
-        if not rows:
-            return []
-        completed = dict(self.db.query(Delivery.delivery_partner_id, func.count(Delivery.id))
-                         .filter(Delivery.status == "delivered",
-                                 Delivery.delivery_partner_id.in_([p.id for p, _ in rows]))
-                         .group_by(Delivery.delivery_partner_id).all())
         pickup = _point(self.db.get(Location, request.pickup_location_id))
-        scored = []
+        eligible = []
         for partner, user in rows:
             base = self._base_location(partner, user)
             distance = estimate_straight_line_km(base, pickup) if base and pickup else None
             if distance is not None and distance > settings.DISPATCH_AUTO_OFFER_RADIUS_KM:
                 continue
+            eligible.append((partner, base))
+        return eligible
+
+    def ranked_candidates(self, request: DeliveryRequest, *, smart: bool | None = None) -> list[tuple]:
+        """(partner, straight-line km, score record or None), best first."""
+        eligible = self.eligible_candidates(request)
+        if not eligible:
+            return []
+        pickup = _point(self.db.get(Location, request.pickup_location_id))
+        if settings.DISPATCH_SMART_SCORING_ENABLED if smart is None else smart:
+            from app.services.dispatch_scoring import score_riders
+            return [(s.partner, s.straight_line_km, s.record()) for s in score_riders(self.db, eligible, pickup)]
+        completed = dict(self.db.query(Delivery.delivery_partner_id, func.count(Delivery.id))
+                         .filter(Delivery.status == "delivered",
+                                 Delivery.delivery_partner_id.in_([p.id for p, _ in eligible]))
+                         .group_by(Delivery.delivery_partner_id).all())
+        scored = []
+        for partner, base in eligible:
+            distance = estimate_straight_line_km(base, pickup) if base and pickup else None
             scored.append((partner, distance, float(partner.average_rating or 0), int(completed.get(partner.id, 0))))
-        # Known distance first (nearest), then rating, then experience; stable on id.
+        # Original order: known distance first (nearest), then rating, then experience; stable on id.
         scored.sort(key=lambda s: (s[1] is None, s[1] if s[1] is not None else 0, -s[2], -s[3], str(s[0].id)))
-        return [(partner, distance) for partner, distance, _, _ in scored]
+        return [(partner, distance, None) for partner, distance, _, _ in scored]
 
     # ---- writes ---------------------------------------------------------------
     def offer_next(self, request_id) -> DispatchJobOffer | None:
@@ -153,9 +168,10 @@ class AutoDispatchService:
         if not candidates:
             self.db.rollback()
             return None
-        partner, distance = candidates[0]
+        partner, distance, record = candidates[0]
         offer = DispatchJobOffer(delivery_request_id=request.id, delivery_partner_id=partner.id,
                                  status="offered", attempt=attempts + 1, distance_km=distance,
+                                 score=record["score"] if record else None, score_details=record,
                                  expires_at=utcnow() + timedelta(seconds=settings.DISPATCH_AUTO_OFFER_TTL_SECONDS))
         self.db.add(offer)
         self.db.add(Notification(

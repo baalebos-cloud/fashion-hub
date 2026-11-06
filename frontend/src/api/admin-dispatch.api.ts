@@ -51,7 +51,25 @@ export interface DeliveryEvent {
   created_at: string;
 }
 
+export interface RiderSuggestion {
+  partner_id: string;
+  first_name: string;
+  vehicle_type: string | null;
+  rating: number;
+  score: number;
+  pickup_eta_minutes: number | null;
+  eta_source: string | null;
+  explanation: string;
+  version: string;
+}
+
 export const adminDispatchApi = {
+  async candidates(requestId: string): Promise<RiderSuggestion[]> {
+    return (await apiClient.get<RiderSuggestion[]>(`/admin/dispatch/requests/${requestId}/candidates`)).data;
+  },
+  async assignWaiting(requestId: string, partnerId: string, reason: string): Promise<void> {
+    await apiClient.post(`/admin/dispatch/requests/${requestId}/assign`, { partner_id: partnerId, reason });
+  },
   async events(deliveryId: string): Promise<DeliveryEvent[]> {
     return (await apiClient.get<DeliveryEvent[]>(`/admin/dispatch/deliveries/${deliveryId}/events`)).data;
   },

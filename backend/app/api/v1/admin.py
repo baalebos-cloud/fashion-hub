@@ -170,6 +170,24 @@ def dispatch_reassign(delivery_id: UUID, payload: ReassignRequest, request: Requ
     return {"delivery_id": str(delivery.id), "status": delivery.status}
 
 
+@router.get("/dispatch/requests/{request_id}/candidates")
+def dispatch_candidates(request_id: UUID, db: Session = Depends(get_db),
+                        admin: User = Depends(require_roles(Role.ADMIN))):
+    """Suggested riders for a waiting job, best first, each with a score and the reasons."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    return DispatchAdminService(db).suggest_riders(request_id=request_id)
+
+
+@router.post("/dispatch/requests/{request_id}/assign")
+def dispatch_assign_waiting(request_id: UUID, payload: ReassignRequest, request: Request,
+                            db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Dispatcher picks the rider for a waiting job (overrides automatic offers)."""
+    from app.services.dispatch_admin_service import DispatchAdminService
+    delivery = DispatchAdminService(db).assign_waiting(request_id=request_id, partner_id=payload.partner_id,
+                                                      admin=admin, reason=payload.reason, ip=_client_ip(request))
+    return {"delivery_id": str(delivery.id), "status": delivery.status}
+
+
 @router.post("/dispatch/requests/{request_id}/cancel")
 def dispatch_cancel_request(request_id: UUID, payload: DispatchActionReason, request: Request,
                             db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
