@@ -20,6 +20,17 @@ from app.services.internal_courier_service import InternalCourierService
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
 
 
+@router.get("/mine/route")
+def my_route(user: User = Depends(require_roles(Role.DELIVERY_PARTNER)), db: Session = Depends(get_db)):
+    """The rider's planned stop order across their current deliveries (multi-stop), or null."""
+    from app.models.delivery_batch import DeliveryBatch
+    from app.services.batch_service import batch_view
+    partner = db.query(DeliveryPartner).filter_by(user_id=user.id).first()
+    if partner is None:
+        return None
+    return batch_view(db.query(DeliveryBatch).filter_by(delivery_partner_id=partner.id, status="active").first())
+
+
 @router.get("/mine/active", response_model=list[DeliveryResponse])
 def my_active_deliveries(
     user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),

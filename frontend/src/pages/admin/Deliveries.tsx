@@ -7,6 +7,7 @@ import { DispatchAction } from "@/components/dispatch/DispatchAction";
 import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
 import { RoutingHealth } from "@/components/admin/RoutingHealth";
 import { SuggestedRiders } from "@/components/dispatch/SuggestedRiders";
+import { RiderRouteToggle } from "@/components/dispatch/RiderRouteToggle";
 import { describeFreshness } from "@/lib/utils/tracking";
 
 const ISSUE_LABEL: Record<string, string> = {
@@ -185,6 +186,7 @@ export default function Deliveries() {
                     </div>
                   )}
                   <DeliveryEventLog deliveryId={run.id} />
+                  {run.delivery_partner_id && <RiderRouteToggle partnerId={run.delivery_partner_id} />}
                 </Card>
               );
             })}

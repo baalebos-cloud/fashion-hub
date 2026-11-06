@@ -514,4 +514,7 @@ class InternalCourierService:
             ))
         self.db.commit()
         self.db.refresh(delivery)
+        from app.services.batch_service import replan_quietly
+        replan_quietly(self.db, partner.id)  # the route changes after every pickup and drop-off
+        self.db.refresh(delivery)
         return delivery

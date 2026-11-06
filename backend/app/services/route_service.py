@@ -303,3 +303,81 @@ def stored_route(request) -> dict | None:
             "traffic_aware": request.route_source == "google_routes",
             "computed_at": request.route_computed_at.isoformat() if request.route_computed_at else None,
             "cached": True, "fallback_reason": None}
+
+
+# ---- travel-time matrix (multi-stop planning) ------------------------------------------------
+def _estimate_matrix(points: list[dict], vehicle: str | None) -> list[list[int]]:
+    return [[0 if i == j else (straight_line_estimate(a, b, vehicle, None).duration_minutes or 1)
+             for j, b in enumerate(points)] for i, a in enumerate(points)]
+
+
+def _google_matrix(points: list[dict], vehicle: str | None) -> list[list[int]]:
+    if not settings.ROUTING_GOOGLE_API_KEY:
+        raise RoutingUnavailable("ROUTING_GOOGLE_API_KEY is not set")
+    waypoints = [{"waypoint": {"location": {"latLng": {"latitude": p["latitude"], "longitude": p["longitude"]}}}}
+                 for p in points]
+    body = {"origins": waypoints, "destinations": waypoints, "travelMode": "DRIVE"}
+    if len(points) ** 2 <= 100:  # Google allows at most 100 elements with live traffic
+        body["routingPreference"] = "TRAFFIC_AWARE"
+    response = httpx.post("https://routes.googleapis.com/distanceMatrix/v2:computeRouteMatrix", json=body,
+                          headers={"X-Goog-Api-Key": settings.ROUTING_GOOGLE_API_KEY,
+                                   "X-Goog-FieldMask": "originIndex,destinationIndex,duration,condition"},
+                          timeout=settings.ROUTING_TIMEOUT_SECONDS * 2)
+    _raise_for_status(response)
+    fallback = _estimate_matrix(points, vehicle)
+    matrix = [row[:] for row in fallback]
+    for element in response.json() or []:
+        i, j = element.get("originIndex", 0), element.get("destinationIndex", 0)
+        if element.get("condition") == "ROUTE_EXISTS" and "duration" in element:
+            matrix[i][j] = 0 if i == j else max(1, round(float(str(element["duration"]).rstrip("s")) / 60))
+    return matrix
+
+
+def _osrm_matrix(points: list[dict], vehicle: str | None) -> list[list[int]]:
+    if not settings.ROUTING_OSRM_URL:
+        raise RoutingUnavailable("ROUTING_OSRM_URL is not set")
+    coords = ";".join(f"{p['longitude']},{p['latitude']}" for p in points)
+    profile = "foot" if vehicle == "foot" else "driving"
+    response = httpx.get(f"{settings.ROUTING_OSRM_URL.rstrip('/')}/table/v1/{profile}/{coords}",
+                         params={"annotations": "duration"}, timeout=settings.ROUTING_TIMEOUT_SECONDS * 2)
+    _raise_for_status(response)
+    durations = (response.json() or {}).get("durations")
+    if not durations:
+        raise RoutingUnavailable("osrm_table_empty")
+    fallback = _estimate_matrix(points, vehicle)
+    return [[0 if i == j else (max(1, round(cell / 60)) if cell is not None else fallback[i][j])
+             for j, cell in enumerate(row)] for i, row in enumerate(durations)]
+
+
+MATRIX_PROVIDERS = {"google": _google_matrix, "osrm": _osrm_matrix}
+
+
+def travel_matrix(points: list[dict], vehicle: str | None = "bike") -> tuple[list[list[int]], str]:
+    """Minutes between every pair of points, and where they came from. Falls back to the labelled
+    straight-line estimate (source "straight_line_estimate") exactly like route()."""
+    provider = settings.ROUTING_PROVIDER
+    fetch = MATRIX_PROVIDERS.get(provider)
+    if fetch is None or len(points) < 2 or breaker_open(provider):
+        return _estimate_matrix(points, vehicle), SOURCE_ESTIMATE
+    redis = _redis()
+    key = _key("matrix", provider, vehicle or "bike", "|".join(f"{p['latitude']:.4f},{p['longitude']:.4f}" for p in points))
+    try:
+        hit = redis.get(key) if redis else None
+        if hit:
+            return json.loads(hit), "google_routes" if provider == "google" else "osrm"
+    except (RedisError, ValueError):
+        pass
+    started = time.monotonic()
+    try:
+        matrix = fetch(points, vehicle)
+    except (RoutingUnavailable, httpx.TimeoutException, httpx.TransportError, ValueError, KeyError) as exc:
+        _record_failure(provider, str(exc) if isinstance(exc, RoutingUnavailable) else type(exc).__name__.lower())
+        return _estimate_matrix(points, vehicle), SOURCE_ESTIMATE
+    _record_success(provider, round((time.monotonic() - started) * 1000))
+    try:
+        if redis:
+            redis.set(key, json.dumps(matrix), ex=settings.ROUTING_TRAFFIC_CACHE_SECONDS if provider == "google"
+                      else settings.ROUTING_CACHE_SECONDS)
+    except RedisError:
+        pass
+    return matrix, "google_routes" if provider == "google" else "osrm"

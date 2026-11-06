@@ -7,6 +7,7 @@ import { Greeting } from "@/components/common/Greeting";
 import { QuickActions } from "@/components/common/QuickActions";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { RiderStatusCard } from "@/components/delivery/RiderStatusCard";
+import { RiderRoute } from "@/components/delivery/RiderRoute";
 import { deliveryRoutes } from "@/config/routes.config";
 import { formatNaira } from "@/lib/formatters/currency";
 import type { DashboardSummaryCard } from "@/types/dashboard";
@@ -25,6 +26,7 @@ export default function Dashboard() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <Greeting subtitle="Your deliveries at a glance." />
       <RiderStatusCard />
+      <RiderRoute />
 
       {active.length > 0 && (
         <section aria-labelledby="active-heading" className="flex flex-col gap-3">

@@ -153,6 +153,11 @@ class Settings(BaseSettings):
     # nearest by straight line, then rating, then experience.
     DISPATCH_SMART_SCORING_ENABLED: bool = False
     DISPATCH_SCORING_ROUTE_TOP_N: int = 5   # road ETAs computed for at most this many riders per offer
+    # Multi-stop routes (logistics phase 4): dispatchers may add a job to a busy rider's route
+    # when the planned route stays within capacity and the time limit.
+    DISPATCH_MULTISTOP_ENABLED: bool = False
+    DISPATCH_BATCH_MAX_MINUTES: int = 150
+    DISPATCH_VEHICLE_CAPACITY: dict = {"foot": 1, "bike": 3, "car": 8, "van": 20}  # orders carried at once
     # Shareable recipient tracking links (phase 4).
     TRACKING_LINK_TTL_HOURS: int = 168          # 7 days
     TRACKING_LINK_AFTER_DELIVERY_HOURS: int = 48  # links stop working this long after delivery
