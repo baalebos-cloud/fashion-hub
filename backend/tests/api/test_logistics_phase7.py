@@ -169,7 +169,10 @@ def test_customer_order_shows_the_materials_leg_without_vendor_details(db, make_
                      subtotal=amount, total_amount=amount, currency="NGN", ordered_at=utcnow(),
                      parent_customer_order_id=garment.id,
                      delivery_address_snapshot={"formatted_address": "Tailor's secret workshop"})
-    db.add_all([material("in_transit", 27350), material("checkout", 11110)])
+    shipped = material("in_transit", 27350)
+    shipped.paid_at = utcnow()
+    abandoned = material("cancelled", 22220)  # linked, never paid, then cancelled
+    db.add_all([shipped, material("checkout", 11110), abandoned])
     partner = DeliveryPartner(user_id=rider.id, is_verified=True)
     db.add(partner)
     db.flush()
@@ -185,7 +188,7 @@ def test_customer_order_shows_the_materials_leg_without_vendor_details(db, make_
         legs = response.json()["materials_legs"]
         assert [(leg["vendor_name"], leg["label"], leg["done"]) for leg in legs] == [
             ("Balogun Fabrics", "Materials on their way to your tailor", False)]
-        for private in ("27350", "11110", "secret workshop"):
+        for private in ("27350", "11110", "22220", "secret workshop"):
             assert private not in response.text
     current[0] = rider
     assert http.get(url).json()["materials_legs"] == []

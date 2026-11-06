@@ -281,7 +281,9 @@ class DispatchMarketplaceService:
         from app.models.vendor import Vendor
         children = (self.db.query(Order)
                     .filter(Order.parent_customer_order_id == order.id, Order.order_type == "vendor_order",
-                            Order.status.in_(list(MATERIAL_LEG_LABELS)))
+                            Order.status.in_(list(MATERIAL_LEG_LABELS)),
+                            # Abandoned checkouts can be cancelled while still linked: paid ones only.
+                            Order.paid_at.is_not(None))
                     .order_by(Order.created_at).limit(10).all())
         legs = []
         for child in children:
