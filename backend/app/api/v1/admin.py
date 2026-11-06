@@ -170,6 +170,21 @@ def dispatch_reassign(delivery_id: UUID, payload: ReassignRequest, request: Requ
     return {"delivery_id": str(delivery.id), "status": delivery.status}
 
 
+@router.get("/dispatch/control-tower")
+def dispatch_control_tower(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """What needs a person now (exceptions, most urgent first) and today's dispatch numbers."""
+    from app.services.control_tower_service import ControlTowerService
+    tower = ControlTowerService(db)
+    return {"exceptions": tower.exceptions(), "performance": tower.performance(), "generated_at": utcnow()}
+
+
+@router.get("/dispatch/riders/overview")
+def dispatch_riders_overview(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Every verified rider: online, offline or on a delivery, with location freshness (no coordinates)."""
+    from app.services.control_tower_service import ControlTowerService
+    return ControlTowerService(db).riders()
+
+
 @router.get("/dispatch/riders/{partner_id}/route")
 def dispatch_rider_route(partner_id: UUID, db: Session = Depends(get_db),
                          admin: User = Depends(require_roles(Role.ADMIN))):
