@@ -602,3 +602,16 @@ def courier_simulate(delivery_id: UUID, payload: CourierSimulation,
     if not courier.verify_webhook(body, headers):
         raise HTTPException(409, "Set SANDBOX_COURIER_WEBHOOK_SECRET to simulate updates.")
     return {"outcome": ExternalCourierService(db).handle_event("sandbox", courier.parse_webhook(body))}
+
+
+
+# ---- Delivery intelligence (advisory) ------------------------------------------------------------
+@router.get("/dispatch/insights")
+def dispatch_insights(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Baselines, reports and advisory recommendations. Nothing here changes a delivery."""
+    from app.services.delivery_intelligence_service import DeliveryIntelligenceService
+    service = DeliveryIntelligenceService(db)
+    return {"readiness": service.readiness(), "eta_calibration": service.eta_calibration(),
+            "riders": service.rider_performance(), "demand": service.demand_forecast(),
+            "routes": service.route_efficiency(), "recommendations": service.recommendations(),
+            "summary": service.summary()}

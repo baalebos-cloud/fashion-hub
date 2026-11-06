@@ -105,6 +105,7 @@ class JourneyLive(BaseModel):
     traffic_aware: bool = False
     route_computed_at: str | None = None
     freshness: str | None = None
+    eta_calibrated: bool = False  # adjusted by validated history (phase 7), only when switched on
     updated_at: str | None
 
 
