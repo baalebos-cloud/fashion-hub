@@ -16,6 +16,16 @@ function Waypoint({ title, point, orderId, party }: { title: string; point: Disp
     <div className="rounded-card border border-line p-4">
       <h3 className="text-sm font-semibold text-ink">{title}</h3>
       <p className="mt-1 text-sm text-ink">{point.address || "Address unavailable"}</p>
+      {(point.lga || point.landmark || point.nearest_bus_stop) && (
+        <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-xs">
+          {point.lga && <><dt className="text-ink-soft">LGA</dt><dd className="text-ink">{point.lga}</dd></>}
+          {point.landmark && <><dt className="text-ink-soft">Landmark</dt><dd className="text-ink">{point.landmark}</dd></>}
+          {point.nearest_bus_stop && <><dt className="text-ink-soft">Bus stop</dt><dd className="text-ink">{point.nearest_bus_stop}</dd></>}
+        </dl>
+      )}
+      {point.delivery_instructions && (
+        <p className="mt-2 rounded bg-muslin px-2 py-1 text-xs text-ink">Note: {point.delivery_instructions}</p>
+      )}
       {point.contact_name && <p className="mt-1 text-sm text-ink-soft">{point.contact_name}</p>}
       <div className="mt-3 flex flex-wrap gap-3 text-sm">
         {directions && <a href={directions} target="_blank" rel="noopener noreferrer" className="text-brass-deep underline">Navigate with Google Maps</a>}

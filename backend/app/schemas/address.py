@@ -15,8 +15,17 @@ class CreateAddressRequest(BaseModel):
     state_region: str = Field(min_length=1, max_length=128)
     country: str = Field(default="NG", pattern=r"^[A-Z]{2}$")
     postal_code: str | None = Field(default=None, max_length=32)
+    lga: str | None = Field(default=None, max_length=128)
+    landmark: str | None = Field(default=None, max_length=255)
+    nearest_bus_stop: str | None = Field(default=None, max_length=255)
+    delivery_instructions: str | None = Field(default=None, max_length=500)
     latitude: float = Field(ge=-90, le=90)
     longitude: float = Field(ge=-180, le=180)
+
+    @field_validator("lga", "landmark", "nearest_bus_stop", "delivery_instructions")
+    @classmethod
+    def blank_to_none(cls, value: str | None) -> str | None:
+        return value or None
 
     @field_validator("recipient_phone")
     @classmethod

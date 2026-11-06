@@ -148,6 +148,10 @@ class Settings(BaseSettings):
     PICKUP_CODE_TTL_MINUTES: int = 30
     # The seller gives the rider a pickup code; the rider enters it to start the trip.
     DELIVERY_PICKUP_CODE_REQUIRED: bool = True
+    # Buyer alerts from the rider's shared GPS (phase 7).
+    DELIVERY_PROXIMITY_ALERTS_ENABLED: bool = True
+    DELIVERY_APPROACH_ALERT_MINUTES: int = 5
+    DELIVERY_ARRIVAL_RADIUS_M: int = 150
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
     VOICE_PROVIDER: Optional[str] = None

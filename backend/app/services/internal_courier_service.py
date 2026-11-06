@@ -14,7 +14,7 @@ from app.models.delivery import Delivery
 from app.models.delivery_partner import DeliveryPartner
 from app.models.delivery_request import DeliveryRequest
 from app.models.notification import Notification
-from app.models.location import Location
+from app.models.location import LOCAL_ADDRESS_FIELDS, Location
 from app.models.user import User
 from app.services.dispatch_routing import estimate_straight_line_km, validate_point
 from app.core.config import settings
@@ -47,6 +47,11 @@ STATUS_ACTIONS = {
 }
 # Status in which the buyer may reveal the handover code (package collected, not yet handed over).
 HANDOVER_STATUS = {"customer_order": "out_for_delivery", "vendor_order": "in_transit"}
+
+
+def _local_details(location) -> dict:
+    """LGA, landmark, bus stop and instructions for the assigned rider's route view."""
+    return {f: getattr(location, f, None) for f in LOCAL_ADDRESS_FIELDS}
 
 
 def is_dispatchable(order) -> bool:
@@ -107,6 +112,7 @@ class InternalCourierService:
                 formatted_address=snapshot["formatted_address"],
                 city=snapshot.get("city"), state_region=snapshot.get("state_region"),
                 country=snapshot.get("country"), postal_code=snapshot.get("postal_code"),
+                **{f: snapshot.get(f) for f in LOCAL_ADDRESS_FIELDS},
             )
         else:
             dropoff_source = None
@@ -125,6 +131,7 @@ class InternalCourierService:
                 state_region=fields.get("state_region", source.state_region),
                 country=fields.get("country", source.country),
                 postal_code=fields.get("postal_code", source.postal_code),
+                **{f: fields.get(f, getattr(source, f)) for f in LOCAL_ADDRESS_FIELDS},
             )
         pickup_snapshot = snapshot_location(pickup_source, "delivery_pickup")
         dropoff_snapshot = snapshot_location(
@@ -288,11 +295,13 @@ class InternalCourierService:
             "pickup": {
                 "address": pickup.formatted_address,
                 **(origin or {"latitude": None, "longitude": None}),
+                **_local_details(pickup),
                 "contact_name": seller.full_name if seller else None,
                 "can_call": bool(seller and seller.phone_number),
             },
             "dropoff": {
                 "address": dropoff.formatted_address,
+                **_local_details(dropoff),
                 **(destination or {"latitude": None, "longitude": None}),
                 "contact_name": (order.delivery_address_snapshot or {}).get("recipient_name")
                     or (address.recipient_name if address else None),
@@ -321,10 +330,13 @@ class InternalCourierService:
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)
         if delivery.status != "in_transit":
             raise ConflictError("Live GPS is available only after pickup and before handover.")
-        return save_position(
+        point = save_position(
             delivery.id, share_token=share_token, latitude=latitude,
             longitude=longitude, accuracy_m=accuracy_m,
         )
+        from app.services.delivery_proximity import check_proximity
+        check_proximity(self.db, delivery, latitude=latitude, longitude=longitude, accuracy_m=accuracy_m)
+        return point
 
     def stop_position(self, *, delivery_id, actor):
         delivery = self._assigned_rider_for_position(delivery_id=delivery_id, actor=actor)

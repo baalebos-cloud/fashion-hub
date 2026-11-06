@@ -18,6 +18,8 @@ def serialize(address, location):
         recipient_phone=address.recipient_phone, formatted_address=location.formatted_address,
         city=location.city, state_region=location.state_region, country=location.country,
         postal_code=location.postal_code,
+        lga=location.lga, landmark=location.landmark, nearest_bus_stop=location.nearest_bus_stop,
+        delivery_instructions=location.delivery_instructions,
         latitude=float(location.latitude), longitude=float(location.longitude),
     )
 

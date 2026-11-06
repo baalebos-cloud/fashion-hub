@@ -20,20 +20,20 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 10 | Admin dispatch control centre | Implemented, test-verified (phase 2) | `services/dispatch_admin_service.py`, `/admin/dispatch/*`, `tests/api/test_dispatch_admin.py` |
 | 11 | Rider issue reports with admin triage | Implemented, test-verified (phase 2) | OPEN → INVESTIGATING → RESOLVED (note required); auto-REROUTED on release/reassign |
 | 12 | Materials vendor → tailor dispatch (Workflow B) | Implemented, test-verified (phase 1, #130) | Vendor pickup location, vendor-order requests/offers/claims, rider pickup/handover for materials, tailor receipt; `tests/api/test_materials_delivery_leg.py` |
-| 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Partially implemented (unblocked by #12) | Each leg is dispatched and tracked on its own order (linked via `material_order_parent`, 0010); no combined view of both legs on the customer order yet |
+| 13 | Vendor → tailor → customer as two traceable legs (Workflow C) | Implemented, test-verified (phase 7) | Each leg is dispatched on its own order; the customer order's journey lists its materials legs (vendor name, stage, time only); `tests/api/test_logistics_phase7.py` |
 | 14 | Structured delivery event log with idempotency keys | Implemented, test-verified (phase 6) | `delivery_events` (0024): append-only, ordered by sequence, `Idempotency-Key` on pickup/drop-off, admin view; never stores codes |
 | 15 | Sequential auto-offers with TTL (feature-flagged) | Implemented, test-verified (phase 3); off by default | `services/auto_dispatch_service.py`, `dispatch_job_offers` (0022), `tests/api/test_auto_dispatch.py` |
 | 16 | Road-based route distance/ETA (Routes API or OSM) | Missing | Haversine × road factor only, labelled as estimate |
 | 17 | Shareable recipient tracking link (no account) | Implemented, test-verified (phase 4) | `services/share_link_service.py`, `delivery_share_links` (0023), `tests/api/test_tracking_links.py` |
 | 18 | Pickup verification (package count/reference) | Implemented, test-verified (phase 6) | Seller-held one-time pickup code (`DELIVERY_PICKUP_CODE_REQUIRED`), rider records package count, shown to buyer and at drop-off |
 | 19 | Handover OTP expiry/rotation | Implemented, test-verified (phase 6) | `delivery_codes` (0024): random nonce + HMAC, 30 min expiry with auto-reissue, buyer rotation, burned on use, shared attempt limit |
-| 20 | Notifications for dispatch events | Partially implemented | In-app notifications on status change; no rider-approaching/ETA events |
+| 20 | Notifications for dispatch events | Implemented, test-verified (phase 7) | Status-change notifications plus one-time "about N min away" and "has arrived" alerts from the rider's shared GPS (`services/delivery_proximity.py`, `DELIVERY_PROXIMITY_ALERTS_ENABLED`) |
 | 21 | Admin reassignment / cancellation with audit | Implemented, test-verified (phase 2) | Pre-pickup only; audit log, timeline note, notifications; released rider loses trip access |
 | 22 | Rider earnings ledger and payouts | Partially implemented | Fee recorded on delivery; payouts intentionally disabled (financial gate) |
 | 23 | Multi-stop routing, capacity optimisation | Missing (later phase) | — |
 | 24 | External carrier adapters | Missing; scaffold only | `integrations/delivery/provider.py`, no verified Nigerian provider |
 | 25 | AI-assisted dispatch | Missing (later phase, after data exists) | — |
-| 26 | Nigerian address fields (landmark, LGA, bus stop) | Partially implemented | Address model has landmark/instructions; no LGA field |
+| 26 | Nigerian address fields (landmark, LGA, bus stop) | Implemented, test-verified (phase 7) | Optional LGA, landmark, nearest bus stop and instructions on locations (0025), frozen into order and dispatch snapshots, shown on the rider's trip card |
 | 27 | Cross-account tracking denial | Implemented, test-verified | `test_order_tracking_read.py`, journey/position 404 tests |
 
 ## Phase plan (each phase = one PR, owner approval before merge)
@@ -46,7 +46,8 @@ tests in CI; nothing below has been certified end-to-end in staging with real ri
 | 4 (#133) | Shareable recipient tracking tokens (hashed, scoped, expiring, rate-limited) | — |
 | 5 | Road routing provider adapter (Google Routes / OSRM) with cache and honest fallback | Google billing enabled |
 | 6 (#134) | Handover OTP rotation/expiry, pickup package verification, delivery event log with idempotency keys | 1 |
-| 7+ | Multi-stop, external carriers, AI recommendations | Operational data, commercial agreements |
+| 7 (this PR) | Rider approaching/arrived alerts, Nigerian address details, materials leg on the customer order | 1, 6 |
+| 8+ | Multi-stop, external carriers, AI recommendations | Operational data, commercial agreements |
 
 ## Security and financial boundaries (unchanged by Phase 1)
 
