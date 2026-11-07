@@ -156,6 +156,14 @@ class Settings(BaseSettings):
     # Multi-stop routes (logistics phase 4): dispatchers may add a job to a busy rider's route
     # when the planned route stays within capacity and the time limit.
     DISPATCH_MULTISTOP_ENABLED: bool = False
+    # Control tower alert thresholds (logistics phase 5), in minutes / km.
+    DISPATCH_ALERT_UNASSIGNED_MIN: int = 15
+    DISPATCH_ALERT_PICKUP_MIN: int = 30
+    DISPATCH_ALERT_DROPOFF_MIN: int = 90            # used when no route time is known
+    DISPATCH_ALERT_DROPOFF_FACTOR: float = 1.5      # route time x factor + grace
+    DISPATCH_ALERT_DROPOFF_GRACE_MIN: int = 15
+    DISPATCH_ALERT_TRACKING_MIN: int = 5
+    DISPATCH_ALERT_OFF_ROUTE_KM: float = 3.0
     DISPATCH_BATCH_MAX_MINUTES: int = 150
     DISPATCH_VEHICLE_CAPACITY: dict = {"foot": 1, "bike": 3, "car": 8, "van": 20}  # orders carried at once
     # Shareable recipient tracking links (phase 4).

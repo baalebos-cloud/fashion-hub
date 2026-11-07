@@ -8,6 +8,7 @@ import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
 import { RoutingHealth } from "@/components/admin/RoutingHealth";
 import { SuggestedRiders } from "@/components/dispatch/SuggestedRiders";
 import { RiderRouteToggle } from "@/components/dispatch/RiderRouteToggle";
+import { ControlTower } from "@/components/dispatch/ControlTower";
 import { describeFreshness } from "@/lib/utils/tracking";
 
 const ISSUE_LABEL: Record<string, string> = {
@@ -76,11 +77,14 @@ export default function Deliveries() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="font-display text-xl text-ink">Dispatch operations</h1>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-xl text-ink">Dispatch operations</h1>
           <RoutingHealth />
+        </div>
         <Button variant="secondary" size="sm" disabled={loading} onClick={refresh}>Refresh</Button>
       </div>
+      <ControlTower />
       {loading && <p role="status" className="text-sm text-ink-soft">Loading dispatch board…</p>}
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       {board && !error && (
