@@ -16,6 +16,7 @@ class UpdateCartItemRequest(BaseModel):
 class CartItemResponse(BaseModel):
     id: uuid.UUID
     product_variant_id: uuid.UUID
+    product_id: uuid.UUID
     vendor_id: uuid.UUID
     quantity: int
     unit_price_snapshot: float

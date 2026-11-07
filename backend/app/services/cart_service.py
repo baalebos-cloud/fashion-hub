@@ -106,7 +106,7 @@ class CartService:
             price = price_of(variant)
             subtotal += price * item.quantity
             available = inventory.get(str(variant.id))
-            response.append(dict(id=item.id, product_variant_id=variant.id, vendor_id=vendor.id,
+            response.append(dict(id=item.id, product_variant_id=variant.id, product_id=product.id, vendor_id=vendor.id,
                                  vendor_name=vendor.business_name, product_name=product.name, sku=variant.sku,
                                  quantity=item.quantity, unit_price_snapshot=float(price), currency=product.currency,
                                  is_available=bool(available and available.quantity_available >= item.quantity

@@ -94,6 +94,10 @@ celery_app.conf.update(
             "task": "app.workers.notification_tasks.sync_interaction_history_task",
             "schedule": 86400.0,  # daily; copies cart adds, favourites and purchases for recommendations
         },
+        "rebuild-related-items": {
+            "task": "app.workers.notification_tasks.rebuild_item_similarities_task",
+            "schedule": 86400.0,  # daily; learned "you might also like" / "often bought together"
+        },
         "purge-old-shopping-activity": {
             "task": "app.workers.notification_tasks.purge_interactions_task",
             "schedule": 86400.0,  # daily; keeps INTERACTION_RETENTION_DAYS of history

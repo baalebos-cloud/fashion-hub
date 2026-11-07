@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
+import { trackView, viewSource } from "@/lib/tracking/interactions";
+import { RelatedProducts } from "@/components/recommendations/RelatedProducts";
+import { recommendationsApi } from "@/api/recommendations.api";
+import { professionalRoutes } from "@/config/routes.config";
 import { productsApi } from "@/api/products.api";
 import { useCartStore } from "@/store/cart.store";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -10,6 +14,8 @@ import type { VendorProduct } from "@/types/product";
 
 export default function VendorProductDetails() {
   const { productId } = useParams<{ productId: string }>();
+  const [search] = useSearchParams();
+  const from = search.get("from");
   const addItem = useCartStore((state) => state.addItem);
   const { showToast } = useToast();
   const [product, setProduct] = useState<VendorProduct | null>(null);
@@ -20,11 +26,15 @@ export default function VendorProductDetails() {
     if (productId) productsApi.getById(productId).then((value) => { if (active) setProduct(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); });
     return () => { active = false; };
   }, [productId]);
+  // Only `product` should re-record a view; `from` is read once with it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (product) trackView("product", product.id, viewSource(from, "marketplace_product")); }, [product]);
   if (error) return <p role="alert">{error}</p>;
 
   if (!product) return <LoadingScreen label="Loading product…" />;
 
   return (
+    <div className="flex flex-col gap-10">
     <ProductDetails
       key={product.id}
       product={product}
@@ -35,5 +45,8 @@ export default function VendorProductDetails() {
         showToast("Added to cart.", "success");
       }}
     />
+    <RelatedProducts title="You might also like" loadKey={product.id} source="similar_items"
+      load={() => recommendationsApi.similarProducts(product.id)} detailsPathFor={professionalRoutes.vendorProductDetails} />
+    </div>
   );
 }

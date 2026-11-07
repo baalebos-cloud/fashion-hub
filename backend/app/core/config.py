@@ -63,6 +63,11 @@ class Settings(BaseSettings):
     # bookings, purchases). No IP, location or message content is stored; deleted after this long.
     INTERACTION_RETENTION_DAYS: int = 180
     RATE_LIMIT_INTERACTIONS: str = "60/minute"
+    # Related-items model (see services/similarity_service.py), rebuilt nightly.
+    SIMILARITY_LOOKBACK_DAYS: int = 90
+    SIMILARITY_HALF_LIFE_DAYS: int = 30
+    SIMILARITY_MIN_SUPPORT: int = 2  # different shoppers needed before two items count as related
+    SIMILARITY_TOP_N: int = 20
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]

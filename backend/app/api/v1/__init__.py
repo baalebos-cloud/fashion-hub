@@ -28,6 +28,7 @@ from app.api.v1 import (
     designs,
     favorites,
     interactions,
+    recommendations,
     geocoding,
     invoices,
     interswitch,
@@ -123,6 +124,7 @@ api_router.include_router(kyb.router)
 api_router.include_router(search.router)
 api_router.include_router(favorites.router)
 api_router.include_router(interactions.router)
+api_router.include_router(recommendations.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(admin.router)
 api_router.include_router(weather.router)
