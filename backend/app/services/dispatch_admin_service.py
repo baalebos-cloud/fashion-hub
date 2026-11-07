@@ -162,6 +162,57 @@ class DispatchAdminService:
         self.db.commit()
         return new_delivery
 
+    def suggest_riders(self, *, request_id, limit: int = 5) -> list[dict]:
+        """Best riders for a waiting job, with scores and plain-language reasons. Advisory only:
+        the dispatcher decides. Uses the same eligibility rules as automatic offers."""
+        request = self.db.get(DeliveryRequest, request_id)
+        if request is None:
+            raise NotFoundError("Delivery request not found.")
+        if request.status != "requested":
+            return []
+        from app.services.auto_dispatch_service import AutoDispatchService
+        ranked = AutoDispatchService(self.db).ranked_candidates(request, smart=True)[:max(1, min(limit, 10))]
+        rows = []
+        for partner, _, record in ranked:
+            user = self.db.get(User, partner.user_id)
+            rows.append({"partner_id": str(partner.id), "first_name": _first_name(user),
+                         "vehicle_type": partner.vehicle_type, "rating": float(partner.average_rating or 0),
+                         "score": record["score"], "pickup_eta_minutes": record["pickup_eta_minutes"],
+                         "eta_source": record["eta_source"], "explanation": record["explanation"],
+                         "factors": record["factors"], "version": record["version"]})
+        return rows
+
+    def assign_waiting(self, *, request_id, partner_id, admin: User, reason: str, ip: str | None = None):
+        """Dispatcher override: give a waiting job to a chosen eligible rider. Locks order ->
+        request -> partner (same order as claims and accepted offers), so it can't double-assign."""
+        reason = self._reason(reason)
+        initial = self.db.get(DeliveryRequest, request_id)
+        if initial is None:
+            raise NotFoundError("Delivery request not found.")
+        order = OrderRepository(self.db).get_by_id_for_update(initial.order_id)
+        request = (self.db.query(DeliveryRequest).filter_by(id=request_id)
+                   .with_for_update().populate_existing().one())
+        if request.status != "requested":
+            raise ConflictError("This job already has a rider or was cancelled.")
+        partner = (self.db.query(DeliveryPartner).filter_by(id=partner_id)
+                   .with_for_update().populate_existing().first())
+        busy = partner is not None and self.db.query(Delivery.id).filter(
+            Delivery.delivery_partner_id == partner.id,
+            Delivery.status.in_(["assigned", "picked_up", "in_transit", "out_for_delivery"])).first() is not None
+        if partner is None or not partner.is_verified or not partner.is_available or busy:
+            raise ConflictError("Choose a verified rider who is online and not on another delivery.")
+        from app.services.internal_courier_service import InternalCourierService
+        fee = request.proposed_fee if request.proposed_fee is not None else order.delivery_fee
+        delivery = InternalCourierService(self.db).assign(request=request, order=order, partner=partner, fee=fee)
+        self._audit(admin, "dispatch.assigned_by_dispatcher", delivery.id, ip, reason=reason,
+                    order_id=str(order.id), request_id=str(request.id), partner_id=str(partner.id))
+        self._notify([partner.user_id], "dispatch.assigned", "New delivery assigned",
+                     f"You've been assigned order {order.order_number}. Open it for the route.")
+        self._notify([order.seller_user_id, order.buyer_user_id], "dispatch.assigned", "Rider assigned",
+                     f"A rider has been assigned to order {order.order_number}.")
+        self.db.commit()
+        return delivery
+
     def cancel_request(self, *, request_id, admin: User, reason: str, ip: str | None = None):
         """Stop looking for a rider (e.g. seller asked, or order on hold). The seller can request again later."""
         reason = self._reason(reason)

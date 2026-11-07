@@ -8,7 +8,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String, UniqueConstraint, text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -32,5 +32,8 @@ class DispatchJobOffer(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     attempt: Mapped[int] = mapped_column(Integer, nullable=False)
     # Straight-line km from the rider's known base to pickup, used for ranking only.
     distance_km: Mapped[float | None] = mapped_column(Numeric(8, 2), nullable=True)
+    # Why this rider was chosen: score, per-factor inputs, explanation, scoring version.
+    score: Mapped[float | None] = mapped_column(Numeric(5, 1), nullable=True)
+    score_details: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
     responded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

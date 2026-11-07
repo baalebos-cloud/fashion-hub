@@ -6,6 +6,7 @@ import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { DispatchAction } from "@/components/dispatch/DispatchAction";
 import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
 import { RoutingHealth } from "@/components/admin/RoutingHealth";
+import { SuggestedRiders } from "@/components/dispatch/SuggestedRiders";
 import { describeFreshness } from "@/lib/utils/tracking";
 
 const ISSUE_LABEL: Record<string, string> = {
@@ -143,6 +144,7 @@ export default function Deliveries() {
                     <DateTimeDisplay value={request.offer_expires_at} format="relative" />
                   </p>
                 )}
+                <SuggestedRiders requestId={request.id} onAssigned={refresh} />
                 <DispatchAction label="Stop rider search" confirmLabel="Stop search" variant="danger"
                   onConfirm={async (reason) => { await adminDispatchApi.cancelRequest(request.id, reason); refresh(); }} />
               </Card>

@@ -149,6 +149,10 @@ class Settings(BaseSettings):
     DISPATCH_AUTO_OFFER_TTL_SECONDS: int = 90
     DISPATCH_AUTO_OFFER_MAX_ATTEMPTS: int = 5
     DISPATCH_AUTO_OFFER_RADIUS_KM: float = 20.0
+    # Explainable scoring for auto-offers (logistics phase 3). Off keeps the original order:
+    # nearest by straight line, then rating, then experience.
+    DISPATCH_SMART_SCORING_ENABLED: bool = False
+    DISPATCH_SCORING_ROUTE_TOP_N: int = 5   # road ETAs computed for at most this many riders per offer
     # Shareable recipient tracking links (phase 4).
     TRACKING_LINK_TTL_HOURS: int = 168          # 7 days
     TRACKING_LINK_AFTER_DELIVERY_HOURS: int = 48  # links stop working this long after delivery
