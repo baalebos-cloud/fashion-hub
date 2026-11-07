@@ -75,7 +75,7 @@ jobs:
               ('.github/workflows/ci.yml', 'Secret Keyword', 23),
               ('.github/workflows/ci.yml', 'Basic Auth Credentials', 37),
               ('.github/workflows/ci.yml', 'Secret Keyword', 40),
-              ('.github/workflows/ci.yml', 'Basic Auth Credentials', 106),
+              ('.github/workflows/ci.yml', 'Basic Auth Credentials', 123),
               ('backend/.github/workflows/ci.yml', 'Secret Keyword', 17),
               ('backend/.github/workflows/ci.yml', 'Basic Auth Credentials', 35),
               ('backend/.github/workflows/ci.yml', 'Secret Keyword', 37),
