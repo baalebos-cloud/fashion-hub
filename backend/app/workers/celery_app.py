@@ -90,6 +90,14 @@ celery_app.conf.update(
             "task": "app.workers.tracking_tasks.check_stale_tracking_task",
             "schedule": 120.0,  # every 2 minutes -- catches "GPS stopped updating"
         },
+        "sync-shopping-history": {
+            "task": "app.workers.notification_tasks.sync_interaction_history_task",
+            "schedule": 86400.0,  # daily; copies cart adds, favourites and purchases for recommendations
+        },
+        "purge-old-shopping-activity": {
+            "task": "app.workers.notification_tasks.purge_interactions_task",
+            "schedule": 86400.0,  # daily; keeps INTERACTION_RETENTION_DAYS of history
+        },
         "purge-old-activity-logs": {
             "task": "app.workers.notification_tasks.purge_activity_logs_task",
             "schedule": 86400.0,  # daily; keeps ACTIVITY_LOG_RETENTION_DAYS of history

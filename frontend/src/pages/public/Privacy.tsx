@@ -1,3 +1,5 @@
+import { BrowserTrackingChoice } from "@/components/recommendations/BrowserTrackingChoice";
+
 export default function Privacy() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-16 text-sm text-ink-soft">
@@ -20,6 +22,22 @@ export default function Privacy() {
         We process them on the basis of our legitimate interest in keeping the platform safe, as permitted by the
         Nigeria Data Protection Act 2023. You can ask us what we hold about you through the Contact page.
       </p>
+      <h2 className="font-display text-lg text-ink">Shopping activity and recommendations</h2>
+      <p>
+        To suggest products, designs and tailors you're likely to want, we record what you view, search for, save,
+        add to your cart, start booking and buy on Tailora. Each record holds only the item, the kind of action, the
+        page it happened on and the time, linked to your account or, if you're signed out, to a random identifier
+        stored in your browser. We do not record your IP address, location or messages with it, and it is separate
+        from the security records above.
+      </p>
+      <p>
+        This information is used only for recommendations on Tailora, is never sold or shared with advertisers, and is
+        deleted automatically after 180 days. We process it on the basis of our legitimate interest in showing you
+        relevant items, as permitted by the Nigeria Data Protection Act 2023. Signed-in customers can switch
+        personalised recommendations off in Settings, which also deletes what we've recorded. We also respect your
+        browser's Global Privacy Control and Do Not Track settings, and you can stop it on this browser here:
+      </p>
+      <BrowserTrackingChoice />
     </div>
   );
 }

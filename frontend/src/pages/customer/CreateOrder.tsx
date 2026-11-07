@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { trackBookingStarted, trackView } from "@/lib/tracking/interactions";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { useMeasurements } from "@/hooks/use-measurements";
 import { useDesigns } from "@/hooks/use-designs";
@@ -35,6 +36,9 @@ export default function CreateOrder() {
   const retry = useRef<{ signature: string; key: string } | null>(null);
   const submitting = useRef(false);
   const selectedDesign = designs.find((design) => design.id === selectedDesignId);
+
+  useEffect(() => { if (professional) trackBookingStarted(professional.id); }, [professional]);
+  useEffect(() => { if (selectedDesignId) trackView("design", selectedDesignId, "booking"); }, [selectedDesignId]);
 
   useEffect(() => {
     let active = true;

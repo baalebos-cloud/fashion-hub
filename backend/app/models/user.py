@@ -36,6 +36,10 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     profile_photo_url: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     timezone: Mapped[str] = mapped_column(String(64), default="UTC", nullable=False)
+    # Personalised recommendations. When False, no browsing activity is recorded for this
+    # account and anything recorded earlier is deleted (see interaction_service.set_personalization).
+    personalization_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False,
+                                                          server_default="true")
 
     # WhatsApp is used only for platform-to-user and counterpart-to-counterpart
     # order notifications (see notification_service.py) -- it is NEVER

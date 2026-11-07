@@ -182,6 +182,10 @@ export const endpoints = {
     status: "/kyb/status",
   },
 
+  interactions: {
+    events: "/interactions/events",
+    preference: "/interactions/preference",
+  },
   favorites: {
     toggle: "/favorites",
   },

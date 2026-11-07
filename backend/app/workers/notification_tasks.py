@@ -35,6 +35,24 @@ def send_scheduled_reminders_task():
         NotificationService(db).send_scheduled_reminders()
 
 
+@celery_app.task(name="app.workers.notification_tasks.sync_interaction_history_task")
+def sync_interaction_history_task():
+    """Copy cart adds, favourites and purchases into the recommendations activity table."""
+    from app.core.database import session_scope
+    from app.services.interaction_service import sync_history
+    with session_scope() as db:
+        return sync_history(db)
+
+
+@celery_app.task(name="app.workers.notification_tasks.purge_interactions_task")
+def purge_interactions_task():
+    """Delete shopping activity older than INTERACTION_RETENTION_DAYS."""
+    from app.core.database import session_scope
+    from app.services.interaction_service import purge_expired
+    with session_scope() as db:
+        return purge_expired(db)
+
+
 @celery_app.task(name="app.workers.notification_tasks.purge_activity_logs_task")
 def purge_activity_logs_task():
     """Delete activity-log entries older than ACTIVITY_LOG_RETENTION_DAYS."""

@@ -66,6 +66,7 @@ from app.models.delivery_proof import DeliveryCode, DeliveryEvent
 from app.models.activity_log import ActivityLog, AdminCredential
 from app.models.delivery_batch import DeliveryBatch
 from app.models.courier_event import CourierEventRecord
+from app.models.interaction_event import InteractionEvent
 
 __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
@@ -76,7 +77,7 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord",
+    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord", "InteractionEvent",
 ]
 
 from app.models.saga import SagaStepLog, LedgerEntry

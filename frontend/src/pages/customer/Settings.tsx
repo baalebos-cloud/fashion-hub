@@ -1,5 +1,6 @@
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { PersonalizationPreference } from "@/components/recommendations/PersonalizationPreference";
 
 export default function Settings() {
   return (
@@ -8,6 +9,10 @@ export default function Settings() {
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Notifications</h2>
         <NotificationPreferences />
+      </div>
+      <div>
+        <h2 className="mb-3 text-sm font-medium text-ink-soft">Recommendations</h2>
+        <PersonalizationPreference />
       </div>
       <LogoutButton className="self-start" />
     </div>

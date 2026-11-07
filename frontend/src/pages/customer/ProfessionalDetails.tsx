@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackView } from "@/lib/tracking/interactions";
 import { useParams, useNavigate } from "react-router-dom";
 import { professionalsApi } from "@/api/professionals.api";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +18,7 @@ export default function ProfessionalDetails() {
   useEffect(() => {
     if (professionalId) professionalsApi.getById(professionalId).then(setProfessional);
   }, [professionalId]);
+  useEffect(() => { if (professional) trackView("professional", professional.id, "profile"); }, [professional]);
 
   if (!professional) return <LoadingScreen label="Loading profile…" />;
 

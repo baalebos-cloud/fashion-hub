@@ -59,6 +59,10 @@ class Settings(BaseSettings):
     TRUST_PROXY_HEADERS: bool = False
     # Activity log (sign-ins and changes, with IP and device) is kept this long, then deleted.
     ACTIVITY_LOG_RETENTION_DAYS: int = 180
+    # Shopping activity used for recommendations (views, cart adds, favourites, searches,
+    # bookings, purchases). No IP, location or message content is stored; deleted after this long.
+    INTERACTION_RETENTION_DAYS: int = 180
+    RATE_LIMIT_INTERACTIONS: str = "60/minute"
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
