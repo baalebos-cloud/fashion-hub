@@ -160,6 +160,9 @@ class Settings(BaseSettings):
     # "sandbox" is a pretend courier for development and is refused in production.
     EXTERNAL_COURIERS: Annotated[List[str], NoDecode] = []
     SANDBOX_COURIER_WEBHOOK_SECRET: Optional[str] = Field(None, repr=False)
+    # Delivery intelligence (logistics phase 7). Both off until validated and approved.
+    DELIVERY_ETA_CALIBRATION_ENABLED: bool = False
+    DELIVERY_AI_SUMMARIES_ENABLED: bool = False
     # Control tower alert thresholds (logistics phase 5), in minutes / km.
     DISPATCH_ALERT_UNASSIGNED_MIN: int = 15
     DISPATCH_ALERT_PICKUP_MIN: int = 30

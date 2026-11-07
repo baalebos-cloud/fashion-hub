@@ -355,7 +355,12 @@ class DispatchMarketplaceService:
                 estimate = live_route(delivery.id,
                                       {"latitude": float(position["latitude"]), "longitude": float(position["longitude"])},
                                       _point(dropoff), partner.vehicle_type if partner else None)
-                live = {"eta_minutes": estimate.duration_minutes, "distance_remaining_km": estimate.distance_km,
+                eta, calibrated = estimate.duration_minutes, False
+                if settings.DELIVERY_ETA_CALIBRATION_ENABLED:
+                    from app.services.delivery_intelligence_service import DeliveryIntelligenceService
+                    eta, calibrated = DeliveryIntelligenceService(self.db).calibrated_minutes(
+                        eta, partner.vehicle_type if partner else None)
+                live = {"eta_minutes": eta, "eta_calibrated": calibrated, "distance_remaining_km": estimate.distance_km,
                         # road_route: a real routing provider; live_gps_estimate: straight-line fallback.
                         "basis": "road_route" if estimate.verified else "live_gps_estimate",
                         "route_source": estimate.source, "traffic_aware": estimate.traffic_aware,

@@ -1,4 +1,5 @@
 import { Card } from "@/components/ui/card";
+import { DeliveryInsights } from "@/components/admin/DeliveryInsights";
 
 const REPORT_TYPES = [
   { name: "Order volume", description: "Orders placed and completed over time" },
@@ -13,6 +14,8 @@ export default function Reports() {
   return (
     <div>
       <h1 className="mb-6 font-display text-xl text-ink">Reports</h1>
+      <div className="mb-8"><DeliveryInsights /></div>
+      <h2 className="mb-3 text-sm font-medium text-ink-soft">More reports (not built yet)</h2>
       <div className="grid gap-4 sm:grid-cols-2">
         {REPORT_TYPES.map((report) => (
           <Card key={report.name}>
