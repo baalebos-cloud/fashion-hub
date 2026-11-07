@@ -49,7 +49,8 @@ describe("admin sign-in", () => {
     expect(await screen.findByText("admin home")).toBeTruthy();
     expect(authApi.adminVerify).toHaveBeenCalledWith("c".repeat(40), "123456");
     expect(completeSignIn).toHaveBeenCalled();
-    expect(document.querySelector('meta[name="robots"]')).toBeNull(); // removed when leaving the page
+    // Removed by the login page's effect cleanup, which can run just after the next page renders.
+    await waitFor(() => expect(document.querySelector('meta[name="robots"]')).toBeNull());
   });
 
   it("shows one generic message for any wrong detail", async () => {
