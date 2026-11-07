@@ -38,7 +38,9 @@ export function DeliveryJourney({ orderId }: { orderId: string }) {
           </div>
           {live.distance_remaining_km != null && (
             <p className="text-right text-xs text-paper/80">≈ {live.distance_remaining_km.toFixed(1)} km away<br />
-              <span className="text-paper/60">Estimate from the rider's live location</span></p>
+              <span className="text-paper/60">{live.basis === "road_route"
+                ? `Road route from the rider's live location${live.traffic_aware ? ", with traffic" : ""}`
+                : "Estimate from the rider's live location"}</span></p>
           )}
         </div>
       )}

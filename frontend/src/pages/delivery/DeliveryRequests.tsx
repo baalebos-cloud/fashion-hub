@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
+import { describeRoute } from "@/lib/utils/route";
 import { useNavigate } from "react-router-dom";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { deliveryRoutes } from "@/config/routes.config";
@@ -82,7 +83,7 @@ function JobCard({ job, busy, onClaim, onChanged }: {
         <div>
           <p className="font-display text-2xl text-ink">{naira(job.suggested_fare)}</p>
           <p className="text-xs text-ink-soft">
-            Suggested fare{job.approx_road_km != null && ` · ≈ ${job.approx_road_km.toFixed(1)} km`}
+            Suggested fare{describeRoute(job.route, job.approx_road_km) && ` · ${describeRoute(job.route, job.approx_road_km)}`}
           </p>
         </div>
         <DateTimeDisplay value={job.posted_at} format="relative" className="text-xs text-ink-soft" />

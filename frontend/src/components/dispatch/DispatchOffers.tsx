@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { describeRoute } from "@/lib/utils/route";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -67,7 +68,7 @@ export function DispatchOffers({ orderId, refreshKey = 0, onAssigned }: {
           <h2 className="text-sm font-medium text-ink">Finding a rider</h2>
           <p className="text-xs text-ink-soft">
             Suggested fare {formatNaira(request.suggested_fare)}
-            {request.approx_road_km != null && ` · ≈ ${request.approx_road_km.toFixed(1)} km`}.
+            {describeRoute(request.route, request.approx_road_km) && ` · ${describeRoute(request.route, request.approx_road_km)}`}.
             A rider can accept it instantly, or send their own offer for you to choose.
           </p>
         </div>

@@ -66,6 +66,7 @@ export interface DeliveryTrip extends Delivery {
   pickup: DispatchWaypoint;
   dropoff: DispatchWaypoint;
   straight_line_km: number | null;
+  route?: import("@/lib/utils/route").RouteSummary | null;
   distance_source: "haversine";
 }
 

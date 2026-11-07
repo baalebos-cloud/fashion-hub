@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { DispatchAction } from "@/components/dispatch/DispatchAction";
 import { DeliveryEventLog } from "@/components/dispatch/DeliveryEventLog";
+import { RoutingHealth } from "@/components/admin/RoutingHealth";
 
 const ISSUE_LABEL: Record<string, string> = {
   CUSTOMER_UNREACHABLE: "Customer unreachable", WRONG_ADDRESS: "Wrong address", PACKAGE_DAMAGED: "Package damaged",
@@ -74,6 +75,7 @@ export default function Deliveries() {
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="font-display text-xl text-ink">Dispatch operations</h1>
+          <RoutingHealth />
         <Button variant="secondary" size="sm" disabled={loading} onClick={refresh}>Refresh</Button>
       </div>
       {loading && <p role="status" className="text-sm text-ink-soft">Loading dispatch board…</p>}

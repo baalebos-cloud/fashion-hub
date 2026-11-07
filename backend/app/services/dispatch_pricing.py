@@ -27,6 +27,14 @@ def suggested_fare(straight_line_km: float | None) -> Decimal:
     return max(rounded, Decimal(settings.DISPATCH_MIN_FARE))
 
 
+def suggested_fare_for_road_km(km: float | None) -> Decimal:
+    """Same formula, from a real road distance (only used once the owner switches
+    DISPATCH_PRICE_FROM_ROAD_ROUTES on)."""
+    raw = Decimal(settings.DISPATCH_BASE_FARE) + Decimal(str(km or 0)) * settings.DISPATCH_PER_KM_FARE
+    rounded = (raw / 50).quantize(Decimal(1), rounding=ROUND_HALF_UP) * 50
+    return max(rounded, Decimal(settings.DISPATCH_MIN_FARE))
+
+
 def offer_bounds(suggested: Decimal) -> tuple[Decimal, Decimal]:
     low = (suggested * OFFER_MIN_RATIO / 50).quantize(Decimal(1), rounding=ROUND_HALF_UP) * 50
     high = (suggested * OFFER_MAX_RATIO / 50).quantize(Decimal(1), rounding=ROUND_HALF_UP) * 50

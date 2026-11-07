@@ -76,7 +76,7 @@ export default function PublicTracking() {
         <div className="rounded-card bg-ink px-4 py-3 text-paper" role="status">
           <p className="text-xs text-paper/70">Arriving in about</p>
           <p className="font-display text-3xl">{tracking.eta_minutes} min</p>
-          <p className="text-xs text-paper/60">Estimate from the rider's live location</p>
+          <p className="text-xs text-paper/60">{tracking.eta_basis === "road_route" ? "Road route from the rider's live location" : "Estimate from the rider's live location"}</p>
         </div>
       )}
 

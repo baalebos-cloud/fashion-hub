@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { describeRoute } from "@/lib/utils/route";
 import { deliveryRequestsApi } from "@/api/delivery-requests.api";
 import { Button } from "@/components/ui/button";
 import { formatNaira } from "@/lib/formatters/currency";
@@ -66,7 +67,7 @@ export function ReservedJobs({ onAccepted, onChanged }: { onAccepted: (delivery:
                 <p className="text-xs font-medium uppercase tracking-wide text-brass-deep">Reserved for you</p>
                 <p className="mt-1 font-display text-2xl text-ink">{formatNaira(reserved.job.suggested_fare)}</p>
                 <p className="text-xs text-ink-soft">
-                  {reserved.job.approx_road_km != null && `≈ ${reserved.job.approx_road_km.toFixed(1)} km · `}
+                  {describeRoute(reserved.job.route, reserved.job.approx_road_km) && `${describeRoute(reserved.job.route, reserved.job.approx_road_km)} · `}
                   {reserved.job.pickup_area ?? "Pickup area"} → {reserved.job.dropoff_area ?? "Drop-off area"}
                 </p>
               </div>

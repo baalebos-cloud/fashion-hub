@@ -1,6 +1,7 @@
 import type { DeliveryTrip, DispatchWaypoint } from "@/types/delivery";
 import type { CallParty } from "@/types/call";
 import { CallButton } from "@/components/calls/CallButton";
+import { describeRoute } from "@/lib/utils/route";
 
 /** Display directions only when the backend supplied complete, validated pins. */
 export function mapsDestination(point: DispatchWaypoint): string | null {
@@ -45,7 +46,11 @@ export function DispatchTripCard({ trip }: { trip: DeliveryTrip }) {
     <section className="space-y-3" aria-label="Delivery itinerary">
       <Waypoint title="Pickup point" point={trip.pickup} orderId={trip.order_id} party="seller" />
       <Waypoint title="Customer drop-off" point={trip.dropoff} orderId={trip.order_id} party="buyer" />
-      {trip.straight_line_km != null && <p className="text-xs text-ink-soft">
+      {trip.route?.verified ? (
+        <p className="text-sm text-ink">{describeRoute(trip.route)}
+          <span className="block text-xs text-ink-soft">Road route from the routing service. Actual time depends on traffic and stops.</span>
+        </p>
+      ) : trip.straight_line_km != null && <p className="text-xs text-ink-soft">
         Approximately {trip.straight_line_km.toFixed(1)} km straight-line distance.
         This is not a driving distance, route ETA or delivery fee estimate.
       </p>}

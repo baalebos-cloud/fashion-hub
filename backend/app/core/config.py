@@ -153,6 +153,21 @@ class Settings(BaseSettings):
     TRACKING_LINK_TTL_HOURS: int = 168          # 7 days
     TRACKING_LINK_AFTER_DELIVERY_HOURS: int = 48  # links stop working this long after delivery
     TRACKING_LINK_MAX_ACTIVE: int = 3
+    # Road routing (logistics phase 1). "none" keeps the labelled straight-line estimate.
+    ROUTING_PROVIDER: str = "none"  # none | google | osrm
+    ROUTING_GOOGLE_API_KEY: Optional[str] = Field(None, repr=False)  # server key with Routes API + billing
+    ROUTING_GOOGLE_TWO_WHEELER: bool = False  # use Google's two-wheeler mode for bikes where supported
+    ROUTING_OSRM_URL: Optional[str] = None
+    ROUTING_TIMEOUT_SECONDS: float = 3.0
+    ROUTING_RETRIES: int = 1
+    ROUTING_CACHE_SECONDS: int = 86400          # routes without live traffic
+    ROUTING_TRAFFIC_CACHE_SECONDS: int = 900    # traffic-aware routes go stale faster
+    ROUTING_LIVE_ETA_SECONDS: int = 60          # live ETA recomputed at most this often per delivery
+    ROUTING_BREAKER_THRESHOLD: int = 3
+    ROUTING_BREAKER_WINDOW_SECONDS: int = 120
+    ROUTING_BREAKER_COOLDOWN_SECONDS: int = 120
+    # Fares stay on the straight-line formula until the owner approves pricing from road distance.
+    DISPATCH_PRICE_FROM_ROAD_ROUTES: bool = False
     # Delivery proof (phase 6). Codes are one-time, expire, and rotate on request.
     HANDOVER_CODE_TTL_MINUTES: int = 30
     PICKUP_CODE_TTL_MINUTES: int = 30
