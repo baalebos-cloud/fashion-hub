@@ -166,3 +166,14 @@ def test_cart_summary_includes_product_ids(db, shop, make_user):
     CartService(db).add_item(owner_user_id=tailor.id, product_variant_id=variant.id, quantity=1)
     summary = CartService(db).get_cart_summary(tailor.id)
     assert summary["items"][0]["product_id"] == lace.id
+
+
+def test_sold_out_near_matches_do_not_crowd_out_buyable_fallbacks(db, shop, client, monkeypatch):
+    from app.services import related_items_service
+    monkeypatch.setattr(related_items_service, "FALLBACK_POOL", 3)
+    lace = shop.product("Lace", "1000")
+    for n in range(3):
+        shop.product(f"Sold out {n}", "1000", stock=0)  # closest price, but can't be bought
+    shop.product("In stock", "1300")
+    items = client.get(f"/api/v1/recommendations/products/{lace.id}/similar").json()["items"]
+    assert [i["name"] for i in items] == ["In stock"]

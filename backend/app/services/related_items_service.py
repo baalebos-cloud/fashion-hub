@@ -10,7 +10,7 @@ priced in NGN, with at least one variant in stock.
 import uuid
 from decimal import Decimal
 
-from sqlalchemy import func
+from sqlalchemy import exists, func
 from sqlalchemy.orm import Session
 
 from app.core.exceptions import NotFoundError
@@ -69,9 +69,13 @@ def _fallback(db: Session, seeds: list[VendorProduct], exclude: set, limit: int)
     anchor = sum((Decimal(s.base_price) for s in seeds), Decimal(0)) / len(seeds)
     low, high = anchor * FALLBACK_PRICE_BAND[0], anchor * FALLBACK_PRICE_BAND[1]
 
+    # Only in-stock products enter the pool, so sold-out items can't use up the candidate limit.
+    in_stock = exists().where(ProductVariant.product_id == VendorProduct.id,
+                              Inventory.product_variant_id == ProductVariant.id,
+                              Inventory.quantity_available > 0)
     picked: list[dict] = []
     for scope in ("category", "vendor"):
-        query = VendorCatalogService(db).query().filter(VendorProduct.id.notin_(exclude))
+        query = VendorCatalogService(db).query().filter(VendorProduct.id.notin_(exclude), in_stock)
         if scope == "category":
             if not categories:
                 continue
