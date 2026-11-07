@@ -18,6 +18,7 @@ export interface AdminDispatchBoard {
     order_type: string | null;
     status: string;
     delivery_partner_id: string | null;
+    provider?: string | null;
     rider_first_name: string | null;
     vehicle_type: string | null;
     open_issue_count: number;

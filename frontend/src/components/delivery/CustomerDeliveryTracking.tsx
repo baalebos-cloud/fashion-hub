@@ -44,6 +44,7 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
       <h2 className="font-medium">Delivery tracking</h2>
       {delivery ? <DeliveryStatusBadge status={delivery.status} /> :
         <p className="text-sm text-ink-soft">No courier has been assigned yet.</p>}
+      {delivery?.courier && <p className="text-sm text-ink">Delivered by our courier partner <span className="font-medium">{delivery.courier}</span>.</p>}
       {delivery?.rider_name && <RiderCard delivery={delivery} />}
       {delivery?.rider_name && ["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status) && (
         <CallButton orderId={orderId} party="rider" label="Call rider" />

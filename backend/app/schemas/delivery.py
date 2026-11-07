@@ -41,3 +41,4 @@ class DeliveryTrackingResponse(DeliveryResponse):
     rider_vehicle_type: Optional[str] = None
     rider_completed_deliveries: Optional[int] = None
     rider_photo_url: Optional[str] = None
+    courier: Optional[str] = None  # an outside courier company, when one is delivering

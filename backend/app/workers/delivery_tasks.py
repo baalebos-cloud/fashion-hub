@@ -65,3 +65,16 @@ def advance_expired_job_offers_task():
         return AutoDispatchService(db).advance_expired()
     finally:
         db.close()
+
+
+
+@celery_app.task(name="app.workers.delivery_tasks.reconcile_courier_deliveries_task")
+def reconcile_courier_deliveries_task():
+    """Catch courier status updates whose webhooks never arrived. No-op with no couriers enabled."""
+    from app.core.database import session_scope
+    from app.integrations.couriers import enabled_couriers
+    if not enabled_couriers():
+        return 0
+    from app.services.external_courier_service import ExternalCourierService
+    with session_scope() as db:
+        return ExternalCourierService(db).reconcile()

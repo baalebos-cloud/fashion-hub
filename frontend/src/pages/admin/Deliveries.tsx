@@ -9,6 +9,8 @@ import { RoutingHealth } from "@/components/admin/RoutingHealth";
 import { SuggestedRiders } from "@/components/dispatch/SuggestedRiders";
 import { RiderRouteToggle } from "@/components/dispatch/RiderRouteToggle";
 import { ControlTower } from "@/components/dispatch/ControlTower";
+import { CourierCompanies } from "@/components/dispatch/CourierCompanies";
+import { apiClient } from "@/lib/api/client";
 import { describeFreshness } from "@/lib/utils/tracking";
 
 const ISSUE_LABEL: Record<string, string> = {
@@ -150,6 +152,7 @@ export default function Deliveries() {
                   </p>
                 )}
                 <SuggestedRiders requestId={request.id} onAssigned={refresh} />
+                <CourierCompanies requestId={request.id} onBooked={refresh} />
                 <DispatchAction label="Stop rider search" confirmLabel="Stop search" variant="danger"
                   onConfirm={async (reason) => { await adminDispatchApi.cancelRequest(request.id, reason); refresh(); }} />
               </Card>
@@ -167,7 +170,7 @@ export default function Deliveries() {
                     <div>
                       <p>{orderLabel(run)}</p>
                       <p className="text-xs text-ink-soft">
-                        Rider {run.rider_first_name ?? "unknown"}{run.vehicle_type ? ` · ${run.vehicle_type}` : ""}
+                        {run.provider && run.provider !== "internal" ? `Courier company: ${run.provider}` : <>Rider {run.rider_first_name ?? "unknown"}{run.vehicle_type ? ` · ${run.vehicle_type}` : ""}</>}
                         {run.open_issue_count > 0 && <span className="ml-1 font-medium text-thread">· {run.open_issue_count} open issue{run.open_issue_count > 1 ? "s" : ""}</span>}
                       </p>
                     </div>
@@ -180,7 +183,18 @@ export default function Deliveries() {
                       )}
                     </span>
                   </div>
-                  {collected ? (
+                  {run.provider && run.provider !== "internal" ? (
+                    <div className="flex flex-wrap gap-2">
+                      {!collected && <DispatchAction label="Cancel courier booking" confirmLabel="Cancel booking" variant="danger"
+                        onConfirm={async (reason) => { await apiClient.post(`/admin/dispatch/deliveries/${run.id}/courier-cancel`, { reason }); refresh(); }} />}
+                      {run.provider === "sandbox" && (["picked_up", "delivered"] as const).map((status) => (
+                        <button key={status} type="button" className="text-xs text-brass-deep underline"
+                          onClick={() => void apiClient.post(`/admin/dispatch/deliveries/${run.id}/courier-simulate`, { status }).then(refresh)}>
+                          Simulate {status.replace("_", " ")}
+                        </button>
+                      ))}
+                    </div>
+                  ) : collected ? (
                     <p className="text-xs text-ink-soft">Package collected. Handle problems through rider issues.</p>
                   ) : (
                     <div className="flex flex-wrap gap-2">

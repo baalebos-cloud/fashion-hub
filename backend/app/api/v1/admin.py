@@ -121,6 +121,7 @@ def dispatch_board(
                 "order_number": orders[d.order_id].order_number if d.order_id in orders else None,
                 "order_type": orders[d.order_id].order_type if d.order_id in orders else None,
                 "delivery_partner_id": d.delivery_partner_id,
+                "provider": d.provider,
                 "rider_first_name": _first_name(by_id[d.delivery_partner_id][1]) if d.delivery_partner_id in by_id else None,
                 "vehicle_type": by_id[d.delivery_partner_id][0].vehicle_type if d.delivery_partner_id in by_id else None,
                 "open_issue_count": int(issue_counts.get(d.id, 0)),
@@ -542,3 +543,62 @@ def routing_health(admin: User = Depends(require_roles(Role.ADMIN))):
     """Which road-routing provider is in use, is it answering, and is it paused after failures."""
     from app.services.route_service import health
     return health()
+
+
+
+# ---- External courier companies ---------------------------------------------------------------
+class CourierBookingRequest(BaseModel):
+    courier: str = Field(min_length=2, max_length=32)
+    quote_id: str = Field(min_length=3, max_length=128)
+    reason: str = Field(min_length=5, max_length=500)
+
+
+class CourierSimulation(BaseModel):
+    status: Literal["courier_assigned", "picked_up", "in_transit", "delivered", "failed", "cancelled"]
+
+
+@router.get("/dispatch/requests/{request_id}/courier-quotes")
+def courier_quotes(request_id: UUID, db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Prices from each enabled courier company that can take this job."""
+    from app.services.external_courier_service import ExternalCourierService
+    return ExternalCourierService(db).quotes(request_id)
+
+
+@router.post("/dispatch/requests/{request_id}/courier-booking")
+def courier_book(request_id: UUID, payload: CourierBookingRequest, request: Request,
+                 db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Book the job with a courier company at the quoted price (audited)."""
+    from app.services.external_courier_service import ExternalCourierService
+    delivery = ExternalCourierService(db).book(request_id=request_id, courier_name=payload.courier,
+                                               quote_id=payload.quote_id, admin=admin, reason=payload.reason,
+                                               ip=_client_ip(request))
+    return {"delivery_id": str(delivery.id), "courier": delivery.provider,
+            "external_id": delivery.provider_tracking_reference, "status": delivery.status}
+
+
+@router.post("/dispatch/deliveries/{delivery_id}/courier-cancel")
+def courier_cancel(delivery_id: UUID, payload: DispatchActionReason, request: Request,
+                   db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    from app.services.external_courier_service import ExternalCourierService
+    delivery = ExternalCourierService(db).cancel(delivery_id=delivery_id, admin=admin, reason=payload.reason,
+                                                 ip=_client_ip(request))
+    return {"delivery_id": str(delivery.id), "status": delivery.status}
+
+
+@router.post("/dispatch/deliveries/{delivery_id}/courier-simulate")
+def courier_simulate(delivery_id: UUID, payload: CourierSimulation,
+                     db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Sandbox courier only, never in production: send yourself the signed webhook a courier would."""
+    from app.core.config import settings
+    from app.integrations.couriers import get_courier
+    from app.models.delivery import Delivery
+    from app.services.external_courier_service import ExternalCourierService
+    delivery = db.get(Delivery, delivery_id)
+    courier = get_courier("sandbox")
+    if settings.APP_ENV == "production" or courier is None or delivery is None or delivery.provider != "sandbox":
+        raise HTTPException(404, "Not available.")
+    body, headers = courier.make_webhook(delivery.provider_tracking_reference, payload.status,
+                                         proof_url="https://sandbox-courier.test/pod.jpg" if payload.status == "delivered" else None)
+    if not courier.verify_webhook(body, headers):
+        raise HTTPException(409, "Set SANDBOX_COURIER_WEBHOOK_SECRET to simulate updates.")
+    return {"outcome": ExternalCourierService(db).handle_event("sandbox", courier.parse_webhook(body))}
