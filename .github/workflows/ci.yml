@@ -57,7 +57,8 @@ jobs:
       - name: Service and API regression tests
         run: pytest tests --cov=app --cov-report=term-missing
   frontend:
-    timeout-minutes: 10
+    # The browser install (apt packages + Chromium) can take several minutes on a cold runner.
+    timeout-minutes: 20
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -77,8 +78,24 @@ jobs:
         run: npx tsc --noEmit
       - run: npm run build
         if: ${{ !cancelled() }}
+      - name: Cache Playwright browser
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('frontend/package-lock.json') }}
       - name: Install browser for theme regression checks
-        run: npx playwright install --with-deps chromium
+        timeout-minutes: 8
+        run: |
+          # System libraries are always needed; the browser download is skipped when cached.
+          install() {
+            if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+              npx playwright install-deps chromium
+            else
+              npx playwright install --with-deps chromium
+            fi
+          }
+          install || { echo "Browser install failed; retrying once."; sleep 10; install; }
       - name: Verify production styling in a browser
         run: npm run test:browser
       - uses: actions/upload-artifact@v7
