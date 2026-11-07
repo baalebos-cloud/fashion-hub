@@ -44,6 +44,15 @@ def sync_interaction_history_task():
         return sync_history(db)
 
 
+@celery_app.task(name="app.workers.notification_tasks.rebuild_item_similarities_task")
+def rebuild_item_similarities_task():
+    """Rebuild learned related items from shopping activity."""
+    from app.core.database import session_scope
+    from app.services.similarity_service import rebuild
+    with session_scope() as db:
+        return rebuild(db)
+
+
 @celery_app.task(name="app.workers.notification_tasks.purge_interactions_task")
 def purge_interactions_task():
     """Delete shopping activity older than INTERACTION_RETENTION_DAYS."""

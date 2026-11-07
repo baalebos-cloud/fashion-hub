@@ -182,6 +182,10 @@ export const endpoints = {
     status: "/kyb/status",
   },
 
+  recommendations: {
+    similarProducts: (productId: string) => `/recommendations/products/${productId}/similar`,
+    boughtTogether: "/recommendations/products/bought-together",
+  },
   interactions: {
     events: "/interactions/events",
     preference: "/interactions/preference",

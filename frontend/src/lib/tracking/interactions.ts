@@ -94,6 +94,11 @@ function enqueue(event: InteractionEventIn): void {
 
 export type ItemType = "product" | "design" | "professional";
 
+/** The page section a visit came from (e.g. ?from=similar_items), or the given default. */
+export function viewSource(fromParam: string | null, fallback: string): string {
+  return fromParam && /^[a-z][a-z_]{0,31}$/.test(fromParam) ? fromParam : fallback;
+}
+
 export function trackView(itemType: ItemType, itemId: string | undefined, source: string): void {
   if (itemId) enqueue({ event_type: "view", item_type: itemType, item_id: itemId, source });
 }
