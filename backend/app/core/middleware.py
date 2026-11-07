@@ -53,7 +53,9 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 _LOGGED_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 _SKIP_SUFFIXES = ("/position", "/position/start")
 # Auth endpoints log their own, richer entries (sign-in success/failure and who).
-_SKIP_PREFIXES = ("/api/v1/auth/", "/health", "/api/v1/payments/webhook", "/api/v1/webhooks", "/api/v1/calls/voice")
+_SKIP_PREFIXES = ("/api/v1/auth/", "/health", "/api/v1/payments/webhook", "/api/v1/webhooks", "/api/v1/calls/voice",
+                 # Shopping-activity batches: high volume, and recorded without IP by design.
+                 "/api/v1/interactions/events")
 
 
 class ActivityLogMiddleware(BaseHTTPMiddleware):

@@ -7,6 +7,7 @@ import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { authRoutes } from "@/config/routes.config";
 import { useNavigate } from "react-router-dom";
 import type { VendorProduct } from "@/types/product";
+import { trackView } from "@/lib/tracking/interactions";
 
 export default function ProductDetails() {
   const { productId } = useParams<{ productId: string }>();
@@ -19,6 +20,7 @@ export default function ProductDetails() {
     if (productId) productsApi.getById(productId).then((value) => { if (active) setProduct(value); }).catch((err) => { if (active) setError(getDisplayErrorMessage(err)); });
     return () => { active = false; };
   }, [productId]);
+  useEffect(() => { if (product) trackView("product", product.id, "product_page"); }, [product]);
   if (error) return <p role="alert">{error}</p>;
 
   if (!product) return <LoadingScreen label="Loading product…" />;

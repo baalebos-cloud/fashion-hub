@@ -1,6 +1,7 @@
 import { queryClient } from "@/lib/query-client";
 import { useAuthStore } from "@/store/auth.store";
 import { useMessagingStore } from "@/store/messaging.store";
+import { discardPendingInteractions } from "@/lib/tracking/interactions";
 
 /** Measurement drafts live in localStorage per user; body measurements must not outlive a sign-out. */
 export const MEASUREMENT_DRAFT_PREFIX = "seam:measurements:draft:";
@@ -28,6 +29,7 @@ export function wipeAccountState({ signedOut }: { signedOut: boolean }): void {
   queryClient.cancelQueries();
   queryClient.clear();
   useMessagingStore.getState().reset();
+  discardPendingInteractions({ newBrowserId: signedOut });
   if (signedOut) clearMeasurementDrafts();
 }
 

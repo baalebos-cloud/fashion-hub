@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { trackSearch } from "@/lib/tracking/interactions";
 import { professionalsApi } from "@/api/professionals.api";
 import { ProfessionalSearch } from "@/components/professionals/ProfessionalSearch";
 import { ProfessionalFilters, type ProfessionalFiltersValue } from "@/components/professionals/ProfessionalFilters";
@@ -20,6 +21,8 @@ export default function FindProfessionals() {
   useEffect(() => {
     setPage(1);
   }, [query, filters]);
+
+  useEffect(() => { trackSearch(query, "tailor_search"); }, [query]);
 
   useEffect(() => {
     let active = true;
