@@ -130,6 +130,8 @@ class DispatchAdminService:
         self._notify([order.seller_user_id, order.buyer_user_id], "dispatch.released", "Finding a new rider",
                      f"We're finding a new rider for order {order.order_number}.")
         self.db.commit()
+        from app.services.batch_service import replan_quietly
+        replan_quietly(self.db, partner.id if partner else None)
         InternalCourierService(self.db)._start_auto_offers(fresh.id)
         return fresh
 
@@ -160,6 +162,9 @@ class DispatchAdminService:
         self._notify([order.seller_user_id, order.buyer_user_id], "dispatch.reassigned", "New rider assigned",
                      f"A new rider is handling order {order.order_number}.")
         self.db.commit()
+        from app.services.batch_service import replan_quietly
+        replan_quietly(self.db, old_partner.id if old_partner else None)
+        replan_quietly(self.db, new_partner.id)
         return new_delivery
 
     def suggest_riders(self, *, request_id, limit: int = 5) -> list[dict]:
@@ -199,7 +204,18 @@ class DispatchAdminService:
         busy = partner is not None and self.db.query(Delivery.id).filter(
             Delivery.delivery_partner_id == partner.id,
             Delivery.status.in_(["assigned", "picked_up", "in_transit", "out_for_delivery"])).first() is not None
-        if partner is None or not partner.is_verified or not partner.is_available or busy:
+        from app.core.config import settings
+        if partner is None or not partner.is_verified:
+            raise ConflictError("Choose a verified rider.")
+        if busy:
+            if not settings.DISPATCH_MULTISTOP_ENABLED:
+                raise ConflictError("Choose a verified rider who is online and not on another delivery.")
+            # Multi-stop: only if the rider's whole route still fits capacity and the time limit.
+            from app.services.batch_service import BatchService
+            plan = BatchService(self.db).can_add(partner, request)
+            if not plan.feasible:
+                raise ConflictError(f"Can't add this job to {partner.vehicle_type or 'this'} rider's route: {plan.reason}.")
+        elif not partner.is_available:
             raise ConflictError("Choose a verified rider who is online and not on another delivery.")
         from app.services.internal_courier_service import InternalCourierService
         fee = request.proposed_fee if request.proposed_fee is not None else order.delivery_fee
@@ -211,6 +227,8 @@ class DispatchAdminService:
         self._notify([order.seller_user_id, order.buyer_user_id], "dispatch.assigned", "Rider assigned",
                      f"A rider has been assigned to order {order.order_number}.")
         self.db.commit()
+        from app.services.batch_service import replan_quietly
+        replan_quietly(self.db, partner.id)
         return delivery
 
     def cancel_request(self, *, request_id, admin: User, reason: str, ip: str | None = None):

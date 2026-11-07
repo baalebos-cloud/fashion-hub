@@ -170,6 +170,15 @@ def dispatch_reassign(delivery_id: UUID, payload: ReassignRequest, request: Requ
     return {"delivery_id": str(delivery.id), "status": delivery.status}
 
 
+@router.get("/dispatch/riders/{partner_id}/route")
+def dispatch_rider_route(partner_id: UUID, db: Session = Depends(get_db),
+                         admin: User = Depends(require_roles(Role.ADMIN))):
+    """A rider's planned multi-stop route, or null when they have fewer than two deliveries."""
+    from app.models.delivery_batch import DeliveryBatch
+    from app.services.batch_service import batch_view
+    return batch_view(db.query(DeliveryBatch).filter_by(delivery_partner_id=partner_id, status="active").first())
+
+
 @router.get("/dispatch/requests/{request_id}/candidates")
 def dispatch_candidates(request_id: UUID, db: Session = Depends(get_db),
                         admin: User = Depends(require_roles(Role.ADMIN))):
