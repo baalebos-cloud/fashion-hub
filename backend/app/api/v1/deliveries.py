@@ -14,7 +14,7 @@ from app.models.delivery_partner import DeliveryPartner
 from app.schemas.dispatch_marketplace import DeliveryJourney
 from app.schemas.delivery import DeliveryResponse, DeliveryTrackingResponse, MarkDeliveredRequest, MarkPickedUpRequest
 from app.schemas.dispatch_trip import DeliveryTripResponse
-from app.schemas.delivery_position import RiderPositionInput, RiderPositionResponse, RiderSharingSession
+from app.schemas.delivery_position import RiderDeviceStateInput, RiderPositionInput, RiderPositionResponse, RiderSharingSession
 from app.services.internal_courier_service import InternalCourierService
 
 router = APIRouter(prefix="/deliveries", tags=["Deliveries"])
@@ -189,6 +189,17 @@ def share_rider_position(
     return InternalCourierService(db).report_position(
         delivery_id=delivery_id, actor=user, **payload.model_dump(),
     )
+
+
+@router.post("/{delivery_id}/position/state", status_code=204)
+def report_rider_device_state(
+    delivery_id: uuid.UUID,
+    payload: RiderDeviceStateInput,
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """The rider's phone reports why it has no location (permission denied, no signal, paused)."""
+    InternalCourierService(db).report_device_state(delivery_id=delivery_id, actor=user, **payload.model_dump())
 
 
 @router.get("/{delivery_id}/position", response_model=RiderPositionResponse | None)

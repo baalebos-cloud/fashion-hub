@@ -28,6 +28,8 @@ class DispatchRunSummary(BaseModel):
     vehicle_type: str | None = None
     open_issue_count: int = 0
     created_at: datetime
+    # Location freshness only (live / delayed / last_known / not_sharing / permission_denied); no coordinates.
+    tracking: dict | None = None
 
 
 class DispatchBoardResponse(BaseModel):

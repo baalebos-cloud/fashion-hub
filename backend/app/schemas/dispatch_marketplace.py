@@ -104,6 +104,7 @@ class JourneyLive(BaseModel):
     route_source: str | None = None
     traffic_aware: bool = False
     route_computed_at: str | None = None
+    freshness: str | None = None
     updated_at: str | None
 
 
@@ -124,6 +125,8 @@ class DeliveryJourney(BaseModel):
     delivery_status: str | None
     milestones: list[JourneyMilestone]
     live: JourneyLive | None
+    # live | delayed | last_known | not_sharing | permission_denied | unavailable | unknown
+    tracking: dict | None = None
     materials_legs: list[MaterialsLeg] = []
 
 

@@ -76,4 +76,9 @@ export interface RiderPosition {
   longitude: number;
   accuracy_m: number;
   recorded_at: string;
+  /** live | delayed | last_known. A last_known point is "last seen", never the current position. */
+  freshness?: "live" | "delayed" | "last_known" | null;
+  age_seconds?: number | null;
+  accepted?: boolean | null;
+  device_state?: string | null;
 }
