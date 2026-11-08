@@ -74,3 +74,19 @@ def test_lists_only_orders_that_broke_a_rule_oldest_first(ctx):
 def test_admin_only(ctx):
     ctx["current"][0] = ctx["tailor"]
     assert ctx["http"].get("/api/v1/admin/order-exceptions").status_code == 403
+
+
+def test_many_on_time_orders_do_not_hide_a_late_one(ctx, db, make_user):
+    """The age test runs before the limit, so hundreds of on-time orders can't push a late one out."""
+    from app.models.order import Order
+    tailor, customer = ctx["tailor"], make_user()
+    now = utcnow()
+    db.add_all([Order(order_number=f"CO-OK{i:04d}", order_type="customer_order", buyer_user_id=customer.id, seller_user_id=tailor.id,
+                      status="in_production", subtotal=Decimal(1), total_amount=Decimal(1), currency="NGN",
+                      ordered_at=now - timedelta(days=90), accepted_at=now - timedelta(days=1)) for i in range(520)])
+    db.add_all([Order(order_number=f"CO-PAID{i:04d}", order_type="customer_order", buyer_user_id=customer.id, seller_user_id=tailor.id,
+                      status="paid", subtotal=Decimal(1), total_amount=Decimal(1), currency="NGN",
+                      ordered_at=now - timedelta(days=90), paid_at=now - timedelta(hours=1)) for i in range(520)])
+    db.commit()
+    numbers = {r["order_number"] for r in ctx["http"].get("/api/v1/admin/order-exceptions").json()}
+    assert {"CO-NOREPLY", "CO-LATE", "VO-NOCONFIRM", "VO-STUCK"} <= numbers

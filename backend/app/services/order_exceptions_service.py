@@ -6,9 +6,12 @@ Rules, all from data already stored:
                     turnaround of its designs (counted from acceptance)
 - vendor_no_confirm material order paid but not confirmed by the vendor after 24 h
 - vendor_stuck      material order confirmed/processing but not ready for pickup after 72 h
+
+Each rule is evaluated in SQL and returns its oldest 50; the merged list keeps the oldest 50.
 """
 from datetime import datetime, timedelta, timezone
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.timezone import utcnow
@@ -20,7 +23,6 @@ from app.models.user import User
 NO_REPLY_AFTER = timedelta(hours=24)
 VENDOR_CONFIRM_AFTER = timedelta(hours=24)
 VENDOR_STUCK_AFTER = timedelta(hours=72)
-SCAN_LIMIT = 500
 RETURN_LIMIT = 50
 
 
@@ -38,54 +40,52 @@ class OrderExceptionsService:
     def __init__(self, db: Session):
         self.db = db
 
-    def _scan(self, order_type: str, statuses: tuple[str, ...]) -> list[Order]:
-        return (self.db.query(Order).filter(Order.order_type == order_type, Order.status.in_(statuses))
-                .order_by(Order.ordered_at.asc()).limit(SCAN_LIMIT).all())
+    def _waiting(self, order_type: str, statuses: tuple[str, ...], since_col, older_than: datetime) -> list[Order]:
+        """Orders in these statuses whose clock started before `older_than`, oldest first.
+        The age test runs in SQL, so only qualifying orders count toward the limit."""
+        return (self.db.query(Order)
+                .filter(Order.order_type == order_type, Order.status.in_(statuses), since_col.isnot(None), since_col <= older_than)
+                .order_by(since_col.asc()).limit(RETURN_LIMIT).all())
 
-    def _turnaround_days(self, order_ids: list) -> dict:
-        """Longest estimated turnaround (days) among each order's designs."""
-        if not order_ids:
-            return {}
-        rows = (self.db.query(OrderItem.order_id, Design.estimated_turnaround_days)
+    def _overdue(self, now_naive: datetime) -> list[tuple[Order, int, datetime]]:
+        """Accepted orders past the longest turnaround estimate of their designs, earliest due first."""
+        longest = func.max(Design.estimated_turnaround_days)
+        due = Order.accepted_at + func.make_interval(0, 0, 0, longest)
+        rows = (self.db.query(Order, longest.label("days"), due.label("due"))
+                .join(OrderItem, OrderItem.order_id == Order.id)
                 .join(Design, Design.id == OrderItem.reference_id)
-                .filter(OrderItem.order_id.in_(order_ids), OrderItem.reference_type == "design",
-                        Design.estimated_turnaround_days.isnot(None)).all())
-        days: dict = {}
-        for order_id, value in rows:
-            days[order_id] = max(days.get(order_id, 0), int(value))
-        return days
+                .filter(Order.order_type == "customer_order", Order.status.in_(("accepted", "in_production")),
+                        Order.accepted_at.isnot(None), OrderItem.reference_type == "design",
+                        Design.estimated_turnaround_days.isnot(None))
+                .group_by(Order.id)
+                .having(due < now_naive)
+                .order_by(due.asc()).limit(RETURN_LIMIT).all())
+        return [(order, int(days), _aware(due_at)) for order, days, due_at in rows]
 
     def list(self) -> list[dict]:
         now = utcnow()
+        # Order timestamps are stored as naive UTC; compare like with like.
+        now_naive = now.replace(tzinfo=None)
         found: list[tuple[Order, str, datetime, str]] = []
 
-        for order in self._scan("customer_order", ("paid",)):
+        for order in self._waiting("customer_order", ("paid",), Order.paid_at, now_naive - NO_REPLY_AFTER):
             since = _aware(order.paid_at)
-            if since and now - since >= NO_REPLY_AFTER:
-                found.append((order, "tailor_no_reply", since, f"Paid {_hours(since, now)} h ago and not accepted yet."))
+            found.append((order, "tailor_no_reply", since, f"Paid {_hours(since, now)} h ago and not accepted yet."))
 
-        making = self._scan("customer_order", ("accepted", "in_production"))
-        turnaround = self._turnaround_days([o.id for o in making])
-        for order in making:
-            accepted = _aware(order.accepted_at)
-            days = turnaround.get(order.id)
-            if accepted and days:
-                due = accepted + timedelta(days=days)
-                if now > due:
-                    late = (now - due).days
-                    found.append((order, "overdue", due,
-                                  f"Past the {days}-day estimate by {late} day{'s' if late != 1 else ''}." if late
-                                  else f"Past the {days}-day estimate."))
+        for order, days, due in self._overdue(now_naive):
+            late = (now - due).days
+            found.append((order, "overdue", due,
+                          f"Past the {days}-day estimate by {late} day{'s' if late != 1 else ''}." if late
+                          else f"Past the {days}-day estimate."))
 
-        for order in self._scan("vendor_order", ("paid",)):
+        for order in self._waiting("vendor_order", ("paid",), Order.paid_at, now_naive - VENDOR_CONFIRM_AFTER):
             since = _aware(order.paid_at)
-            if since and now - since >= VENDOR_CONFIRM_AFTER:
-                found.append((order, "vendor_no_confirm", since, f"Paid {_hours(since, now)} h ago; the vendor hasn't confirmed stock."))
+            found.append((order, "vendor_no_confirm", since, f"Paid {_hours(since, now)} h ago; the vendor hasn't confirmed stock."))
 
-        for order in self._scan("vendor_order", ("confirmed", "processing")):
+        started = func.coalesce(Order.paid_at, Order.ordered_at)
+        for order in self._waiting("vendor_order", ("confirmed", "processing"), started, now_naive - VENDOR_STUCK_AFTER):
             since = _aware(order.paid_at) or _aware(order.ordered_at)
-            if since and now - since >= VENDOR_STUCK_AFTER:
-                found.append((order, "vendor_stuck", since, f"Confirmed but not ready for pickup {_hours(since, now)} h after payment."))
+            found.append((order, "vendor_stuck", since, f"Confirmed but not ready for pickup {_hours(since, now)} h after payment."))
 
         found.sort(key=lambda row: row[2])
         found = found[:RETURN_LIMIT]
