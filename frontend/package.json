@@ -14,7 +14,7 @@
     "test:browser": "playwright test"
   },
   "dependencies": {
-    "@hookform/resolvers": "6.0.2",
+    "@hookform/resolvers": "7.0.2",
     "@tanstack/react-query": "5.106.0",
     "axios": "^1.21.0",
     "clsx": "^2.1.1",
