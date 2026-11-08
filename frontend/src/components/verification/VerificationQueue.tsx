@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { verificationApi } from "@/api/verification.api";
+import { endReviewWindow, hasReviewWindow, verificationApi } from "@/api/verification.api";
+import { isApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -32,18 +33,51 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  async function decide(approve: boolean) {
-    if (!approve && !reason.trim()) { setError("Add a reason so the applicant knows what to fix."); return; }
+  // Set when a decision is waiting on a fresh authenticator code.
+  const [asking, setAsking] = useState<boolean | null>(null);
+  const [code, setCode] = useState("");
+
+  async function submit(approve: boolean) {
     setBusy(approve ? "approve" : "reject");
     setError(null);
     try {
       await verificationApi.review(kind, item.id, approve, reason);
       onDone();
     } catch (err) {
-      setError(getDisplayErrorMessage(err, "The decision couldn't be saved."));
+      if (isApiError(err) && err.code === "step_up_required") {
+        endReviewWindow();
+        setAsking(approve);
+        setError("Your review window has ended. Enter a new code.");
+      } else {
+        setError(getDisplayErrorMessage(err, "The decision couldn't be saved."));
+      }
     } finally {
       setBusy(null);
     }
+  }
+
+  async function decide(approve: boolean) {
+    if (!approve && !reason.trim()) { setError("Add a reason so the applicant knows what to fix."); return; }
+    if (!hasReviewWindow()) { setError(null); setCode(""); setAsking(approve); return; }
+    await submit(approve);
+  }
+
+  async function confirmCode() {
+    if (asking === null) return;
+    const approve = asking;
+    setBusy(approve ? "approve" : "reject");
+    setError(null);
+    try {
+      await verificationApi.openReviewWindow(code);
+    } catch (err) {
+      setBusy(null);
+      setCode("");
+      setError(getDisplayErrorMessage(err, "That code didn't work. Enter the newest code from your authenticator app."));
+      return;
+    }
+    setAsking(null);
+    setCode("");
+    await submit(approve);
   }
 
   async function open(documentId: string) {
@@ -77,10 +111,28 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
           className="w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-base font-normal text-ink focus:border-indigo focus:outline-none" />
         <span className="text-[13px] font-normal text-ink-soft">Saved to the audit log with your decision.</span>
       </label>
+      {asking !== null && (
+        <div className="flex flex-col gap-2 rounded-control border border-indigo/30 bg-indigo-wash p-3">
+          <label htmlFor={`code-${item.id}`} className="text-sm font-semibold text-ink">
+            Code from your authenticator app
+          </label>
+          <div className="flex flex-wrap gap-2">
+            <input id={`code-${item.id}`} inputMode="numeric" autoComplete="one-time-code" maxLength={6} value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+              className="min-h-11 w-32 rounded-control border border-line-strong bg-surface px-3 font-mono text-lg tracking-widest text-ink focus:border-indigo focus:outline-none" />
+            <Button size="sm" variant={asking ? "primary" : "danger"} disabled={code.length !== 6 || busy !== null}
+              isLoading={busy !== null} onClick={() => void confirmCode()}>
+              {asking ? "Confirm and approve" : "Confirm and reject"}
+            </Button>
+            <Button size="sm" variant="ghost" disabled={busy !== null} onClick={() => { setAsking(null); setCode(""); setError(null); }}>Cancel</Button>
+          </div>
+          <p className="text-[13px] text-ink-soft">One code covers your decisions for the next 5 minutes.</p>
+        </div>
+      )}
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
       <div className="flex gap-2">
-        <Button size="sm" onClick={() => void decide(true)} isLoading={busy === "approve"} disabled={busy !== null}>Approve</Button>
-        <Button size="sm" variant="danger" onClick={() => void decide(false)} isLoading={busy === "reject"} disabled={busy !== null}>Reject</Button>
+        <Button size="sm" onClick={() => void decide(true)} isLoading={busy === "approve" && asking === null} disabled={busy !== null || asking !== null}>Approve</Button>
+        <Button size="sm" variant="danger" onClick={() => void decide(false)} isLoading={busy === "reject" && asking === null} disabled={busy !== null || asking !== null}>Reject</Button>
       </div>
     </Card>
   );

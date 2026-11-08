@@ -2,12 +2,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { VerificationCenter } from "@/components/verification/VerificationCenter";
 import { VerificationQueue } from "@/components/verification/VerificationQueue";
+import { ApiError } from "@/lib/api/errors";
 import { KYBForm } from "@/components/verification/KYBForm";
 import { verificationApi } from "@/api/verification.api";
 import { kybApi } from "@/api/kyb.api";
 
+const reviewWindow = vi.hoisted(() => ({ open: false }));
 vi.mock("@/api/verification.api", () => ({
-  verificationApi: { me: vi.fn(), queue: vi.fn(), review: vi.fn(), openDocument: vi.fn() },
+  verificationApi: { me: vi.fn(), queue: vi.fn(), review: vi.fn(), openDocument: vi.fn(),
+    openReviewWindow: vi.fn(async () => { reviewWindow.open = true; }) },
+  hasReviewWindow: () => reviewWindow.open,
+  endReviewWindow: () => { reviewWindow.open = false; },
 }));
 vi.mock("@/api/kyb.api", () => ({ kybApi: { submit: vi.fn(), getStatus: vi.fn() } }));
 vi.mock("@/components/verification/KYCForm", () => ({ KYCForm: () => <p>KYC form</p> }));
@@ -89,8 +94,27 @@ describe("admin review queue", () => {
     expect(verificationApi.openDocument).toHaveBeenCalledWith("doc1");
 
     fireEvent.change(screen.getByLabelText(/Note to applicant/), { target: { value: "Trading name; certificate checked." } });
+    reviewWindow.open = false;
     fireEvent.click(screen.getByRole("button", { name: "Approve" }));
+    // No review window yet: ask for an authenticator code before deciding.
+    expect(verificationApi.review).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText("Code from your authenticator app"), { target: { value: "12 34 56" } });
+    fireEvent.click(screen.getByRole("button", { name: "Confirm and approve" }));
     await waitFor(() => expect(verificationApi.review).toHaveBeenCalledWith("kyb", "k1", true, "Trading name; certificate checked."));
+    expect(verificationApi.openReviewWindow).toHaveBeenCalledWith("123456");
+  });
+
+  it("decides straight away inside an open window, and asks again when it has ended", async () => {
+    vi.mocked(verificationApi.queue).mockResolvedValue([item]);
+    reviewWindow.open = true;
+    vi.mocked(verificationApi.review).mockRejectedValueOnce(new ApiError("ended", "step_up_required", 403, null));
+    render(<VerificationQueue kind="kyb" />);
+    fireEvent.change(await screen.findByLabelText(/Note to applicant/), { target: { value: "CAC certificate is cut off." } });
+    fireEvent.click(screen.getByRole("button", { name: "Reject" }));
+    await waitFor(() => expect(verificationApi.review).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText(/review window has ended/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Confirm and reject" })).toBeTruthy();
+    expect(reviewWindow.open).toBe(false);
   });
 
   it("warns when the registry couldn't be checked", async () => {

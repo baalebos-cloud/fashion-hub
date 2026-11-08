@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.core import totp
 from app.core.admin_access import admin_email_allowed
 from app.core.config import settings
-from app.core.exceptions import ExternalProviderError, UnauthorizedError
+from app.core.exceptions import ExternalProviderError, ForbiddenError, UnauthorizedError
 from app.core.security import (
     JWTError,
     _create_token,
@@ -29,6 +29,8 @@ from app.models.activity_log import AdminCredential
 from app.models.user import RefreshSession, User
 
 CHALLENGE_MINUTES = 5
+# A fresh authenticator code opens a short window for sensitive admin decisions.
+STEP_UP_MINUTES = 5
 GENERIC = "Invalid email, password or code."
 
 
@@ -129,3 +131,45 @@ class AdminAuthService:
                                      {"password_version": password_version(user.hashed_password), "mfa": True,
                                       "mfa_cred": str(credential.id)})
         return {"access_token": access, "refresh_token": refresh, "token_type": "bearer"}, user
+
+
+def _step_up_required(message: str = "Enter a code from your authenticator app to approve or reject.") -> ForbiddenError:
+    return ForbiddenError(message, error_code="step_up_required")
+
+
+class AdminStepUpService:
+    """Re-check the authenticator before an admin approves or rejects a verification.
+
+    One fresh code opens a STEP_UP_MINUTES window (a signed pass bound to this admin and their
+    current authenticator), so several decisions in a row don't each wait for a new code. The
+    code is replay-protected the same way as at sign-in."""
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def open_window(self, *, user: User, code: str) -> dict:
+        credential = (self.db.query(AdminCredential).filter_by(user_id=user.id).with_for_update()
+                      .populate_existing().first())
+        if credential is None or credential.totp_enabled_at is None:
+            raise ForbiddenError("Set up your authenticator app (sign out and back in) before reviewing.",
+                                 error_code="step_up_unavailable")
+        counter = totp.verify(_open(credential.totp_secret_encrypted), code, last_counter=credential.totp_last_counter)
+        if counter is None:
+            self.db.rollback()
+            raise ForbiddenError("That code didn't work. Enter the newest code from your authenticator app.",
+                                 error_code="step_up_failed")
+        credential.totp_last_counter = counter  # the same code can't be used twice
+        self.db.commit()
+        expires = datetime.utcnow() + timedelta(minutes=STEP_UP_MINUTES)
+        token = _create_token(str(user.id), timedelta(minutes=STEP_UP_MINUTES), "admin_step_up", {"cred": str(credential.id)})
+        return {"step_up_token": token, "expires_at": expires.isoformat() + "Z", "minutes": STEP_UP_MINUTES}
+
+    def require(self, *, user: User, token: str | None) -> None:
+        if not token:
+            raise _step_up_required()
+        try:
+            payload = decode_token(token, expected_type="admin_step_up")
+        except (JWTError, ValueError):
+            raise _step_up_required("Your review window has ended. Enter a new authenticator code.")
+        if payload.get("sub") != str(user.id) or payload.get("cred") != active_credential_id(self.db, user.id):
+            raise _step_up_required()

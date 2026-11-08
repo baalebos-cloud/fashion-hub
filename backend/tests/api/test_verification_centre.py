@@ -21,6 +21,13 @@ from app.services.verification_service import company_names_match, normalize_reg
 PHOTO = "/api/v1/media/files/profile-photo.jpg"
 
 
+@pytest.fixture(autouse=True)
+def _review_window_open(monkeypatch):
+    """These tests cover the review rules; the authenticator step-up is tested in test_admin_step_up.py."""
+    from app.services.admin_auth_service import AdminStepUpService
+    monkeypatch.setattr(AdminStepUpService, "require", lambda self, **_: None)
+
+
 @pytest.fixture()
 def http(db):
     current = [None]
