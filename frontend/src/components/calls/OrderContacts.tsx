@@ -6,15 +6,16 @@ import type { CallContact, CallParty } from "@/types/call";
 
 const PARTY_ROLE: Record<CallParty, string> = { buyer: "Customer", seller: "Seller", rider: "Rider" };
 
-/** "Contact" panel for an order: masked call buttons for everyone the user may call. */
-export function OrderContacts({ orderId }: { orderId: string }) {
+/** "Contact" panel for an order: masked call buttons for everyone the user may call.
+ * `refreshKey` reloads the list when it changes, e.g. once a rider is assigned. */
+export function OrderContacts({ orderId, refreshKey }: { orderId: string; refreshKey?: string }) {
   const [contacts, setContacts] = useState<CallContact[] | null>(null);
 
   useEffect(() => {
     let active = true;
     callsApi.contacts(orderId).then((list) => { if (active) setContacts(list); }).catch(() => { if (active) setContacts([]); });
     return () => { active = false; };
-  }, [orderId]);
+  }, [orderId, refreshKey]);
 
   if (!contacts || contacts.length === 0) return null;
 

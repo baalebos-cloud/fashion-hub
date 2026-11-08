@@ -52,3 +52,15 @@ export const CUSTOMER_ORDER_STATUS_TONE: Record<CustomerOrderStatus, StatusTone>
   rejected: "danger",
   refunded: "warning",
 };
+
+/** What happens next, in the customer's words, for each live status. */
+export const CUSTOMER_ORDER_NEXT_STEP: Partial<Record<CustomerOrderStatus, string>> = {
+  pending: "Complete payment to send it to the tailor",
+  paid: "Waiting for the tailor to accept",
+  accepted: "Accepted · production starts soon",
+  in_production: "Being made",
+  ready_for_delivery: "Ready · waiting for a rider",
+  shipped: "On its way to you",
+  out_for_delivery: "On its way to you · track it",
+  delivered: "Delivered · confirm you received it",
+};
