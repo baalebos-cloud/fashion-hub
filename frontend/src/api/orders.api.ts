@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
-import type { CreateCustomerOrderPayload, Order, OrderTimelineEntry } from "@/types/order";
+import type { CreateCustomerOrderPayload, Order, OrderMeasurements, OrderTimelineEntry } from "@/types/order";
 import type { OrderTrackingResponse } from "@/types/tracking";
 
 /**
@@ -29,6 +29,12 @@ export const ordersApi = {
       if (response.data.length < pageSize) break;
     }
     return all;
+  },
+
+  /** Seller: only while the order is active (paid until delivered). Buyer: always. */
+  async measurements(id: string): Promise<OrderMeasurements> {
+    const response = await apiClient.get<OrderMeasurements>(endpoints.orders.measurements(id));
+    return response.data;
   },
 
   async getById(id: string): Promise<Order> {
