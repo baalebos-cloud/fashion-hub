@@ -7,4 +7,6 @@ export interface Vendor {
   average_rating: number;
   /** Set once the vendor saves a store pickup point; required before requesting riders. */
   warehouse_location_id?: string | null;
+  /** Stock at or below this counts as low on the vendor's pages. Vendor-chosen; 10 by default. */
+  low_stock_threshold?: number;
 }
