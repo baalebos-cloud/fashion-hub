@@ -9,16 +9,20 @@
    "between 20k and 40k", "below N30,000") and keeps the meaningful words.
 4. The filters run against published designs from verified tailors who accept orders, exactly
    like the existing design search. Designs matching more of the words rank first, then cheaper.
+
+AI calls are bounded: at most AI_WORKERS run at once, and a search that finds them all busy uses
+keywords straight away instead of queueing, so slow providers can't build a backlog.
 """
 import json
 import logging
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from functools import lru_cache
 
-from sqlalchemy import or_
+from sqlalchemy import case, literal, or_
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -30,11 +34,14 @@ logger = logging.getLogger(__name__)
 
 MAX_TERMS = 6
 MAX_PRICE = 10_000_000
-POOL = 200
-_EXECUTOR = ThreadPoolExecutor(max_workers=4, thread_name_prefix="smart-search")
+AI_WORKERS = 4
+
+_EXECUTOR = ThreadPoolExecutor(max_workers=AI_WORKERS, thread_name_prefix="smart-search")
+_SLOTS = threading.BoundedSemaphore(AI_WORKERS)
 
 _EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-_PHONE = re.compile(r"\+?\d[\d\s-]{8,}\d")
+# Digit runs with spaces, dashes, dots or brackets: 0803 123 4567, (0803) 123-4567, +234.803.123.4567.
+_PHONE = re.compile(r"\+?\(?\d[\d\s().-]{6,}\d\)?")
 _AMOUNT = r"(?:₦|n|ngn)?\s*(\d+(?:[.,]\d+)*)\s*(k|m)?"
 _RANGE = re.compile(rf"(?:between|from)\s+{_AMOUNT}\s+(?:and|to|-)\s+{_AMOUNT}")
 _MAX = re.compile(rf"(?:under|below|less than|max(?:imum)?|up to|at most|<)\s*{_AMOUNT}")
@@ -60,8 +67,13 @@ class Filters:
         return not self.keywords and self.min_price is None and self.max_price is None
 
 
+def _phone_or_keep(match: re.Match) -> str:
+    # 10+ digits is a phone number; shorter runs are prices like 50000 or 1,500,000.
+    return " " if sum(ch.isdigit() for ch in match.group(0)) >= 10 else match.group(0)
+
+
 def redact(text: str) -> str:
-    return _PHONE.sub(" ", _EMAIL.sub(" ", text))
+    return _PHONE.sub(_phone_or_keep, _EMAIL.sub(" ", text))
 
 
 def _amount(number: str, suffix: str | None) -> float | None:
@@ -147,10 +159,26 @@ def _ai_filters_cached(text: str) -> Filters | None:
 def ai_filters(text: str) -> Filters | None:
     if not settings.AI_SEARCH_ENABLED:
         return None
-    future = _EXECUTOR.submit(_ai_filters_cached, text)
+    # Never queue: if every slot is busy (a slow provider), use keywords now.
+    if not _SLOTS.acquire(blocking=False):
+        logger.warning("smart_search_ai_busy")
+        return None
+
+    def run():
+        try:
+            return _ai_filters_cached(text)
+        finally:
+            _SLOTS.release()
+
+    try:
+        future = _EXECUTOR.submit(run)
+    except RuntimeError:
+        _SLOTS.release()
+        return None
     try:
         return future.result(timeout=settings.AI_SEARCH_TIMEOUT_SECONDS)
     except FutureTimeout:
+        future.cancel()  # a call already in progress finishes and frees its slot
         logger.warning("smart_search_ai_timeout")
     except Exception as exc:  # provider down, bad key, network: fall back to keywords
         logger.warning("smart_search_ai_failed", extra={"error_type": type(exc).__name__})
@@ -181,15 +209,13 @@ def search_designs(db: Session, filters: Filters, limit: int = 20) -> list[tuple
         query = query.filter(Design.base_price >= filters.min_price)
     if filters.max_price is not None:
         query = query.filter(Design.base_price <= filters.max_price)
+    relevance = literal(0)
     if filters.keywords:
         patterns = ["%" + term + "%" for term in filters.keywords]  # terms are [a-z-] only
         query = query.filter(or_(*[Design.title.ilike(p) for p in patterns],
                                  *[Design.description.ilike(p) for p in patterns]))
-    rows = query.order_by(Design.base_price, Design.id).limit(POOL).all()
-
-    def relevance(row):
-        design = row[0]
-        title, description = design.title.lower(), (design.description or "").lower()
-        return sum(2 * (t in title) + (t in description) for t in filters.keywords)
-
-    return sorted(rows, key=lambda row: (-relevance(row), float(row[0].base_price), str(row[0].id)))[:limit]
+        # Ranked in the database, so better matches can't be cut off by cheaper partial ones.
+        for p in patterns:
+            relevance = (relevance + case((Design.title.ilike(p), 2), else_=0)
+                         + case((Design.description.ilike(p), 1), else_=0))
+    return query.order_by(relevance.desc(), Design.base_price, Design.id).limit(limit).all()

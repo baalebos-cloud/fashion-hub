@@ -76,8 +76,14 @@ def test_keyword_parser_reads_budgets_and_words(text, keywords, low, high):
     assert (filters.keywords, filters.min_price, filters.max_price) == (keywords, low, high)
 
 
-def test_personal_details_are_removed_before_anything_else():
-    assert smart.redact("agbada, call 0803 123 4567 or ada@example.com") .split() == ["agbada,", "call", "or"]
+@pytest.mark.parametrize("number", ["0803 123 4567", "(0803) 123-4567", "0803.123.4567", "+234 803 123 4567",
+                                    "+234.803.123.4567", "08031234567"])
+def test_personal_details_are_removed_before_anything_else(number):
+    assert smart.redact(f"agbada, call {number} or ada@example.com").split() == ["agbada,", "call", "or"]
+
+
+def test_prices_survive_redaction():
+    assert smart.redact("agbada 50000 or 1,500,000 or 2.500.000") == "agbada 50000 or 1,500,000 or 2.500.000"
 
 
 @pytest.mark.parametrize("reply, expected", [
@@ -111,7 +117,7 @@ def test_search_with_ai_on_uses_its_filters_and_sends_no_personal_details(client
     designs("Royal kaftan", "35000")
     designs("Agbada", "35000")
     calls = ai('{"garment_type": "kaftan", "style_tags": ["royal"], "budget_min": null, "budget_max": null}')
-    body = client.get(SMART, params={"q": "something regal under 40k, my number is 08031234567"}).json()
+    body = client.get(SMART, params={"q": "something regal under 40k, my number is (0803) 123-4567"}).json()
     assert body["understood_by"] == "ai"
     assert body["filters"] == {"keywords": ["kaftan", "royal"], "min_price": None, "max_price": 40000.0}
     assert [d["title"] for d in body["designs"]] == ["Royal kaftan"]
@@ -138,3 +144,27 @@ def test_budget_only_and_empty_requests(client, designs):
     assert [d["title"] for d in client.get(SMART, params={"q": "under 20k"}).json()["designs"]] == ["Cheap"]
     nothing = client.get(SMART, params={"q": "please show me"}).json()
     assert nothing["designs"] == [] and nothing["filters"]["keywords"] == []
+
+
+def test_better_matches_are_not_cut_off_by_cheaper_partial_ones(client, designs):
+    for n in range(4):
+        designs(f"Blue gown {n}", "1000")
+    designs("Blue agbada", "45000")
+    body = client.get(SMART, params={"q": "blue agbada", "limit": 2}).json()
+    assert body["designs"][0]["title"] == "Blue agbada"
+
+
+def test_busy_ai_slots_fall_back_immediately_without_queueing(client, designs, ai, monkeypatch):
+    designs("Lace buba", "20000")
+    calls = ai('{"garment_type": "buba"}')
+    taken = 0
+    while smart._SLOTS.acquire(blocking=False):
+        taken += 1
+    try:
+        body = client.get(SMART, params={"q": "lace buba"}).json()
+    finally:
+        for _ in range(taken):
+            smart._SLOTS.release()
+    assert body["understood_by"] == "keywords" and calls == []
+    # With slots free again, the AI is used.
+    assert client.get(SMART, params={"q": "lace buba"}).json()["understood_by"] == "ai"
