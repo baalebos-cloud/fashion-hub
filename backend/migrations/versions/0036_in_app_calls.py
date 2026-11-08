@@ -16,12 +16,15 @@ def upgrade():
     op.add_column("call_sessions", sa.Column("room_name", sa.String(64), nullable=True))
     op.add_column("call_sessions", sa.Column("answered_at", sa.DateTime(timezone=True), nullable=True))
     op.add_column("call_sessions", sa.Column("ended_at", sa.DateTime(timezone=True), nullable=True))
+    # Last sign of life from either person during an answered call (app heartbeat).
+    op.add_column("call_sessions", sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=True))
     # Finding someone's ringing or live call is the hot path.
     op.create_index("ix_call_sessions_callee_status", "call_sessions", ["callee_user_id", "status"])
 
 
 def downgrade():
     op.drop_index("ix_call_sessions_callee_status", table_name="call_sessions")
+    op.drop_column("call_sessions", "last_seen_at")
     op.drop_column("call_sessions", "ended_at")
     op.drop_column("call_sessions", "answered_at")
     op.drop_column("call_sessions", "room_name")

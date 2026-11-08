@@ -4,7 +4,6 @@ import { Sidebar } from "./Sidebar";
 import { MobileNavigation } from "./MobileNavigation";
 import type { UserRole } from "@/types/auth";
 import { AccountChecklist } from "@/components/profile/AccountChecklist";
-import { CallCenter } from "@/components/calls/CallCenter";
 
 /**
  * Shared shell for every authenticated dashboard (Customer, Professional,
@@ -21,8 +20,6 @@ export function DashboardLayout({ role, children }: { role: UserRole; children: 
         {/* Bottom padding keeps the floating "Ask Tailora" button from covering the last content. */}
         <main className="flex-1 overflow-y-auto p-4 pb-28 lg:p-8 lg:pb-28"><AccountChecklist />{children}</main>
       </div>
-      {/* Order parties can ring each other; admins never take part in order calls. */}
-      <CallCenter enabled={role !== "admin"} />
     </div>
   );
 }

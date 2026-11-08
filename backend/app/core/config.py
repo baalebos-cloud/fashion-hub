@@ -231,6 +231,9 @@ class Settings(BaseSettings):
     LIVEKIT_API_KEY: Optional[str] = None
     LIVEKIT_API_SECRET: Optional[str] = Field(None, repr=False)
     APP_CALL_RING_SECONDS: int = 45
+    # An answered call with no heartbeat from either person for this long is treated as ended
+    # (both closed the app without hanging up).
+    APP_CALL_STALE_SECONDS: int = 60
     # --- Masked phone calls (Africa's Talking declined masking in Nigeria; kept dormant) ---
     VOICE_PROVIDER: Optional[str] = None
     AT_USERNAME: Optional[str] = None

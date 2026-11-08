@@ -43,8 +43,22 @@ class AppCallService:
         return timedelta(seconds=settings.APP_CALL_RING_SECONDS)
 
     def _expire_if_unanswered(self, call: CallSession) -> None:
-        """A ringing call nobody answered becomes missed, once, with a notification."""
-        if call.status == "ringing" and utcnow() - _aware(call.created_at) > self._ring_window():
+        """Settle calls nobody is looking after any more:
+        - ringing past the ring window -> missed (once, with a notification);
+        - answered but silent (no heartbeat) past APP_CALL_STALE_SECONDS, or past the maximum
+          call length -> ended, so closing the app mid-call can't leave anyone stuck "on a call"."""
+        now = utcnow()
+        if call.status == "active":
+            last = _aware(call.last_seen_at) or _aware(call.answered_at) or _aware(call.created_at)
+            answered = _aware(call.answered_at) or last
+            stale = now - last > timedelta(seconds=settings.APP_CALL_STALE_SECONDS)
+            too_long = now - answered > timedelta(seconds=settings.VOICE_MAX_CALL_SECONDS)
+            if stale or too_long:
+                call.status = "ended"
+                call.ended_at = min(now, last + timedelta(seconds=settings.APP_CALL_STALE_SECONDS)) if stale else now
+                call.duration_seconds = max(0, int((call.ended_at - answered).total_seconds()))
+            return
+        if call.status == "ringing" and now - _aware(call.created_at) > self._ring_window():
             call.status = "missed"
             call.ended_at = utcnow()
             caller = self.db.get(User, call.caller_user_id)
@@ -78,6 +92,13 @@ class AppCallService:
                 return True
         return False
 
+    def _lock_people(self, *user_ids) -> None:
+        """One call at a time per person: requests involving the same people are handled one after
+        the other (locks held until commit, always taken in the same order to avoid deadlocks)."""
+        from sqlalchemy import text
+        for user_id in sorted({str(u) for u in user_ids}):
+            self.db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:k, 0))"), {"k": "app-call-user:" + user_id})
+
     def _token(self, call: CallSession, user: User, name: str) -> str:
         ttl = timedelta(seconds=settings.VOICE_MAX_CALL_SECONDS) + self._ring_window() + timedelta(minutes=1)
         return livekit.join_token(room=call.room_name, identity=str(user.id), name=name, ttl=ttl)
@@ -106,7 +127,9 @@ class AppCallService:
         if target is None:
             raise ConflictError("There is no rider on this delivery right now." if callee == "rider"
                                 else "That person is not available.")
+        self._lock_people(actor.id, target.id)
         if self._busy(actor.id):
+            self.db.commit()
             raise ConflictError("You're already on a call.")
         if self._busy(target.id):
             self.db.commit()
@@ -137,10 +160,20 @@ class AppCallService:
         return self.describe(call, actor)
 
     def answer(self, *, actor: User, call_id) -> dict:
-        call = self._get(call_id, actor, lock=True)
+        call = self._get(call_id, actor, lock=False)
         if str(actor.id) != str(call.callee_user_id):
             raise ForbiddenError("Only the person being called can answer.")
+        self._lock_people(call.caller_user_id, call.callee_user_id)
+        call = self._get(call_id, actor, lock=True)
         self._expire_if_unanswered(call)
+        others = (self.db.query(CallSession)
+                  .filter(CallSession.provider == PROVIDER, CallSession.status == "active", CallSession.id != call.id,
+                          (CallSession.caller_user_id == actor.id) | (CallSession.callee_user_id == actor.id)).all())
+        for other in others:
+            self._expire_if_unanswered(other)
+        if any(o.status == "active" for o in others):
+            self.db.commit()
+            raise ConflictError("You're already on another call. Hang up first.")
         if call.status != "ringing":
             self.db.commit()
             raise ConflictError("This call has ended." if call.status != "active" else "This call is already answered.")
@@ -149,6 +182,7 @@ class AppCallService:
             raise ConflictError("Calls close when an order is finished.")
         call.status = "active"
         call.answered_at = utcnow()
+        call.last_seen_at = call.answered_at
         role = self.parties._role_of(actor, self.parties._parties(order)) or call.callee_party
         result = {**self.describe(call, actor), "token": self._token(call, actor, self.parties._display_name(role, actor)),
                   "url": settings.LIVEKIT_URL}
@@ -170,6 +204,15 @@ class AppCallService:
                 call.duration_seconds = max(0, int((now - _aware(call.answered_at)).total_seconds()))
         self.db.commit()
         return self.describe(call, actor)  # repeating a finish is harmless
+
+    def heartbeat(self, *, actor: User, call_id) -> dict:
+        """Either person's app says "still here" during an answered call (every ~15 s)."""
+        call = self._get(call_id, actor, lock=True)
+        self._expire_if_unanswered(call)
+        if call.status == "active":
+            call.last_seen_at = utcnow()
+        self.db.commit()
+        return self.describe(call, actor)
 
     def decline(self, *, actor: User, call_id) -> dict:
         return self._finish(actor=actor, call_id=call_id, allowed_from=("ringing",), who="callee", to="declined")

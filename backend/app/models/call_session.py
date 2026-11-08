@@ -26,4 +26,5 @@ class CallSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     room_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
     answered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

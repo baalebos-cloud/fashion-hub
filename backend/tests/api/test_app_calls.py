@@ -148,3 +148,112 @@ def test_not_set_up_means_no_calls_and_no_ringing(ctx, monkeypatch):
     assert as_(ctx, "seller").get("/api/v1/calls/app/incoming").json() == []
     contacts = as_(ctx, "buyer").get(f"/api/v1/calls/orders/{ctx['order'].id}/contacts").json()
     assert not any(c["available"] for c in contacts)
+
+
+# ---- review fixes ---------------------------------------------------------------------
+
+def _answer(ctx, call, who="seller"):
+    return as_(ctx, who).post(f"/api/v1/calls/app/{call['call_id']}/answer")
+
+
+def test_a_call_both_people_walked_away_from_ends_itself(ctx):
+    call = start(ctx).json()
+    _answer(ctx, call)
+    record = ctx["db"].get(CallSession, uuid.UUID(call["call_id"]))
+    silent_since = record.last_seen_at - timedelta(seconds=settings.APP_CALL_STALE_SECONDS + 5)
+    record.last_seen_at = silent_since
+    record.answered_at = silent_since
+    ctx["db"].commit()
+    # Neither is stuck "on a call": a new call goes through.
+    again = start(ctx)
+    assert again.status_code == 201, again.text
+    ctx["db"].refresh(record)
+    assert record.status == "ended" and record.duration_seconds is not None
+
+
+def test_heartbeats_keep_a_live_call_going(ctx):
+    call = start(ctx).json()
+    _answer(ctx, call)
+    record = ctx["db"].get(CallSession, uuid.UUID(call["call_id"]))
+    record.answered_at = record.answered_at - timedelta(seconds=settings.APP_CALL_STALE_SECONDS + 30)
+    record.last_seen_at = record.answered_at
+    ctx["db"].commit()
+    # This heartbeat comes too late: the call already counts as ended.
+    assert as_(ctx, "buyer").post(f"/api/v1/calls/app/{call['call_id']}/heartbeat").json()["status"] == "ended"
+    fresh = start(ctx).json()
+    _answer(ctx, fresh)
+    for _ in range(3):
+        assert as_(ctx, "buyer").post(f"/api/v1/calls/app/{fresh['call_id']}/heartbeat").json()["status"] == "active"
+    assert start(ctx, who="rider", callee="seller").status_code == 409  # still on that call
+
+
+def test_calls_end_at_the_maximum_length(ctx, monkeypatch):
+    call = start(ctx).json()
+    _answer(ctx, call)
+    record = ctx["db"].get(CallSession, uuid.UUID(call["call_id"]))
+    record.answered_at = record.answered_at - timedelta(seconds=settings.VOICE_MAX_CALL_SECONDS + 1)
+    ctx["db"].commit()
+    assert as_(ctx, "buyer").post(f"/api/v1/calls/app/{call['call_id']}/heartbeat").json()["status"] == "ended"
+
+
+def test_cannot_answer_a_second_call_while_on_one(ctx):
+    first = start(ctx).json()
+    _answer(ctx, first)
+    # A second ringing call for the seller created before the first was answered (e.g. another tab).
+    second = CallSession(order_id=ctx["order"].id, caller_user_id=ctx["rider"].id, callee_user_id=ctx["seller"].id,
+                         callee_party="seller", provider="livekit", status="ringing", room_name="call-" + "b" * 32)
+    ctx["db"].add(second)
+    ctx["db"].commit()
+    res = as_(ctx, "seller").post(f"/api/v1/calls/app/{second.id}/answer")
+    assert res.status_code == 409 and "another call" in res.text
+
+
+def test_two_people_ringing_the_same_person_at_once_only_one_rings(engine, monkeypatch):
+    """Buyer and rider both call the seller in the same instant: per-person locks let one through."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from sqlalchemy.orm import Session
+    from app.core.exceptions import ConflictError
+    from app.models.user import User
+    from app.services.app_call_service import AppCallService
+    monkeypatch.setattr(settings, "LIVEKIT_URL", URL)
+    monkeypatch.setattr(settings, "LIVEKIT_API_KEY", KEY)
+    monkeypatch.setattr(settings, "LIVEKIT_API_SECRET", SECRET)
+    with Session(engine) as s:
+        buyer, seller, rider = (User(email=f"{uuid.uuid4()}@example.com", hashed_password="x", full_name=n, role=r, is_active=True)
+                                for n, r in (("Ada Obi", "customer"), ("Kemi Adeyemi", "tailor"), ("Sola Bello", "delivery_partner")))
+        s.add_all([buyer, seller, rider])
+        s.flush()
+        partner = DeliveryPartner(user_id=rider.id, vehicle_type="bike", is_verified=True)
+        order = Order(order_number="TL-" + uuid.uuid4().hex[:8].upper(), order_type="customer_order", buyer_user_id=buyer.id,
+                      seller_user_id=seller.id, status="out_for_delivery", subtotal=Decimal(1), total_amount=Decimal(1), currency="NGN")
+        s.add_all([partner, order])
+        s.flush()
+        s.add(Delivery(order_id=order.id, delivery_request_id=uuid.uuid4(), status="in_transit", provider="internal",
+                       delivery_fee=0, delivery_partner_id=partner.id))
+        s.commit()
+        ids = dict(order=order.id, buyer=buyer.id, rider=rider.id, seller=seller.id)
+    barrier = Barrier(2)
+
+    def ring(who):
+        with Session(engine) as s:
+            actor = s.get(User, ids[who])
+            barrier.wait(timeout=10)
+            try:
+                return AppCallService(s).start(actor=actor, order_id=ids["order"], callee="seller")["status"]
+            except ConflictError:
+                return "busy"
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = sorted(f.result(timeout=30) for f in [pool.submit(ring, "buyer"), pool.submit(ring, "rider")])
+        assert results == ["busy", "ringing"]
+    finally:
+        # These rows were committed outside the test transaction: remove all of them so other
+        # tests (which count orders and users) start clean.
+        with Session(engine) as s:
+            s.query(CallSession).filter(CallSession.order_id == ids["order"]).delete()
+            s.query(Delivery).filter(Delivery.order_id == ids["order"]).delete()
+            s.query(Order).filter(Order.id == ids["order"]).delete()
+            s.query(DeliveryPartner).filter(DeliveryPartner.user_id == ids["rider"]).delete()
+            s.query(User).filter(User.id.in_([ids["buyer"], ids["rider"], ids["seller"]])).delete(synchronize_session=False)
+            s.commit()

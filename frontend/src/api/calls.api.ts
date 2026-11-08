@@ -22,6 +22,9 @@ export const callsApi = {
   async answer(callId: string): Promise<AppCallJoin> {
     return (await apiClient.post<AppCallJoin>(`/calls/app/${callId}/answer`)).data;
   },
+  async heartbeat(callId: string): Promise<AppCall> {
+    return (await apiClient.post<AppCall>(`/calls/app/${callId}/heartbeat`)).data;
+  },
   async decline(callId: string): Promise<AppCall> {
     return (await apiClient.post<AppCall>(`/calls/app/${callId}/decline`)).data;
   },

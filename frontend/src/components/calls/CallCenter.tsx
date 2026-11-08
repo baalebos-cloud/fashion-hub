@@ -87,11 +87,14 @@ export function CallCenter({ enabled = true }: { enabled?: boolean }) {
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { if (phase !== "idle") headingRef.current?.focus(); }, [phase]);
 
+  // A routine ending closes itself; anything the person should act on (microphone blocked,
+  // connection problem, missed call) stays until they close it.
+  const routineEnd = message === "Call ended." || message === "Call cancelled.";
   useEffect(() => {
-    if (phase !== "ended") return;
+    if (phase !== "ended" || !routineEnd) return;
     const timer = window.setTimeout(dismiss, 6000);
     return () => window.clearTimeout(timer);
-  }, [phase, dismiss]);
+  }, [phase, routineEnd, dismiss]);
 
   if (phase === "idle") return null;
   const name = call?.other_party_name ?? calleeLabel ?? "Tailora call";

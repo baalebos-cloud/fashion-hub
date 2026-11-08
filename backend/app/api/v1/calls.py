@@ -114,6 +114,11 @@ def answer_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), 
         raise HTTPException(503, str(exc)) from exc
 
 
+@router.post("/app/{call_id}/heartbeat", response_model=AppCallView)
+def app_call_heartbeat(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _app_calls(db).heartbeat(actor=user, call_id=call_id)
+
+
 @router.post("/app/{call_id}/decline", response_model=AppCallView)
 def decline_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     return _app_calls(db).decline(actor=user, call_id=call_id)

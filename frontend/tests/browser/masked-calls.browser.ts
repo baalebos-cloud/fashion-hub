@@ -32,8 +32,8 @@ test("customer calls their tailor in the app without seeing any number", async (
   await expect(dialog.getByRole("heading", { name: "Kemi Couture" })).toBeVisible();
   await page.screenshot({ path: info.outputPath("calling-390.png") });
   // The test has no call server, so joining fails: the app must cancel the call and say so.
-  await expect(dialog.getByText(/Couldn't connect the call|microphone/)).toBeVisible({ timeout: 15000 });
-  expect(cancelled).toBe(true);
+  await expect(dialog.getByText(/Couldn't connect the call|microphone/)).toBeVisible({ timeout: 30000 });
+  await expect.poll(() => cancelled).toBe(true);
   expect(await page.evaluate(() => document.body.textContent?.match(/\+?234\d{6,}|0\d{10}/) ?? null)).toBeNull();
   expect(await page.locator('a[href^="tel:"]').count()).toBe(0);
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

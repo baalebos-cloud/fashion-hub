@@ -5,10 +5,12 @@ import { DispatchTripCard } from "@/components/delivery/DispatchTripCard";
 import { callsApi } from "@/api/calls.api";
 import { CallCenter } from "@/components/calls/CallCenter";
 import { useCallStore } from "@/store/call.store";
+import { useAuthStore } from "@/store/auth.store";
+import { AppCalls } from "@/components/calls/AppCalls";
 import { joinVoiceRoom, MicrophoneBlockedError } from "@/lib/calls/voice-room";
 
 vi.mock("@/api/calls.api", () => ({ callsApi: { contacts: vi.fn(), start: vi.fn(), startApp: vi.fn(), status: vi.fn(),
-  incoming: vi.fn().mockResolvedValue([]), answer: vi.fn(), decline: vi.fn().mockResolvedValue({}), cancel: vi.fn().mockResolvedValue({}),
+  incoming: vi.fn().mockResolvedValue([]), answer: vi.fn(), heartbeat: vi.fn(), decline: vi.fn().mockResolvedValue({}), cancel: vi.fn().mockResolvedValue({}),
   end: vi.fn().mockResolvedValue({}) } }));
 const room = vi.hoisted(() => ({ setMuted: vi.fn().mockResolvedValue(undefined), leave: vi.fn().mockResolvedValue(undefined) }));
 vi.mock("@/lib/calls/voice-room", () => ({
@@ -131,3 +133,53 @@ describe("rider trip card", () => {
     expect(document.querySelector('a[href^="tel:"], a[href*="wa.me"]')).toBeNull();
   });
 });
+
+describe("calls that end on their own", () => {
+  it("stops ringing when the caller gives up", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(callsApi.status).mockResolvedValue({ ...CALL, status: "cancelled", you_are: "callee", other_party_name: "Ada" });
+      render(<CallCenter enabled={false} />);
+      act(() => { useCallStore.getState().ring({ ...CALL, you_are: "callee", other_party_name: "Ada" }); });
+      expect(screen.getByText("Incoming call")).toBeTruthy();
+      await act(async () => { await vi.advanceTimersByTimeAsync(2100); });
+      expect(screen.getByText("Missed call from Ada.")).toBeTruthy();
+      expect(screen.queryByRole("button", { name: "Answer" })).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends heartbeats during a call and ends if the server says it's over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      vi.mocked(callsApi.startApp).mockResolvedValue({ ...CALL, token: "t", url: "wss://x" });
+      vi.mocked(callsApi.heartbeat).mockResolvedValueOnce({ ...CALL, status: "active" }).mockResolvedValue({ ...CALL, status: "ended" });
+      render(<CallCenter enabled={false} />);
+      await act(async () => { await useCallStore.getState().start("order-1", "seller", "Kemi Couture"); });
+      await act(async () => { await useCallStore.getState().sync({ ...CALL, status: "active" }); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(15100); });
+      expect(callsApi.heartbeat).toHaveBeenCalledWith("c1");
+      expect(useCallStore.getState().phase).toBe("connected");
+      await act(async () => { await vi.advanceTimersByTimeAsync(15100); });
+      expect(useCallStore.getState().phase).toBe("ended");
+      expect(room.leave).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("hangs up and releases the microphone when the session ends", async () => {
+    vi.mocked(callsApi.startApp).mockResolvedValue({ ...CALL, token: "t", url: "wss://x" });
+    useAuthStore.setState({ user: { id: "c1", role: "customer" } as never, isAuthenticated: true });
+    render(<AppCalls />);
+    await act(async () => { await useCallStore.getState().start("order-1", "seller", "Kemi Couture"); });
+    await act(async () => { await useCallStore.getState().sync({ ...CALL, status: "active" }); });
+    await act(async () => { useAuthStore.setState({ user: null, isAuthenticated: false }); });
+    await waitFor(() => expect(callsApi.end).toHaveBeenCalledWith("c1"));
+    expect(room.leave).toHaveBeenCalled();
+    expect(useCallStore.getState().phase).toBe("idle");
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
