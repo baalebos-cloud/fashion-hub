@@ -225,6 +225,13 @@ class Settings(BaseSettings):
     DELIVERY_ARRIVAL_RADIUS_M: int = 150
     # --- Masked voice calls (Africa's Talking). Numbers are never shown to the other party. ---
     # None disables calling; "sandbox" fakes the provider for local testing; "africastalking" is live.
+    # --- In-app calling (app-to-app voice over the internet; no phone numbers) ---
+    # LiveKit Cloud project URL (wss://<project>.livekit.cloud) and API key/secret.
+    LIVEKIT_URL: Optional[str] = None
+    LIVEKIT_API_KEY: Optional[str] = None
+    LIVEKIT_API_SECRET: Optional[str] = Field(None, repr=False)
+    APP_CALL_RING_SECONDS: int = 45
+    # --- Masked phone calls (Africa's Talking declined masking in Nigeria; kept dormant) ---
     VOICE_PROVIDER: Optional[str] = None
     AT_USERNAME: Optional[str] = None
     AT_API_KEY: Optional[str] = Field(None, repr=False)

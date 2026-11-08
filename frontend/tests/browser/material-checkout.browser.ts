@@ -20,6 +20,7 @@ test("a material order is reviewed separately and a late payment shows review re
     else if (path === "/carts/summary") body = cart;
     else if (path === "/addresses") body = [{ id: "address", label: "Home", formatted_address: "10 Street", city: "Lagos", country: "NG" }];
     else if (path === "/notifications") body = { items: [] };
+    else if (path === "/calls/app/incoming") body = [];  // the signed-in app checks for incoming calls
     else if (path === "/checkout") { checkoutBody = route.request().postDataJSON(); body = order; }
     else if (path === "/orders/order") body = order;
     else if (path === "/orders/order/timeline") body = [];

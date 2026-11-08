@@ -1,11 +1,13 @@
 """
 /calls
 
-Masked phone calls between the parties on an order (customer, tailor/designer,
-vendor, rider). The API never returns anyone's phone number.
+Calls between the parties on an order (customer, tailor/designer, vendor, rider).
+In-app calls (/calls/app, voice over the internet via LiveKit) are the live path; masked
+phone calls are kept dormant. The API never returns anyone's phone number.
 """
 import hmac
 import uuid
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
@@ -17,6 +19,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.dependencies import get_current_user
 from app.core.rate_limit import limiter
+from app.integrations.voice import livekit
 from app.integrations.voice.africastalking import VoiceNotConfigured
 from app.models.user import User
 from app.services.masked_call_service import MaskedCallService
@@ -47,10 +50,83 @@ class StartCallResponse(BaseModel):
 @router.get("/orders/{order_id}/contacts", response_model=list[CallContact])
 def call_contacts(order_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     contacts = MaskedCallService(db).contacts(actor=user, order_id=order_id)
-    if not settings.VOICE_PROVIDER:
+    if livekit.configured():
+        # In-app calls don't need anyone's phone number; only the order must be open.
+        for contact in contacts:
+            closed = contact["reason"] == "Calls close when an order is finished."
+            contact.update(available=not closed, reason=contact["reason"] if closed else None)
+    elif not settings.VOICE_PROVIDER:
         for contact in contacts:
             contact.update(available=False, reason="In-app calling isn't set up yet.")
     return contacts
+
+
+# ---- In-app calls ---------------------------------------------------------------------
+class AppCallView(BaseModel):
+    call_id: str
+    status: Literal["ringing", "active", "ended", "declined", "cancelled", "missed"]
+    order_id: str
+    order_number: str | None = None
+    other_party_name: str
+    you_are: Literal["caller", "callee"]
+    started_at: datetime | None = None
+    answered_at: datetime | None = None
+
+
+class AppCallJoin(AppCallView):
+    # Short-lived LiveKit pass for this one call's room (microphone only), and where to connect.
+    token: str
+    url: str
+
+
+def _app_calls(db: Session):
+    from app.services.app_call_service import AppCallService
+    return AppCallService(db)
+
+
+@router.post("/app", response_model=AppCallJoin, status_code=201)
+@limiter.limit("10/10minutes")
+def start_app_call(request: Request, payload: StartCallRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return _app_calls(db).start(actor=user, order_id=payload.order_id, callee=payload.callee)
+    except livekit.AppCallsNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@router.get("/app/incoming", response_model=list[AppCallView])
+@limiter.limit("60/minute")
+def incoming_app_calls(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    if not livekit.configured():
+        return []
+    return _app_calls(db).incoming(actor=user)
+
+
+@router.get("/app/{call_id}", response_model=AppCallView)
+def app_call_status(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _app_calls(db).status(actor=user, call_id=call_id)
+
+
+@router.post("/app/{call_id}/answer", response_model=AppCallJoin)
+def answer_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    try:
+        return _app_calls(db).answer(actor=user, call_id=call_id)
+    except livekit.AppCallsNotConfigured as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@router.post("/app/{call_id}/decline", response_model=AppCallView)
+def decline_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _app_calls(db).decline(actor=user, call_id=call_id)
+
+
+@router.post("/app/{call_id}/cancel", response_model=AppCallView)
+def cancel_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _app_calls(db).cancel(actor=user, call_id=call_id)
+
+
+@router.post("/app/{call_id}/end", response_model=AppCallView)
+def end_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    return _app_calls(db).end(actor=user, call_id=call_id)
 
 
 @router.post("", response_model=StartCallResponse, status_code=201)

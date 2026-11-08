@@ -54,3 +54,6 @@ body {
     bottom: calc(6rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* While a call is on screen, the assistant launcher steps aside so it can't cover Answer or Hang up. */
+body:has([data-call-screen]) .ai-launcher { display: none; }
