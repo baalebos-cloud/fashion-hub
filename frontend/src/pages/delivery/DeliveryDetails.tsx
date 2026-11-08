@@ -27,27 +27,31 @@ export default function DeliveryDetails() {
   if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !delivery) return <LoadingScreen label="Loading delivery…" />;
 
+  const active = ["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status);
+  const toDropoff = ["in_transit", "picked_up", "out_for_delivery"].includes(delivery.status);
   return (
-    <div className="mx-auto flex max-w-md flex-col gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="font-display text-xl text-ink">Order {delivery.order_id.slice(0, 8)}</h1>
-        <DeliveryStatusBadge status={delivery.status} />
-      </div>
-      {["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status) && (
-        <Button variant="secondary" onClick={() => setShowIssue(true)}>Report Issue</Button>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-4 pb-28 md:pb-0">
+      <header className="flex flex-col gap-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <DeliveryStatusBadge status={delivery.status} />
+          <span className="font-mono text-sm text-ink-soft">Order {delivery.order_id.slice(0, 8).toUpperCase()}</span>
+        </div>
+        <h1 className="font-display text-3xl text-ink">{delivery.status === "assigned" ? "Go to pickup" : toDropoff ? "Deliver to customer" : "Delivery"}</h1>
+        <p className="text-sm text-ink-soft">Fare <span className="font-mono font-semibold text-ink">{formatCurrency(delivery.delivery_fee)}</span></p>
+      </header>
+      {trip && <DispatchTripCard trip={trip} />}
+      {active && (
+        <Button variant="danger" className="self-start" onClick={() => setShowIssue(true)}>Report a problem</Button>
       )}
       {showIssue && <ReportIssueModal deliveryId={delivery.id} onClose={() => setShowIssue(false)} />}
-      <div className="text-lg font-medium text-ink">{formatCurrency(delivery.delivery_fee)}</div>
-      {trip && <DispatchTripCard trip={trip} />}
-      {delivery.status === "assigned" && (
-        <Button className="self-start" onClick={() => navigate(deliveryRoutes.pickup(delivery.id))}>
-          Confirm pickup
-        </Button>
-      )}
-      {["in_transit", "picked_up", "out_for_delivery"].includes(delivery.status) && (
-        <Button className="self-start" onClick={() => navigate(deliveryRoutes.dropoff(delivery.id))}>
-          Confirm drop-off
-        </Button>
+      {(delivery.status === "assigned" || toDropoff) && (
+        <div className="bottom-action-bar fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:static md:border-0 md:bg-transparent md:p-0">
+          {delivery.status === "assigned" ? (
+            <Button size="lg" className="w-full" onClick={() => navigate(deliveryRoutes.pickup(delivery.id))}>Confirm pickup</Button>
+          ) : (
+            <Button size="lg" className="w-full" onClick={() => navigate(deliveryRoutes.dropoff(delivery.id))}>Confirm drop-off</Button>
+          )}
+        </div>
       )}
     </div>
   );
