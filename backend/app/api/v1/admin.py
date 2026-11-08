@@ -17,6 +17,7 @@ from uuid import UUID
 from app.core.timezone import utcnow
 from sqlalchemy.orm import Session
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.permissions import Role, require_roles
 from app.core.exceptions import NotFoundError, ValidationAppError
 from app.services.commerce_dashboard_service import load_commerce_summary
@@ -313,6 +314,28 @@ def operations_dashboard(
     }
 
 
+class StepUpRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=6, pattern=r"^[0-9]{6}$")
+
+
+@router.post("/step-up")
+@limiter.limit("5/minute")
+def admin_step_up(payload: StepUpRequest, request: Request, db: Session = Depends(get_db),
+                  admin: User = Depends(require_roles(Role.ADMIN))):
+    """A fresh authenticator code opens a short window for approve/reject decisions.
+    Send the returned pass as the X-Admin-Step-Up header on those requests."""
+    from app.core.exceptions import AppError
+    from app.services import activity_service
+    from app.services.admin_auth_service import AdminStepUpService
+    try:
+        result = AdminStepUpService(db).open_window(user=admin, code=payload.code)
+    except AppError as exc:
+        activity_service.record(request, "admin_step_up_failed", user=admin, status_code=getattr(exc, "status_code", 403))
+        raise
+    activity_service.record(request, "admin_step_up", user=admin, status_code=200)
+    return result
+
+
 class ReviewDecision(BaseModel):
     approve: bool
     reason: str | None = Field(None, max_length=1000)
@@ -335,7 +358,10 @@ def verification_queue(kind: Literal["kyc", "kyb"], db: Session = Depends(get_db
 
 
 def _decide(kind, verification_id, payload, request, db, admin):
+    from app.services.admin_auth_service import AdminStepUpService
     from app.services.verification_service import VerificationService
+    # Approving or rejecting needs a recent authenticator code, not just the sign-in session.
+    AdminStepUpService(db).require(user=admin, token=request.headers.get("X-Admin-Step-Up"))
     try:
         record = VerificationService(db).decide(kind=kind, verification_id=verification_id, admin=admin,
                                                 approve=payload.approve, reason=payload.reason)
