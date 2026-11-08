@@ -5,6 +5,9 @@ import { Button } from "@/components/ui/button";
 import { ProductGrid } from "@/components/marketplace/ProductGrid";
 import { CatalogBudgetGuide } from "@/components/marketplace/CatalogBudgetGuide";
 import { professionalRoutes } from "@/config/routes.config";
+import { RelatedProducts } from "@/components/recommendations/RelatedProducts";
+import { recommendationsApi } from "@/api/recommendations.api";
+import { rankingBrowserId } from "@/lib/tracking/interactions";
 import type { VendorProduct } from "@/types/product";
 
 export default function VendorMarketplace() {
@@ -26,6 +29,8 @@ export default function VendorMarketplace() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Materials Marketplace</h1>
+      <RelatedProducts title="Picked for you" loadKey="picked-for-you" source="picked_for_you"
+        load={() => recommendationsApi.pickedForYou(rankingBrowserId())} detailsPathFor={professionalRoutes.vendorProductDetails} />
       <CatalogBudgetGuide />
       {error && <p role="alert">{error}</p>}
       <ProductGrid products={products} isLoading={isLoading} detailsPathFor={professionalRoutes.vendorProductDetails} />

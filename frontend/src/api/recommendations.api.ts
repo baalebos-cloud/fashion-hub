@@ -1,7 +1,9 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
 
-export type RelatedReason = "bought_together" | "viewed_together" | "similar" | "same_vendor";
+export type RelatedReason =
+  | "bought_together" | "viewed_together" | "for_you" | "trending" // learned
+  | "similar" | "same_vendor" | "new_in"; // fixed rules
 
 export type RelatedProduct = {
   product_id: string;
@@ -20,6 +22,11 @@ export const recommendationsApi = {
   async similarProducts(productId: string, limit = 8): Promise<RelatedProduct[]> {
     const result = await apiClient.get<{ items: RelatedProduct[] }>(
       endpoints.recommendations.similarProducts(productId), { params: { limit } });
+    return result.data.items;
+  },
+  async pickedForYou(browserId: string | undefined, limit = 8): Promise<RelatedProduct[]> {
+    const result = await apiClient.get<{ items: RelatedProduct[]; ranking: "rules" | "learned" }>(
+      endpoints.recommendations.pickedForYou, { params: { browser_id: browserId, limit } });
     return result.data.items;
   },
   async boughtTogether(productIds: string[], limit = 6): Promise<RelatedProduct[]> {

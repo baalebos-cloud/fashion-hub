@@ -10,9 +10,10 @@
  * from the security device ID, so shopping activity can't be joined to security records.
  */
 import { interactionsApi, type InteractionEventIn } from "@/api/interactions.api";
+import { OPT_OUT_KEY, trackingDisabled } from "@/lib/tracking/consent";
 
+export { OPT_OUT_KEY, trackingDisabled };
 const ANON_KEY = "tailora.recs_browser_id";
-export const OPT_OUT_KEY = "tailora.recs_opt_out";
 const FLUSH_DELAY_MS = 3000;
 const MAX_BATCH = 50;
 const SEARCH_SETTLE_MS = 1500;
@@ -28,12 +29,6 @@ function storage(): Storage | null {
   } catch {
     return null;
   }
-}
-
-export function trackingDisabled(): boolean {
-  const nav = globalThis.navigator as (Navigator & { globalPrivacyControl?: boolean }) | undefined;
-  if (nav?.globalPrivacyControl === true || nav?.doNotTrack === "1") return true;
-  return storage()?.getItem(OPT_OUT_KEY) === "1";
 }
 
 export function setBrowserOptOut(optOut: boolean): void {
@@ -93,6 +88,12 @@ function enqueue(event: InteractionEventIn): void {
 }
 
 export type ItemType = "product" | "design" | "professional";
+
+/** Browser ID to send with ranking requests, or undefined when this browser opted out of
+ * tracking (the server then uses the fixed ordering and records nothing). */
+export function rankingBrowserId(): string | undefined {
+  return trackingDisabled() ? undefined : getAnonymousId() || undefined;
+}
 
 /** The page section a visit came from (e.g. ?from=similar_items), or the given default. */
 export function viewSource(fromParam: string | null, fallback: string): string {

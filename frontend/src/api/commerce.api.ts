@@ -14,6 +14,8 @@ export type CatalogRecommendationResponse = {
   items: CatalogRecommendation[];
   catalog_sample_limit: number;
   note: string;
+  /** Which ordering this shopper got in the rules-vs-learned ranking test. */
+  ranking?: "rules" | "learned";
 };
 
 export const commerceApi = {

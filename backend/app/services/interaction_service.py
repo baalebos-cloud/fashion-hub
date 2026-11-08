@@ -29,6 +29,7 @@ from app.models.interaction_event import ITEM_TYPES, InteractionEvent
 from app.models.order import Order
 from app.models.order_item import OrderItem
 from app.models.product_variant import ProductVariant
+from app.models.recommendation_impression import RecommendationImpression
 from app.models.professional import Professional
 from app.models.user import User
 from app.models.vendor_product import VendorProduct
@@ -127,6 +128,8 @@ def set_personalization(db: Session, user: User, enabled: bool) -> bool:
     user.personalization_enabled = enabled
     if not enabled:
         db.query(InteractionEvent).filter(InteractionEvent.user_id == user.id).delete(synchronize_session=False)
+        db.query(RecommendationImpression).filter(RecommendationImpression.user_id == user.id).delete(
+            synchronize_session=False)
     db.commit()
     return enabled
 
@@ -135,6 +138,8 @@ def purge_expired(db: Session) -> int:
     cutoff = utcnow() - timedelta(days=settings.INTERACTION_RETENTION_DAYS)
     deleted = (db.query(InteractionEvent).filter(InteractionEvent.occurred_at < cutoff)
                .delete(synchronize_session=False))
+    deleted += (db.query(RecommendationImpression).filter(RecommendationImpression.served_at < cutoff)
+                .delete(synchronize_session=False))
     db.commit()
     return deleted
 

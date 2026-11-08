@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { trackSearch } from "@/lib/tracking/interactions";
+import { rankingBrowserId, trackSearch } from "@/lib/tracking/interactions";
 import { professionalsApi } from "@/api/professionals.api";
 import { ProfessionalSearch } from "@/components/professionals/ProfessionalSearch";
 import { ProfessionalFilters, type ProfessionalFiltersValue } from "@/components/professionals/ProfessionalFilters";
@@ -29,7 +29,7 @@ export default function FindProfessionals() {
     setError("");
     setIsLoading(true);
     professionalsApi
-      .list({ query: query.trim() || undefined, professionalType: filters.professionalType, page, pageSize: 20 })
+      .list({ query: query.trim() || undefined, professionalType: filters.professionalType, page, pageSize: 20, ranked: true, browserId: rankingBrowserId() })
       .then((response) => {
         if (!active) return;
         setProfessionals(response.items);
@@ -56,7 +56,7 @@ export default function FindProfessionals() {
         professionals={professionals}
         total={total}
         isLoading={isLoading}
-        detailsPathFor={customerRoutes.professionalDetails}
+        detailsPathFor={(id) => `${customerRoutes.professionalDetails(id)}?from=tailor_search`}
       />
       <div>
         <h2 className="mb-3 text-sm font-medium text-ink-soft">Near you</h2>

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { rankingBrowserId } from "@/lib/tracking/interactions";
 import { professionalsApi } from "@/api/professionals.api";
 import { ProfessionalGrid } from "@/components/professionals/ProfessionalGrid";
 import { ProfessionalSearch } from "@/components/professionals/ProfessionalSearch";
@@ -18,7 +19,7 @@ export default function FindTailor() {
     setError("");
     setIsLoading(true);
     professionalsApi
-      .list({ professionalType: "tailor", query })
+      .list({ professionalType: "tailor", query, ranked: true, browserId: rankingBrowserId() })
       .then((response) => {
         if (!active) return;
         setProfessionals(response.items);
@@ -36,7 +37,7 @@ export default function FindTailor() {
         <ProfessionalSearch value={query} onChange={setQuery} />
       </div>
       {error && <p role="alert">{error}</p>}
-      <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={publicRoutes.professionalProfile} />
+      <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={(id) => `${publicRoutes.professionalProfile(id)}?from=tailor_search`} />
     </div>
   );
 }

@@ -9,6 +9,9 @@ const REASON_LABEL: Record<RelatedReason, string> = {
   viewed_together: "Shoppers also viewed",
   similar: "Similar item",
   same_vendor: "From the same shop",
+  for_you: "Picked for you",
+  trending: "Popular now",
+  new_in: "New in",
 };
 
 type Props = {
