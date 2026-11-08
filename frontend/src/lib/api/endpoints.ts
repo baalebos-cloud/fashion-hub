@@ -85,6 +85,7 @@ export const endpoints = {
     vendorFulfillment: (id: string) => `/orders/${id}/vendor-fulfillment`,
     cancel: (id: string) => `/orders/${id}/cancel`,
     linkMaterial: (customerOrderId: string, materialOrderId: string) => `/orders/${customerOrderId}/material-orders/${materialOrderId}/link`,
+    measurements: (id: string) => `/orders/${id}/measurements`,
   },
 
   interswitch: {

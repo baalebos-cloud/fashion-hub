@@ -97,3 +97,11 @@ export interface CreateCustomerOrderPayload {
   measurement_profile_id: string;
   idempotency_key: string;
 }
+
+/** The measurement copy saved on an order when it was placed. */
+export interface OrderMeasurements {
+  order_id: string;
+  label: string | null;
+  garment_type: string | null;
+  fields: { field_name: string; value: string; unit: string }[];
+}

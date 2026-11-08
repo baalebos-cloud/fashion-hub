@@ -13,12 +13,12 @@ import { OrderItems } from "@/components/orders/OrderItems";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { OrderActions } from "@/components/orders/OrderActions";
 import { OrderMaterials } from "@/components/orders/OrderMaterials";
+import { OrderMeasurementsCard } from "@/components/orders/OrderMeasurementsCard";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { CustomerOrderStatus } from "@/types/order";
 import { PROFESSIONAL_ORDER_NEXT_STEP } from "@/constants/order-status";
-import { Badge } from "@/components/ui/badge";
 
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -80,18 +80,9 @@ export default function OrderDetails() {
         <OrderItems items={order.items} currency={order.currency} />
       </section>
 
-      {order.order_type === "customer_order" && <OrderMaterials order={order} />}
+      {order.order_type === "customer_order" && <OrderMeasurementsCard orderId={order.id} status={order.status} />}
 
-      <section aria-label="Customer measurements" className="flex flex-col gap-2 rounded-card border border-dashed border-line-strong bg-surface p-5">
-        <div className="flex flex-wrap items-center gap-2">
-          <h2 className="font-semibold text-ink">Customer measurements</h2>
-          <Badge tone="info">Coming soon</Badge>
-        </div>
-        <p className="text-sm text-ink-soft">
-          The customer chose a saved measurement profile for this order, but the values aren't shown to you here yet.
-          Ask them in Messages for anything you need before cutting.
-        </p>
-      </section>
+      {order.order_type === "customer_order" && <OrderMaterials order={order} />}
       {order.order_type === "customer_order" && ["ready_for_delivery", "shipped"].includes(order.status) && (
         <div className="flex flex-col gap-2">
           <Button className="self-start" disabled={dispatching} isLoading={dispatching} onClick={() => void dispatch()}>
