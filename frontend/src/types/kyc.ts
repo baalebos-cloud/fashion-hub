@@ -12,6 +12,8 @@ export interface KYCStatus {
   nin_verified_gender?: string | null;
   identity_match?: boolean | null;
   rejection_reason?: string | null;
+  /** Approved by the automatic NIN rules rather than an admin. */
+  auto_approved?: boolean;
 }
 
 export interface SubmitKYCPayload {
@@ -20,4 +22,6 @@ export interface SubmitKYCPayload {
   home_latitude?: number | null;
   home_longitude?: number | null;
   home_formatted_address?: string;
+  /** YYYY-MM-DD, compared with the NIN record; not stored from here. */
+  date_of_birth?: string;
 }

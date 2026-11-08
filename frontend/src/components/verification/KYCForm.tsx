@@ -23,6 +23,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const timeZone = useTimezone();
 
   const [ninNumber, setNinNumber] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
   const [homeLocation, setHomeLocation] = useState<{ latitude: number; longitude: number; formatted_address?: string } | null>(null);
   const [useManualAddress, setUseManualAddress] = useState(true);
@@ -35,7 +36,9 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   });
   const validManual = manualSchema.safeParse(manualAddress).success;
   const validNin = /^\d{11}$/.test(ninNumber);
-  const canSubmit = Boolean(documentUrl) && validNin && validManual && (useManualAddress || homeLocation !== null);
+  const today = new Date().toISOString().slice(0, 10);
+  const validDob = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) && dateOfBirth >= "1900-01-01" && dateOfBirth <= today;
+  const canSubmit = Boolean(documentUrl) && validNin && validDob && validManual && (useManualAddress || homeLocation !== null);
   const address = [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +56,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         home_latitude: useManualAddress ? null : homeLocation?.latitude ?? null,
         home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
         home_formatted_address: address ?? undefined,
+        date_of_birth: dateOfBirth,
       });
       onSubmitted?.();
     } catch (err) {
@@ -70,6 +74,14 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
     return (
       <div className="flex flex-col gap-3">
         <VerificationStatus status={status.status} />
+        {status.auto_approved && (
+          <p role="status" className="rounded-control bg-success-wash px-3 py-2 text-sm text-success">
+            Your NIN details matched your account, so you were verified straight away.
+          </p>
+        )}
+        {status.status === "under_review" && (
+          <p className="text-sm text-ink-soft">Our team is checking your details by hand. You'll get a notification when it's done.</p>
+        )}
         {status.nin_verified_full_name && (
           <div className="rounded-card border border-line p-3 text-sm">
             <div className="mb-1 text-xs font-medium uppercase tracking-wide text-ink-soft">Verified against your NIN</div>
@@ -103,8 +115,15 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
           maxLength={11}
         />
         <p className="mt-1 text-xs text-ink-soft">
-          Your name, date of birth, and gender are pulled directly from your NIN record — you don't need to re-type them.
+          We look up your NIN record and compare it with your account. If your name and date of birth match, you're verified straight away.
         </p>
+      </div>
+
+      <div>
+        <label htmlFor="date-of-birth" className="mb-1.5 block text-sm font-medium text-ink">Date of birth (as on your NIN)</label>
+        <Input id="date-of-birth" type="date" min="1900-01-01" max={today} value={dateOfBirth}
+          onChange={(e) => setDateOfBirth(e.target.value)} aria-describedby="date-of-birth-hint" />
+        <p id="date-of-birth-hint" className="mt-1 text-xs text-ink-soft">Used only to check against your NIN record.</p>
       </div>
 
       <DocumentUpload label="Upload a photo of your ID" onUploaded={setDocumentUrl} />
@@ -168,7 +187,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         </div>
       )}
 
-      {!canSubmit && !error && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
+      {!canSubmit && !error && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN and your date of birth, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
       <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting || isProviderError}>
         Submit for verification
       </Button>

@@ -254,8 +254,13 @@ class Settings(BaseSettings):
     WEATHER_API_KEY: Optional[str] = None
 
     # --- NIN identity verification (KYC) ---
-    NIN_PROVIDER: str = "manual"
-    NIN_API_KEY: Optional[str] = None
+    NIN_PROVIDER: str = "manual"  # manual | prembly | dojah
+    NIN_API_KEY: Optional[str] = Field(None, repr=False)  # provider secret key
+    DOJAH_APP_ID: Optional[str] = None
+    DOJAH_BASE_URL: str = "https://api.dojah.io"  # sandbox: https://sandbox.dojah.io
+    # Approve identity checks without an admin when every rule passes (see nin_matching.py).
+    # Off by default: turn on only after the provider is configured and tested.
+    NIN_AUTO_APPROVE: bool = False
     # Business (CAC) lookups for KYB. "manual" sends every submission to admin review.
     KYB_PROVIDER: str = "manual"  # manual | prembly
     # Prembly key for CAC lookups; falls back to NIN_API_KEY (same Prembly account).

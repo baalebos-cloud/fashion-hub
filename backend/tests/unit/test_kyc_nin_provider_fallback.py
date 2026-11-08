@@ -16,7 +16,9 @@ def test_unavailable_nin_provider_queues_unverified_manual_review():
     review.submit_identity_verification.return_value = Mock(status="pending")
     with patch("app.integrations.kyc.get_nin_provider", return_value=provider), \
          patch("app.integrations.kyc.get_kyc_provider", return_value=review), \
-         patch("app.core.identity_encryption.encrypt_identity", return_value="encrypted"):
+         patch("app.core.identity_encryption.encrypt_identity", return_value="encrypted"), \
+         patch("app.core.identity_encryption.identity_fingerprint", return_value="f" * 64), \
+         patch.object(KYCService, "_fingerprint_legacy_records", return_value=True):
         result = KYCService(db).submit(
             user_id=user.id, nin_number="12345678901",
             document_storage_keys=["private/kyc/test-document.pdf"],
