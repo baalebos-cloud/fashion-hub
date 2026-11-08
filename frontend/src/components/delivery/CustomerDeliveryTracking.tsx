@@ -3,7 +3,7 @@ import { describeFreshness } from "@/lib/utils/tracking";
 import { deliveriesApi } from "@/api/deliveries.api";
 import type { Delivery, RiderPosition } from "@/types/delivery";
 import { DeliveryMap } from "./DeliveryMap";
-import { CallButton } from "@/components/calls/CallButton";
+import { Button } from "@/components/ui/button";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { RiderCard } from "@/components/delivery/RiderCard";
 import { OneTimeCode } from "@/components/delivery/OneTimeCode";
@@ -40,24 +40,22 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
   }, [orderId]);
 
   return (
-    <section className="space-y-2 rounded-card border border-line p-4" aria-label="Delivery tracking">
-      <h2 className="font-medium">Delivery tracking</h2>
+    <section className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5" aria-label="Delivery tracking">
+      <h2 className="font-semibold text-ink">Delivery tracking</h2>
       {delivery ? <DeliveryStatusBadge status={delivery.status} /> :
         <p className="text-sm text-ink-soft">No courier has been assigned yet.</p>}
       {delivery?.courier && <p className="text-sm text-ink">Delivered by our courier partner <span className="font-medium">{delivery.courier}</span>.</p>}
       {delivery?.rider_name && <RiderCard delivery={delivery} />}
-      {delivery?.rider_name && ["assigned", "picked_up", "in_transit", "out_for_delivery"].includes(delivery.status) && (
-        <CallButton orderId={orderId} party="rider" label="Call rider" />
-      )}
+      {/* Calling the rider lives in "Contacts" on the order page, which knows whether masked calls are set up. */}
       {delivery?.status === "in_transit" && delivery.package_count != null && (
         <p className="text-sm text-ink-soft">
           Your rider collected {delivery.package_count} package{delivery.package_count === 1 ? "" : "s"}. Check they're all there.
         </p>
       )}
       {delivery?.status === "in_transit" && !showCode && (
-        <button type="button" onClick={() => setShowCode(true)} className="rounded border border-line p-2 text-sm">
+        <Button type="button" variant="secondary" size="sm" className="self-start" onClick={() => setShowCode(true)}>
           Show handover code
-        </button>
+        </Button>
       )}
       {delivery?.status === "in_transit" && showCode && (
         <OneTimeCode
