@@ -128,11 +128,11 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
   vendor: [
     {
       items: [
-        { label: "Overview", path: vendorRoutes.dashboard, icon: <Icon d={ICONS.home} /> },
+        { label: "Today", path: vendorRoutes.dashboard, icon: <Icon d={ICONS.home} /> },
+        { label: "Orders", path: vendorRoutes.orders, icon: <Icon d={ICONS.orders} /> },
         { label: "Products", path: vendorRoutes.products, icon: <Icon d={ICONS.vendor} /> },
         { label: "Inventory", path: vendorRoutes.inventory, icon: <Icon d={ICONS.production} /> },
-        { label: "Orders", path: vendorRoutes.orders, icon: <Icon d={ICONS.orders} /> },
-        { label: "Delivery", path: vendorRoutes.delivery, icon: <Icon d={ICONS.delivery} /> },
+        { label: "Deliveries", path: vendorRoutes.delivery, icon: <Icon d={ICONS.delivery} /> },
       ],
     },
     {
@@ -146,7 +146,7 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
     {
       heading: "Account",
       items: [
-        { label: "KYB", path: vendorRoutes.verification, icon: <Icon d={ICONS.kyc} /> },
+        { label: "Verification", path: vendorRoutes.verification, icon: <Icon d={ICONS.kyc} /> },
         { label: "Notifications", path: vendorRoutes.notifications, icon: <Icon d={ICONS.notification} /> },
         { label: "Settings", path: vendorRoutes.settings, icon: <Icon d={ICONS.settings} /> },
       ],
