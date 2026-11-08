@@ -122,8 +122,11 @@ def moving(db, make_user, client, monkeypatch):
         assert response.status_code == 200, response.text
 
     def alerts():
-        return [n.event_type for n in db.query(Notification).filter_by(recipient_user_id=buyer.id)
-                .order_by(Notification.created_at).all() if n.event_type.startswith("delivery.rider_")]
+        # Which alerts were sent, in a fixed order. Notifications made in one test transaction can
+        # share a created_at, so their order isn't meaningful here; the order alerts happened in is
+        # checked through DeliveryEvent.seq instead.
+        return sorted(n.event_type for n in db.query(Notification).filter_by(recipient_user_id=buyer.id).all()
+                      if n.event_type.startswith("delivery.rider_"))
     return {"ping": ping, "alerts": alerts, "delivery": delivery, "db": db, "buyer": buyer}
 
 
