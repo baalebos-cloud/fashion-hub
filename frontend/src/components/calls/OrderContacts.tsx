@@ -6,7 +6,7 @@ import type { CallContact, CallParty } from "@/types/call";
 
 const PARTY_ROLE: Record<CallParty, string> = { buyer: "Customer", seller: "Seller", rider: "Rider" };
 
-/** "Contact" panel for an order: masked call buttons for everyone the user may call.
+/** "Contact" panel for an order: in-app call buttons for everyone the user may call.
  * `refreshKey` reloads the list when it changes, e.g. once a rider is assigned. */
 export function OrderContacts({ orderId, refreshKey }: { orderId: string; refreshKey?: string }) {
   const [contacts, setContacts] = useState<CallContact[] | null>(null);
@@ -23,7 +23,7 @@ export function OrderContacts({ orderId, refreshKey }: { orderId: string; refres
     <Card role="region" className="flex flex-col gap-3" aria-label="Contact about this order">
       <div>
         <h2 className="text-sm font-medium text-ink">Contact about this order</h2>
-        <p className="text-xs text-ink-soft">Calls go through Tailora, so phone numbers stay private on both sides.</p>
+        <p className="text-xs text-ink-soft">Calls go through the Tailora app over the internet, so phone numbers stay private on both sides.</p>
       </div>
       <ul className="flex flex-col gap-3">
         {contacts.map((contact) => (
@@ -32,7 +32,7 @@ export function OrderContacts({ orderId, refreshKey }: { orderId: string; refres
               <p className="text-sm font-medium text-ink">{contact.display_name}</p>
               <p className="text-xs text-ink-soft">{contact.available ? PARTY_ROLE[contact.party] : contact.reason}</p>
             </div>
-            <CallButton orderId={orderId} party={contact.party} label="Call" disabled={!contact.available} />
+            <CallButton orderId={orderId} party={contact.party} label="Call" calleeName={contact.display_name} disabled={!contact.available} />
           </li>
         ))}
       </ul>

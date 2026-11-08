@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
+import { AppCalls } from "@/components/calls/AppCalls";
 import { router } from "@/router";
 import { AIAssistant } from "@/components/ai/AIAssistant";
 import { AIPublicTeaser } from "@/components/ai/AIPublicTeaser";
@@ -40,6 +41,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <RouterProvider router={router} />
+        <AppCalls />
         <GlobalAssistant />
       </ToastProvider>
       </QueryClientProvider>

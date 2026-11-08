@@ -1,7 +1,5 @@
-import { useState } from "react";
-import { callsApi } from "@/api/calls.api";
+import { useCallStore } from "@/store/call.store";
 import { Button, type ButtonProps } from "@/components/ui/button";
-import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import type { CallParty } from "@/types/call";
 
 function PhoneIcon() {
@@ -21,39 +19,15 @@ interface CallButtonProps {
   variant?: ButtonProps["variant"];
 }
 
-/**
- * Starts a masked call: Tailora rings the user's own phone, then connects them.
- * Neither side sees the other's number.
- */
-export function CallButton({ orderId, party, label, disabled, variant = "secondary" }: CallButtonProps) {
-  const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
-
-  async function call() {
-    setBusy(true);
-    setMessage(null);
-    try {
-      const started = await callsApi.start(orderId, party);
-      const ending = started.your_phone_ending ? ` ending ${started.your_phone_ending}` : "";
-      setMessage({ tone: "ok", text: `Tailora is calling your phone${ending}. Answer to be connected to ${started.callee_display_name}. Your number stays private.` });
-    } catch (err) {
-      setMessage({ tone: "error", text: getDisplayErrorMessage(err, "The call couldn't be started. Please try again.") });
-    } finally {
-      setBusy(false);
-    }
-  }
-
+/** Starts an in-app call (voice over the internet). Neither side sees the other's number. */
+export function CallButton({ orderId, party, label, disabled, variant = "secondary", calleeName }: CallButtonProps & { calleeName?: string }) {
+  const start = useCallStore((s) => s.start);
+  const phase = useCallStore((s) => s.phase);
+  const busy = phase === "starting";
   return (
-    <div className="flex flex-col gap-1.5">
-      <Button type="button" size="sm" variant={variant} onClick={() => void call()} isLoading={busy} disabled={disabled}>
-        {!busy && <PhoneIcon />}{label}
-      </Button>
-      {message && (
-        <p role={message.tone === "error" ? "alert" : "status"}
-          className={message.tone === "error" ? "text-xs text-thread" : "text-xs text-ink-soft"}>
-          {message.text}
-        </p>
-      )}
-    </div>
+    <Button type="button" size="sm" variant={variant} onClick={() => void start(orderId, party, calleeName ?? label)}
+      isLoading={busy} disabled={disabled || (phase !== "idle" && phase !== "ended")}>
+      {!busy && <PhoneIcon />}{label}
+    </Button>
   );
 }

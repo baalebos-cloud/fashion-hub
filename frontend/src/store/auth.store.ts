@@ -78,6 +78,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logOut: async () => {
+    // Hang up any call first, while the session can still tell the server.
+    try {
+      const { useCallStore } = await import("@/store/call.store");
+      await useCallStore.getState().reset();
+    } catch {
+      // Never let call cleanup block signing out.
+    }
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {

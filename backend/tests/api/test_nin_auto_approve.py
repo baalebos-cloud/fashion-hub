@@ -253,4 +253,6 @@ def test_same_nin_sent_by_two_accounts_at_once_verifies_only_one(engine, monkeyp
         with Session(engine) as s:
             s.query(KYCVerification).filter(KYCVerification.user_id.in_(ids)).delete(synchronize_session=False)
             s.query(Notification).filter(Notification.recipient_user_id.in_(ids)).delete(synchronize_session=False)
+            s.query(AuditLog).filter(AuditLog.action == "kyc.auto_approved").delete(synchronize_session=False)
+            s.query(User).filter(User.id.in_(ids)).delete(synchronize_session=False)
             s.commit()
