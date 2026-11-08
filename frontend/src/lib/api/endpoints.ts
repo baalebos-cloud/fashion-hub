@@ -199,6 +199,7 @@ export const endpoints = {
     professionals: "/search/professionals",
     designs: "/search/designs",
     products: "/search/vendor-products",
+    smart: "/search/smart",
   },
 
   admin: {
