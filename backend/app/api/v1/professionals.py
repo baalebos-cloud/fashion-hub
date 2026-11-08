@@ -8,7 +8,7 @@ Public browse/search + the professional's own business-location update
 from uuid import UUID
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from urllib.parse import urlsplit
 from app.models.stored_media import StoredMedia
@@ -35,6 +35,7 @@ LEARNED_POOL = 500  # matches ranked personally in the learned variant; the rest
 
 @router.get("", response_model=ProfessionalPage)
 def list_professionals(
+    request: Request,
     professional_type: Literal['tailor', 'designer'] | None = None,
     q: str | None = Query(None, max_length=200),
     lat: float | None = Query(None, ge=-90, le=90),
@@ -54,7 +55,9 @@ def list_professionals(
         query=q, latitude=lat, longitude=lng, radius_km=radius_km)
     rules_order = query.order_by(desc(Professional.average_rating), desc(Professional.review_count), Professional.id)
     total = query.count()
-    assignment = (personal_ranking_service.assign(user, str(browser_id) if browser_id else None) if ranked
+    assignment = (personal_ranking_service.assign(user, str(browser_id) if browser_id else None,
+                                                  tracking=personal_ranking_service.tracking_allowed(request))
+                  if ranked
                   else personal_ranking_service.Assignment('rules', None, None, log=False))
     pool = (rules_order.with_entities(Professional.id, Professional.average_rating).limit(LEARNED_POOL).all()
             if assignment.learned else [])
@@ -64,6 +67,10 @@ def list_professionals(
         page_ids = ranked[pagination.offset:pagination.offset + pagination.page_size]
         found = {p.id: p for p in db.query(Professional).filter(Professional.id.in_(page_ids))}
         items = [found[pid] for pid in page_ids if pid in found]
+        # A page that straddles the end of the ranked pool continues with the rules-ordered rest,
+        # so every match appears exactly once across pages.
+        if len(page_ids) < pagination.page_size:
+            items += rules_order.offset(len(pool)).limit(pagination.page_size - len(page_ids)).all()
     else:
         items = rules_order.offset(pagination.offset).limit(pagination.page_size).all()
     personal_ranking_service.log_impression(db, assignment, 'tailor_search', 'professional', [p.id for p in items])

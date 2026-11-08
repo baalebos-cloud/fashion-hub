@@ -4,8 +4,8 @@ Who gets which ranking (assign):
   RECOMMENDATIONS_MODE=rules or learned applies to everyone. In "experiment" each shopper is
   fixed to one side by a hash of their account (or browser ID) and RECOMMENDATIONS_EXPERIMENT,
   so the same person always sees the same ranking. Shoppers who opted out of personalisation,
-  or whose browser sends no ID (Do Not Track / GPC / Privacy page opt-out), always get the
-  rules ranking and nothing is logged for them.
+  or whose browser asks not to be tracked (Privacy-page opt-out, GPC, Do Not Track; see
+  tracking_allowed), always get the rules ranking and nothing is logged, signed in or not.
 
 Learned score (score_items), each part 0-1:
   0.60  affinity   -- how related the item is to what this shopper recently engaged with
@@ -40,15 +40,28 @@ BOUGHT_TOGETHER_FACTOR = 1.5
 
 
 class Assignment:
-    def __init__(self, variant: str, user_id: uuid.UUID | None, anonymous_id: str | None, log: bool):
+    def __init__(self, variant: str, user_id: uuid.UUID | None, anonymous_id: str | None, log: bool,
+                 experiment: str | None = None):
         self.variant, self.user_id, self.anonymous_id, self.log = variant, user_id, anonymous_id, log
+        self.experiment = experiment  # set only when randomly assigned in a test
 
     @property
     def learned(self) -> bool:
         return self.variant == "learned"
 
 
-def assign(user: User | None, anonymous_id: str | None) -> Assignment:
+def tracking_allowed(request) -> bool:
+    """False when this browser asked not to be tracked: the website's own opt-out header
+    (Privacy page, GPC or Do Not Track), or the browser's Sec-GPC / DNT headers directly.
+    Applies to signed-in shoppers too: signing in is not consent to tracking."""
+    headers = request.headers
+    return (headers.get("x-tracking-consent", "").lower() != "off"
+            and headers.get("sec-gpc") != "1" and headers.get("dnt") != "1")
+
+
+def assign(user: User | None, anonymous_id: str | None, *, tracking: bool = True) -> Assignment:
+    if not tracking:
+        return Assignment("rules", None, None, log=False)
     if user is not None and not user.personalization_enabled:
         return Assignment("rules", None, None, log=False)
     actor = str(user.id) if user is not None else anonymous_id
@@ -60,7 +73,8 @@ def assign(user: User | None, anonymous_id: str | None) -> Assignment:
     if mode in ("rules", "learned"):
         return Assignment(mode, user_id, anon, log=True)
     digest = hashlib.sha256(f"{settings.RECOMMENDATIONS_EXPERIMENT}:{actor}".encode()).digest()
-    return Assignment("learned" if digest[0] % 2 else "rules", user_id, anon, log=True)
+    return Assignment("learned" if digest[0] % 2 else "rules", user_id, anon, log=True,
+                      experiment=settings.RECOMMENDATIONS_EXPERIMENT)
 
 
 def _profile(db: Session, assignment: Assignment) -> dict[tuple[str, uuid.UUID], float]:
@@ -133,7 +147,9 @@ def score_items(db: Session, assignment: Assignment, item_type: str,
 def log_impression(db: Session, assignment: Assignment, surface: str, item_type: str, item_ids: list) -> None:
     if not assignment.log or not item_ids:
         return
-    db.add(RecommendationImpression(surface=surface, variant=assignment.variant, user_id=assignment.user_id,
+    db.add(RecommendationImpression(surface=surface, variant=assignment.variant,
+                                    assigned_by="experiment" if assignment.experiment else "fixed",
+                                    experiment=assignment.experiment, user_id=assignment.user_id,
                                     anonymous_id=assignment.anonymous_id, item_type=item_type,
                                     item_ids=list(item_ids), served_at=utcnow()))
     db.commit()

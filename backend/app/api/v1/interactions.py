@@ -47,6 +47,9 @@ def record_events(
     user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
+    from app.services.personal_ranking_service import tracking_allowed
+    if not tracking_allowed(request):
+        return {"accepted": 0}
     accepted = interaction_service.record_batch(
         db, user=user, anonymous_id=str(batch.anonymous_id) if batch.anonymous_id else None,
         events=[event.model_dump() for event in batch.events])

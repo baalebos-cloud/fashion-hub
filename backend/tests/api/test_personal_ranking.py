@@ -216,10 +216,11 @@ def test_tailor_search_learned_ranking_uses_the_shoppers_history(db, client, mod
 
 def test_opt_out_and_retention_remove_impressions(db, make_user):
     user = make_user()
-    old = RecommendationImpression(surface="picked_for_you", variant="rules", anonymous_id=str(uuid.uuid4()),
+    old = RecommendationImpression(surface="picked_for_you", variant="rules", assigned_by="fixed",
+                                   anonymous_id=str(uuid.uuid4()),
                                    item_type="product", item_ids=[uuid.uuid4()],
                                    served_at=utcnow() - timedelta(days=settings.INTERACTION_RETENTION_DAYS + 1))
-    mine = RecommendationImpression(surface="picked_for_you", variant="rules", user_id=user.id,
+    mine = RecommendationImpression(surface="picked_for_you", variant="rules", assigned_by="fixed", user_id=user.id,
                                     item_type="product", item_ids=[uuid.uuid4()], served_at=utcnow())
     db.add_all([old, mine])
     db.commit()
@@ -231,8 +232,10 @@ def test_opt_out_and_retention_remove_impressions(db, make_user):
 
 # ---- admin health -------------------------------------------------------------------------------
 
-def _impression(db, variant, browser, items, served_at):
+def _impression(db, variant, browser, items, served_at, *, assigned_by="experiment", experiment=None):
     db.add(RecommendationImpression(surface="picked_for_you", variant=variant, anonymous_id=browser,
+                                    assigned_by=assigned_by,
+                                    experiment=experiment if experiment is not None else settings.RECOMMENDATIONS_EXPERIMENT,
                                     item_type="product", item_ids=items, served_at=served_at))
 
 
@@ -266,3 +269,64 @@ def test_health_declares_a_winner_only_with_enough_lists(db):
     assert recommendation_health._verdict(learned, rules)["status"] == "rules_better"
     assert recommendation_health._verdict(rules, dict(rules))["status"] == "no_difference"
     assert recommendation_health._verdict({**rules, "shown": 50}, learned)["status"] == "collecting"
+
+
+# ---- review fixes -------------------------------------------------------------------------------
+
+def test_browser_opt_out_applies_to_signed_in_shoppers(db, vendor, client, mode, make_user):
+    http, current = client
+    current[0] = make_user(role="tailor")
+    mode("learned")
+    _product(db, vendor, "Lace", "500")
+    off = {"X-Tracking-Consent": "off"}
+    assert http.get(PICKED, headers=off).json()["ranking"] == "rules"
+    assert http.get("/api/v1/ai/commerce/recommendations", params={"budget_ngn": 1000}, headers=off).json()["ranking"] == "rules"
+    assert http.get("/api/v1/professionals", params={"ranked": True}, headers={"Sec-GPC": "1"}).json()["ranking"] == "rules"
+    assert db.query(RecommendationImpression).count() == 0
+    lace = db.query(VendorProduct).filter_by(name="Lace").one()
+    event = {"event_type": "view", "item_type": "product", "item_id": str(lace.id)}
+    assert http.post("/api/v1/interactions/events", json={"events": [event]}, headers={"DNT": "1"}).json() == {"accepted": 0}
+    # Without the signal the same shopper is ranked and logged as usual.
+    assert http.get(PICKED).json()["ranking"] == "learned"
+    assert db.query(RecommendationImpression).one().assigned_by == "fixed"
+
+
+def test_report_compares_only_the_current_randomised_test(db, vendor, client, make_user):
+    http, current = client
+    lace = _product(db, vendor, "Lace")
+    now = utcnow()
+    _impression(db, "learned", str(uuid.uuid4()), [lace.id], now)
+    _impression(db, "learned", str(uuid.uuid4()), [lace.id], now, assigned_by="fixed", experiment="")
+    _impression(db, "rules", str(uuid.uuid4()), [lace.id], now, experiment="ranking_v0")
+    db.commit()
+    current[0] = make_user(role="admin")
+    picked = next(s for s in http.get("/api/v1/admin/recommendations/health").json()["surfaces"]
+                  if s["surface"] == "picked_for_you")
+    assert (picked["learned"]["shown"], picked["rules"]["shown"]) == (1, 0)
+
+
+def test_experiment_assignments_record_the_test_name(db, vendor, client, mode):
+    http, _ = client
+    mode("experiment")
+    _product(db, vendor, "Lace")
+    http.get(PICKED, params={"browser_id": str(uuid.uuid4())})
+    row = db.query(RecommendationImpression).one()
+    assert (row.assigned_by, row.experiment) == ("experiment", settings.RECOMMENDATIONS_EXPERIMENT)
+
+
+def test_learned_search_pages_cover_every_match_across_the_pool_boundary(db, client, mode, make_user, monkeypatch):
+    from app.api.v1 import professionals as professionals_api
+    monkeypatch.setattr(professionals_api, "LEARNED_POOL", 5)
+    http, current = client
+    current[0] = make_user()
+    mode("learned")
+    for n in range(8):
+        owner = make_user(role="tailor")
+        db.add(Professional(user_id=owner.id, professional_type="tailor", is_verified=True,
+                            business_name=f"Pro {n}", average_rating=Decimal(str(5 - n * 0.5))))
+    db.commit()
+    seen = []
+    for page in (1, 2, 3):
+        body = http.get("/api/v1/professionals", params={"ranked": True, "page": page, "page_size": 3}).json()
+        seen += [item["id"] for item in body["items"]]
+    assert len(seen) == 8 and len(set(seen)) == 8

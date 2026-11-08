@@ -29,6 +29,11 @@ class RecommendationImpression(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     surface: Mapped[str] = mapped_column(String(24), nullable=False)
     variant: Mapped[str] = mapped_column(String(16), nullable=False)
+    # "experiment" when the shopper was randomly assigned in a test, "fixed" when
+    # RECOMMENDATIONS_MODE forced rules or learned for everyone. Only experiment rows with the
+    # current experiment name are compared, so a renamed test starts from zero.
+    assigned_by: Mapped[str] = mapped_column(String(16), nullable=False)
+    experiment: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True)
     anonymous_id: Mapped[str | None] = mapped_column(String(36), nullable=True)

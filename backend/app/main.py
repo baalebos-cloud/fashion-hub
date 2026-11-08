@@ -44,7 +44,8 @@ app.add_middleware(
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key", "X-Device-Id"],
+    allow_headers=["Authorization", "Content-Type", "X-Request-ID", "Idempotency-Key", "X-Device-Id",
+                   "X-Tracking-Consent"],
     expose_headers=["X-Request-ID", "Retry-After"],
 )
 

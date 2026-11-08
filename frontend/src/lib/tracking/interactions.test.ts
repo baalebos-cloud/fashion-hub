@@ -76,3 +76,20 @@ describe("shopping activity tracker", () => {
     await expect(flush()).resolves.toBeUndefined();
   });
 });
+
+describe("tracking consent header", () => {
+  it("is sent on API requests once this browser opts out, signed in or not", async () => {
+    const { attachRequestInterceptors } = await import("@/lib/api/interceptors");
+    const handlers: ((c: { headers: Map<string, string> & { set: (k: string, v: string) => void } }) => unknown)[] = [];
+    const client = { interceptors: { request: { use: (fn: never) => handlers.push(fn) } } };
+    attachRequestInterceptors(client as never);
+    const run = () => {
+      const headers = new Map<string, string>() as Map<string, string> & { set: (k: string, v: string) => void };
+      handlers[0]({ headers });
+      return headers;
+    };
+    expect(run().get("X-Tracking-Consent")).toBeUndefined();
+    setBrowserOptOut(true);
+    expect(run().get("X-Tracking-Consent")).toBe("off");
+  });
+});

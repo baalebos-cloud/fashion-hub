@@ -1,6 +1,7 @@
 """Admin "Recommendations health": is learned ranking beating the fixed rules?
 
-For each surface and ranking (rules / learned), over the last REPORT_DAYS:
+For each surface and ranking (rules / learned), over the last REPORT_DAYS, counting only lists
+served to shoppers randomly assigned in the current experiment (RECOMMENDATIONS_EXPERIMENT):
   shown       lists served (recommendation_impressions)
   clicked     share of lists where the shopper opened one of the shown items from that surface
               within CLICK_WINDOW (a view whose source is the surface name)
@@ -54,8 +55,12 @@ def _verdict(rules: dict, learned: dict) -> dict:
 def summary(db: Session) -> dict:
     now = utcnow()
     since = now - timedelta(days=REPORT_DAYS)
+    # Only lists from the current randomised test are compared: not lists served while
+    # RECOMMENDATIONS_MODE forced one ranking, and not lists from an earlier (renamed) test.
     impressions = (db.query(RecommendationImpression)
-                   .filter(RecommendationImpression.served_at >= since).all())
+                   .filter(RecommendationImpression.served_at >= since,
+                           RecommendationImpression.assigned_by == "experiment",
+                           RecommendationImpression.experiment == settings.RECOMMENDATIONS_EXPERIMENT).all())
 
     actors = {_actor(i.user_id, i.anonymous_id) for i in impressions}
     user_ids = {a[1] for a in actors if a[0] == "u"}

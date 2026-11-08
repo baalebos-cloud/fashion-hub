@@ -1,7 +1,7 @@
 """Catalog-grounded budget guidance. No generative price or availability claims."""
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -23,6 +23,7 @@ class _FirstPage:
 
 @router.get("/recommendations")
 def recommend_products(
+    request: Request,
     budget_ngn: Decimal = Query(gt=0),
     category_id: str | None = None,
     limit: int = Query(default=5, ge=1, le=20),
@@ -63,7 +64,8 @@ def recommend_products(
             "vendor_id": product["vendor_id"],
         })
     # Rules: cheapest first. Learned: the same in-budget matches, ranked for this shopper.
-    assignment = personal_ranking_service.assign(current_user, None)
+    assignment = personal_ranking_service.assign(
+        current_user, None, tracking=personal_ranking_service.tracking_allowed(request))
     matches = recommend_catalog_items(
         catalog=records, budget_ngn=budget_ngn, category=category_id,
         limit=20 if assignment.learned else limit,

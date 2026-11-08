@@ -19,6 +19,8 @@ def upgrade():
         sa.Column("id", UUID(as_uuid=True), primary_key=True),
         sa.Column("surface", sa.String(24), nullable=False),
         sa.Column("variant", sa.String(16), nullable=False),
+        sa.Column("assigned_by", sa.String(16), nullable=False),
+        sa.Column("experiment", sa.String(64), nullable=True),
         sa.Column("user_id", UUID(as_uuid=True), sa.ForeignKey("users.id", ondelete="CASCADE"), nullable=True),
         sa.Column("anonymous_id", sa.String(36), nullable=True),
         sa.Column("item_type", sa.String(16), nullable=False),

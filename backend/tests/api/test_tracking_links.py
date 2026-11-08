@@ -1,4 +1,5 @@
 """Phase 4: shareable recipient tracking links (hashed, scoped, expiring, revocable, narrow)."""
+import re
 import uuid
 from datetime import timedelta
 
@@ -73,9 +74,12 @@ def test_buyer_shares_a_link_and_the_recipient_sees_a_narrow_view(shared):
     assert body["dropoff_area"] == "Lekki, Lagos"
     assert body["rider"] == {"first_name": "Sola", "vehicle_type": "bike", "is_verified": True, "rating": 0.0}
     assert any(m["key"] == "picked_up" for m in body["milestones"])
+    # Timestamps can contain digit runs like "3.47" by chance; check everything else.
+    visible = re.sub(r"\d{4}-\d{2}-\d{2}T[0-9:.]+(?:Z|[+-]\d{2}:\d{2})?", "<time>", view.text)
     for private in ("Secret Close", "Mama Ada", "+234", "6.44", "3.47", "85000", "3600", "handover",
                     "Bello", "Obi", shared["buyer"].email):
-        assert private not in view.text, private
+        assert private not in visible, private
+    assert "latitude" not in visible and "longitude" not in visible
     assert db.query(DeliveryShareLink).one().access_count == 1
 
 

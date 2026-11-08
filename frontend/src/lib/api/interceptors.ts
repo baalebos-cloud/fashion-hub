@@ -2,12 +2,15 @@ import axios, { type AxiosInstance, type AxiosError, type InternalAxiosRequestCo
 import { getAccessToken, getRefreshToken, setTokens, clearTokens } from "@/lib/auth/token";
 import { toApiError } from "./errors";
 import { getDeviceId } from "@/lib/device/device-id";
+import { trackingDisabled } from "@/lib/tracking/consent";
 
 export function attachRequestInterceptors(client: AxiosInstance): void {
   client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
     const token = getAccessToken();
     if (token) config.headers.set("Authorization", `Bearer ${token}`);
     config.headers.set("X-Device-Id", getDeviceId());
+    // Recommendations: the server ranks by fixed rules and records nothing for this browser.
+    if (trackingDisabled()) config.headers.set("X-Tracking-Consent", "off");
     return config;
   });
 }

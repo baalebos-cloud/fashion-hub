@@ -3,7 +3,7 @@ cart, and "Picked for you" on the materials marketplace. Public; no personal dat
 from typing import Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -49,10 +49,11 @@ def bought_together(product_id: list[UUID] = Query(..., min_length=1, max_length
 
 
 @router.get("/products/picked-for-you", response_model=RankedProducts)
-def picked_for_you(browser_id: UUID | None = None, limit: int = Query(8, ge=1, le=20),
+def picked_for_you(request: Request, browser_id: UUID | None = None, limit: int = Query(8, ge=1, le=20),
                    user: User | None = Depends(get_optional_current_user), db: Session = Depends(get_db)):
     """Signed-out visitors pass their random browser ID (the same one used for shopping
     activity); without it, or with personalisation off, the fixed ordering is used."""
-    assignment = personal_ranking_service.assign(user, str(browser_id) if browser_id else None)
+    assignment = personal_ranking_service.assign(user, str(browser_id) if browser_id else None,
+                                                 tracking=personal_ranking_service.tracking_allowed(request))
     items = related_items_service.picked_for_you(db, assignment, limit)
     return {"items": items, "ranking": assignment.variant}
