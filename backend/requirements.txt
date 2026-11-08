@@ -217,6 +217,7 @@ certifi==2026.10.19 \
     --hash=sha256:035c1e85572b141bf1c3a3eff0e33a8eb74917522f2559075ff8d2fea780a1ae \
     --hash=sha256:42d35340cc5b9ba78e818ddbff0c5b1c2b779de448a340fd1b989f5fa8670e1b
     # via
+    #   google-cloud-aiplatform
     #   httpcore
     #   httpx
     #   requests
@@ -759,9 +760,9 @@ google-auth[pyopenssl,requests]==2.62.0 \
     #   google-cloud-resource-manager
     #   google-cloud-storage
     #   google-genai
-google-cloud-aiplatform==1.133.0 \
-    --hash=sha256:3a6540711956dd178daaab3c2c05db476e46d94ac25912b8cf4f59b00b058ae0 \
-    --hash=sha256:dfc81228e987ca10d1c32c7204e2131b3c8d6b7c8e0b4e23bf7c56816bc4c566
+google-cloud-aiplatform==2.7.0 \
+    --hash=sha256:156ede4a6c304119195dbdaedaba8c33872f6d80b6525482dccb95f76405bd31 \
+    --hash=sha256:af89c8b7ff8bfaa3361a4d88224a886e8d2a9f22853d4e3c5d047e46367b6008
     # via -r requirements.in
 google-cloud-bigquery==3.46.2 \
     --hash=sha256:5e9a4e15f778cc00ee88167de9934a4c1bbb7fc20058e8f573f2bfdaf0d99052 \
