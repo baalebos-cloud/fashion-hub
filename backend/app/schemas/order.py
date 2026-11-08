@@ -63,6 +63,8 @@ class OrderResponse(BaseModel):
     completed_at: Optional[datetime] = None
     cancelled_at: Optional[datetime] = None
     reservation_expires_at: Optional[datetime] = None
+    # Material purchases only: the tailor's customer order these materials are for, if linked.
+    parent_customer_order_id: Optional[uuid.UUID] = None
 
     model_config = {"from_attributes": True}
 

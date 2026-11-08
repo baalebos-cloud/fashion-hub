@@ -31,6 +31,12 @@ export const ordersApi = {
     return all;
   },
 
+  /** Tailor: mark an unpaid material purchase as being for one of their customer orders. Metadata only. */
+  async linkMaterial(customerOrderId: string, materialOrderId: string): Promise<Order> {
+    const response = await apiClient.post<Order>(endpoints.orders.linkMaterial(customerOrderId, materialOrderId));
+    return response.data;
+  },
+
   /** Seller: only while the order is active (paid until delivered). Buyer: always. */
   async measurements(id: string): Promise<OrderMeasurements> {
     const response = await apiClient.get<OrderMeasurements>(endpoints.orders.measurements(id));

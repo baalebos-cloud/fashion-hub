@@ -61,6 +61,7 @@ export default function OrderDetails() {
         <div className="flex flex-wrap items-center gap-2">
           <OrderStatusBadge status={order.status} />
           <span className="font-mono text-sm text-ink-soft">{order.order_number}</span>
+          {order.parent_customer_order_id && <span className="text-[13px] text-ink-soft">· for a garment the tailor is making</span>}
         </div>
         <h1 className="font-display text-3xl text-ink">
           {first ? `${first.name_snapshot} × ${first.quantity}` : order.order_number}

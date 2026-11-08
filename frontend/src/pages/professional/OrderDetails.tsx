@@ -12,6 +12,7 @@ import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderItems } from "@/components/orders/OrderItems";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { OrderActions } from "@/components/orders/OrderActions";
+import { OrderMaterials } from "@/components/orders/OrderMaterials";
 import { OrderMeasurementsCard } from "@/components/orders/OrderMeasurementsCard";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
@@ -80,6 +81,8 @@ export default function OrderDetails() {
       </section>
 
       {order.order_type === "customer_order" && <OrderMeasurementsCard orderId={order.id} status={order.status} />}
+
+      {order.order_type === "customer_order" && <OrderMaterials order={order} />}
       {order.order_type === "customer_order" && ["ready_for_delivery", "shipped"].includes(order.status) && (
         <div className="flex flex-col gap-2">
           <Button className="self-start" disabled={dispatching} isLoading={dispatching} onClick={() => void dispatch()}>

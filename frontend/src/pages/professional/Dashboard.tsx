@@ -60,6 +60,7 @@ export default function Dashboard() {
       .catch(() => { if (active) setPurchases([]); });
     return () => { active = false; };
   }, []);
+  const numberById = new Map(selling.map((o) => [o.id, o.order_number]));
   const materials = purchases.filter((o) => !["completed", "cancelled", "refunded", "cart"].includes(o.status));
   const byStage = WORKROOM_STAGES.map((stage) => ({
     ...stage,
@@ -158,7 +159,12 @@ export default function Dashboard() {
               {materials.length === 0 && <p className="text-sm text-ink-soft">No material orders in progress.</p>}
               {materials.slice(0, 4).map((order) => (
                 <Link key={order.id} to={professionalRoutes.vendorOrderDetails(order.id)} className="flex items-center justify-between gap-3 text-sm hover:text-indigo">
-                  <span className="min-w-0 truncate">{order.items[0]?.name_snapshot ?? order.order_number}</span>
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate">{order.items[0]?.name_snapshot ?? order.order_number}</span>
+                    {order.parent_customer_order_id && numberById.get(order.parent_customer_order_id) && (
+                      <span className="font-mono text-xs text-ink-soft">for {numberById.get(order.parent_customer_order_id)}</span>
+                    )}
+                  </span>
                   <OrderStatusBadge status={order.status} />
                 </Link>
               ))}
