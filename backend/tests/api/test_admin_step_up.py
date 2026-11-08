@@ -104,3 +104,12 @@ def test_admin_without_an_authenticator_cannot_open_a_window(ctx, make_user):
 def test_non_admins_cannot_open_a_window(ctx, make_user):
     ctx["current"][0] = make_user(role="vendor")
     assert ctx["http"].post("/api/v1/admin/step-up", json={"code": "123456"}).status_code == 403
+
+
+def test_browsers_on_another_origin_may_send_the_step_up_header(ctx):
+    origin = (settings.CORS_ALLOWED_ORIGINS or ["http://localhost:5173"])[0]
+    res = ctx["http"].options(f"/api/v1/admin/kyc/{ctx['kyc'].id}/review", headers={
+        "Origin": origin, "Access-Control-Request-Method": "POST",
+        "Access-Control-Request-Headers": "authorization,content-type,x-admin-step-up"})
+    assert res.status_code == 200, res.text
+    assert "x-admin-step-up" in res.headers["access-control-allow-headers"].lower()
