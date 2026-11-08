@@ -8,7 +8,7 @@ from app.core.exceptions import ConflictError, NotFoundError
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.audit_log import AuditLog
-from app.schemas.vendor import VendorCreateRequest, VendorResponse
+from app.schemas.vendor import StockAlertRequest, VendorCreateRequest, VendorResponse
 
 router = APIRouter(prefix='/vendors', tags=['Vendors'])
 
@@ -26,6 +26,18 @@ def create(payload: VendorCreateRequest, user: User = Depends(require_roles(Role
     profile = Vendor(user_id=user.id, **payload.model_dump(), is_verified=False)
     db.add(profile)
     db.commit()
+    return profile
+
+
+@router.patch('/me/stock-alert', response_model=VendorResponse)
+def set_stock_alert(payload: StockAlertRequest, user: User = Depends(require_roles(Role.VENDOR)), db: Session = Depends(get_db)):
+    """Choose when a stock line counts as low (0 means only when it's out)."""
+    profile = db.query(Vendor).filter_by(user_id=user.id).with_for_update().first()
+    if not profile:
+        raise NotFoundError('Create your vendor profile first.')
+    profile.low_stock_threshold = payload.low_stock_threshold
+    db.commit()
+    db.refresh(profile)
     return profile
 
 

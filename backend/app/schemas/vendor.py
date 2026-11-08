@@ -18,5 +18,12 @@ class VendorResponse(BaseModel):
     average_rating: float
     # Set when the vendor has saved a store pickup point; required to request riders.
     warehouse_location_id: Optional[uuid.UUID] = None
+    # Stock at or below this counts as low on the vendor's pages.
+    low_stock_threshold: int = 10
 
     model_config = {"from_attributes": True}
+
+
+class StockAlertRequest(BaseModel):
+    model_config = {"extra": "forbid"}
+    low_stock_threshold: int = Field(..., ge=0, le=1_000_000)

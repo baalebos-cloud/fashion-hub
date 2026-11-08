@@ -133,5 +133,5 @@ export const VENDOR_ORDER_GROUPS: { key: string; title: string; statuses: Vendor
   { key: "closed", title: "Cancelled", statuses: ["cancelled", "refunded"] },
 ];
 
-/** Stock at or below this many units counts as low. The backend has no threshold yet. */
-export const LOW_STOCK_THRESHOLD = 10;
+/** Used until the vendor's own low-stock level has loaded (the backend default too). */
+export const DEFAULT_LOW_STOCK_THRESHOLD = 10;

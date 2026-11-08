@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { ErrorState } from "@/components/ui/error-state";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { vendorRoutes } from "@/config/routes.config";
-import { LOW_STOCK_THRESHOLD, VENDOR_ORDER_NEXT_STEP } from "@/constants/order-status";
+import { VENDOR_ORDER_NEXT_STEP } from "@/constants/order-status";
+import { useLowStockThreshold } from "@/hooks/use-low-stock-threshold";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { Order, VendorOrderStatus } from "@/types/order";
 import type { Inventory } from "@/types/product";
@@ -60,7 +61,8 @@ export default function Dashboard() {
   const onRoad = withStatus("picked_up", "in_transit");
   const open = withStatus(...OPEN).sort((a, b) => OPEN.indexOf(a.status as VendorOrderStatus) - OPEN.indexOf(b.status as VendorOrderStatus));
 
-  const low = (stock ?? []).filter((row) => row.quantity_available <= LOW_STOCK_THRESHOLD)
+  const { threshold } = useLowStockThreshold();
+  const low = (stock ?? []).filter((row) => row.quantity_available <= threshold)
     .sort((a, b) => a.quantity_available - b.quantity_available);
 
   const now = new Date();
@@ -143,7 +145,7 @@ export default function Dashboard() {
                   <Link to={vendorRoutes.inventory} className="text-sm font-semibold text-indigo">Restock</Link>
                 </div>
                 {stock === null && <p className="text-sm text-ink-soft">Stock levels couldn't be loaded.</p>}
-                {stock !== null && low.length === 0 && <p className="text-sm text-ink-soft">Everything has more than {LOW_STOCK_THRESHOLD} in stock.</p>}
+                {stock !== null && low.length === 0 && <p className="text-sm text-ink-soft">Everything has more than {threshold} in stock.</p>}
                 {low.length > 0 && (
                   <ul className="flex flex-col gap-2">
                     {low.slice(0, 5).map((row) => (

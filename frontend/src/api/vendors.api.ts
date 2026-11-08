@@ -12,6 +12,10 @@ export const vendorsApi = {
       city: payload.city ?? undefined, state_region: payload.stateRegion ?? undefined, country: payload.country ?? undefined,
     } })).data;
   },
+  /** Choose when a stock line counts as low (0 = only when it's out). */
+  async setStockAlert(lowStockThreshold: number): Promise<Vendor> {
+    return (await apiClient.patch<Vendor>("/vendors/me/stock-alert", { low_stock_threshold: lowStockThreshold })).data;
+  },
   async mine(): Promise<Vendor | null> { return (await apiClient.get<Vendor | null>(endpoints.vendors.mine)).data; },
   async create(payload: { business_name: string; business_description?: string }): Promise<Vendor> {
     return (await apiClient.post<Vendor>(endpoints.vendors.mine, payload)).data;

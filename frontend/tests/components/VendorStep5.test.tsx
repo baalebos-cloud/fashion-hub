@@ -9,6 +9,7 @@ import AddProduct from "@/pages/vendor/AddProduct";
 import Payments from "@/pages/vendor/Payments";
 import { inventoryApi } from "@/api/inventory.api";
 import { productsApi } from "@/api/products.api";
+import { vendorsApi } from "@/api/vendors.api";
 import { VENDOR_ORDER_GROUPS, VENDOR_ORDER_STATUS_LABELS } from "@/constants/order-status";
 
 const { vo, ORDERS, STOCK, orderState } = vi.hoisted(() => {
@@ -34,6 +35,7 @@ const { vo, ORDERS, STOCK, orderState } = vi.hoisted(() => {
 vi.mock("@/api/orders.api", () => ({ ordersApi: { listAll: vi.fn(() => Promise.resolve(ORDERS)) } }));
 vi.mock("@/api/inventory.api", () => ({ inventoryApi: { listAll: vi.fn(() => Promise.resolve(STOCK)), restock: vi.fn() } }));
 vi.mock("@/api/products.api", () => ({ productsApi: { create: vi.fn() } }));
+vi.mock("@/api/vendors.api", () => ({ vendorsApi: { mine: vi.fn(async () => ({ low_stock_threshold: 10 })), setStockAlert: vi.fn() } }));
 vi.mock("@/lib/storage/file-storage", () => ({ uploadFile: vi.fn().mockResolvedValue({ url: "https://cdn.example/lace.jpg" }) }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ user: { id: "v1", role: "vendor", full_name: "Lagos Fabrics" } }) }));
 vi.mock("@/components/storefront/ShareShopCard", () => ({ ShareShopCard: () => null }));
@@ -184,5 +186,25 @@ describe("vendor payments", () => {
     expect(screen.getByText("₦133,500")).toBeTruthy();
     expect(screen.getByText("Payouts not switched on")).toBeTruthy();
     expect(screen.queryByText(/received|paid out|successful/i)).toBeNull();
+  });
+});
+
+describe("low stock alert level", () => {
+  it("uses the vendor's own level and lets them change it", async () => {
+    vi.mocked(vendorsApi.mine).mockResolvedValueOnce({ low_stock_threshold: 5 } as never);
+    vi.mocked(vendorsApi.setStockAlert).mockResolvedValue({ low_stock_threshold: 50 } as never);
+    inRouter(<Inventory />);
+    const setting = screen.getByRole("region", { name: "Low stock alert" });
+    expect(await within(setting).findByText("5")).toBeTruthy();
+    // At 5, the 6-unit French lace is no longer low.
+    const lace = (await screen.findByText("French lace, royal blue")).closest("li")!;
+    expect(within(lace).getByText("In stock")).toBeTruthy();
+
+    fireEvent.click(within(setting).getByRole("button", { name: "Change" }));
+    fireEvent.change(within(setting).getByLabelText(/Mark stock as low/), { target: { value: "50" } });
+    fireEvent.click(within(setting).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(vendorsApi.setStockAlert).toHaveBeenCalledWith(50));
+    expect(await within(setting).findByText("50")).toBeTruthy();
+    expect(within(screen.getByText("Ankara print").closest("li")!).getByText("Low")).toBeTruthy();
   });
 });
