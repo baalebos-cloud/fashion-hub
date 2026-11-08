@@ -1,31 +1,35 @@
 /** @type {import('tailwindcss').Config} */
+// Every colour points at a --tl-* variable in src/styles/variables.css, so one token change
+// (or the dark theme) updates the whole app. Opacity modifiers such as bg-ink/90 still work.
+const v = (name) => `var(--tl-${name})`;
+
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {
       colors: {
-        // "Workroom" palette — a tailoring vocabulary instead of generic
-        // SaaS blues. Shared by the AI assistant and the wider app shell
-        // so the assistant doesn't look like a bolted-on third party.
-        ink: {
-          DEFAULT: "#1c2230",
-          soft: "#565a66",
-        },
-        muslin: "#ece7db",
-        paper: "#faf9f5",
-        brass: {
-          DEFAULT: "#ab8a52",
-          deep: "#8d7040",
-        },
-        thread: "#8a3a2b",
-        line: "#d9d2c1",
+        // "Workroom" palette, refined in UI/UX proposal v2.
+        ink: { DEFAULT: v("ink"), soft: v("ink-soft") },
+        muslin: v("muslin"),
+        paper: v("paper"),
+        surface: v("surface"),
+        brass: { DEFAULT: v("brass"), deep: v("brass-deep") },
+        thread: v("thread"),
+        line: { DEFAULT: v("line"), strong: v("line-strong") },
+        indigo: { DEFAULT: v("indigo"), deep: v("indigo-deep"), wash: v("indigo-wash") },
+        success: { DEFAULT: v("success"), wash: v("success-wash") },
+        warning: { DEFAULT: v("warning"), wash: v("warning-wash") },
+        danger: { DEFAULT: v("thread"), wash: v("danger-wash") },
+        disabled: v("disabled"),
       },
       fontFamily: {
         display: ["Fraunces", "Georgia", "serif"],
-        body: ["Inter", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "sans-serif"],
+        body: ["Instrument Sans", "system-ui", "-apple-system", "Segoe UI", "sans-serif"],
+        mono: ["IBM Plex Mono", "ui-monospace", "Menlo", "monospace"],
       },
       borderRadius: {
-        card: "16px",
+        card: "12px",
+        control: "10px",
       },
     },
   },

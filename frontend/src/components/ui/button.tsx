@@ -8,17 +8,19 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   isLoading?: boolean;
 }
 
+// Adire indigo is the one action colour; secondary/ghost/danger never compete with it.
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps["variant"]>, string> = {
-  primary: "bg-ink text-paper hover:bg-ink/90",
-  secondary: "bg-transparent border border-line text-ink hover:border-brass",
-  ghost: "bg-transparent text-ink hover:bg-muslin",
-  danger: "bg-thread text-paper hover:bg-thread/90",
+  primary: "border border-transparent bg-indigo text-surface hover:bg-indigo-deep",
+  secondary: "border border-line-strong bg-surface text-ink hover:border-indigo",
+  ghost: "border border-transparent bg-transparent text-indigo hover:bg-indigo-wash",
+  danger: "border border-thread/30 bg-danger-wash text-thread hover:border-thread",
 };
 
+// md is the default 44px touch target; sm (36px) is for dense rows only.
 const SIZE_CLASSES: Record<NonNullable<ButtonProps["size"]>, string> = {
-  sm: "text-sm px-3 py-1.5 rounded-lg",
-  md: "text-sm px-4 py-2.5 rounded-lg",
-  lg: "text-base px-5 py-3 rounded-xl",
+  sm: "min-h-9 text-sm px-3 rounded-control",
+  md: "min-h-11 text-[15px] px-4 rounded-control",
+  lg: "min-h-12 text-base px-5 rounded-control",
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
@@ -26,7 +28,8 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     <button
       ref={ref}
       className={cn(
-        "inline-flex items-center justify-center gap-2 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
+        "inline-flex items-center justify-center gap-2 font-semibold transition-colors",
+        "disabled:cursor-not-allowed disabled:border-line disabled:bg-muslin disabled:text-disabled",
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],
         className

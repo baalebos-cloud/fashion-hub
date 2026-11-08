@@ -29,7 +29,7 @@ export function Dropdown({ trigger, children, align = "end" }: DropdownProps) {
       {isOpen && (
         <div
           className={cn(
-            "absolute z-50 mt-2 min-w-[180px] rounded-lg border border-line bg-paper py-1 shadow-lg",
+            "absolute z-50 mt-2 min-w-[180px] rounded-lg border border-line bg-surface py-1 shadow-lg",
             align === "end" ? "right-0" : "left-0"
           )}
           onClick={() => setIsOpen(false)}

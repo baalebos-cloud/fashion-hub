@@ -9,10 +9,10 @@ export interface Column<T> {
 
 export function Table<T extends { id: string }>({ columns, rows }: { columns: Column<T>[]; rows: T[] }) {
   return (
-    <div className="overflow-x-auto rounded-card border border-line">
+    <div className="overflow-x-auto rounded-card border border-line bg-surface">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-line bg-muslin/50 text-left text-ink-soft">
+          <tr className="border-b border-line bg-muslin/60 text-left text-xs font-semibold uppercase tracking-wide text-ink-soft">
             {columns.map((col) => (
               <th key={col.header} className={cn("px-4 py-3 font-medium", col.className)}>
                 {col.header}

@@ -11,6 +11,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Digits that line up in tables, totals and codes. */
+.tabular-nums,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+}
+
 /* Visible, consistent focus rings everywhere — never suppressed with
    outline: none without an explicit replacement. */
 :focus-visible {

@@ -9,9 +9,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(({ className, e
   <select
     ref={ref}
     className={cn(
-      "w-full rounded-lg border border-line bg-paper px-3 py-2.5 text-sm text-ink",
-      "focus:border-brass focus:outline-none",
-      error && "border-thread",
+      "w-full min-h-11 rounded-control border border-line-strong bg-surface px-3 py-2.5 text-base text-ink",
+      "focus:border-indigo focus:outline-2 focus:outline-offset-1 focus:outline-indigo/30 disabled:bg-muslin disabled:text-disabled",
+      error && "border-thread bg-danger-wash/40",
       className
     )}
     aria-invalid={Boolean(error)}
