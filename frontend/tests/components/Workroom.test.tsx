@@ -20,9 +20,10 @@ const { o, ORDERS } = vi.hoisted(() => {
 vi.mock("@/hooks/use-orders", () => ({ useOrders: () => ({ orders: ORDERS, isLoading: false, error: null, refetch: vi.fn() }) }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ user: { id: "t1", role: "tailor", full_name: "Kemi Adeyemi" } }) }));
 vi.mock("@/components/storefront/ShareShopCard", () => ({ ShareShopCard: () => null }));
-vi.mock("@/api/orders.api", () => ({ ordersApi: { list: vi.fn().mockResolvedValue([
-  { ...o("m1", "in_transit", 47500), order_type: "vendor_order", buyer_user_id: "t1", seller_user_id: "v1", items: [{ id: "x", name_snapshot: "French lace, royal blue", quantity: 1, line_total: 47500 }] },
-]) } }));
+vi.mock("@/api/orders.api", () => ({ ordersApi: { listAll: vi.fn((params: { perspective?: string }) => Promise.resolve(
+  params.perspective === "buying"
+    ? [{ ...o("m1", "in_transit", 47500), order_type: "vendor_order", buyer_user_id: "t1", seller_user_id: "v1", items: [{ id: "x", name_snapshot: "French lace, royal blue", quantity: 1, line_total: 47500 }] }]
+    : ORDERS)) } }));
 afterEach(cleanup);
 
 describe("workroom stages", () => {
@@ -37,7 +38,7 @@ describe("workroom stages", () => {
 describe("workroom dashboard", () => {
   it("shows what needs attention, the board by real status, honest money, and material orders", async () => {
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
-    const attention = screen.getByRole("region", { name: "Needs attention" });
+    const attention = await screen.findByRole("region", { name: "Needs attention" });
     expect(within(attention).getByText(/1 paid order waiting for you to accept/)).toBeTruthy();
     expect(within(attention).getByText(/1 order ready for a rider/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "Review 1 new order" })).toBeTruthy();
@@ -54,7 +55,8 @@ describe("workroom dashboard", () => {
     expect(within(money).getByText("Not switched on")).toBeTruthy();
 
     expect(await screen.findByText("French lace, royal blue")).toBeTruthy();
-    expect(ordersApi.list).toHaveBeenCalledWith({ perspective: "buying", order_type: "vendor_order" });
+    expect(ordersApi.listAll).toHaveBeenCalledWith({ perspective: "buying", order_type: "vendor_order" });
+    expect(ordersApi.listAll).toHaveBeenCalledWith({ perspective: "selling", order_type: "customer_order" });
   });
 });
 

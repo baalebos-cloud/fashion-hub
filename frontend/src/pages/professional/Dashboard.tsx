@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ordersApi } from "@/api/orders.api";
-import { useOrders } from "@/hooks/use-orders";
 import { useAuth } from "@/hooks/use-auth";
 import { Greeting } from "@/components/common/Greeting";
 import { ShareShopCard } from "@/components/storefront/ShareShopCard";
@@ -35,13 +34,28 @@ function OrderTile({ order }: { order: Order }) {
 /** The workroom: what needs the tailor now, then every order by stage. */
 export default function Dashboard() {
   const { user } = useAuth();
-  const { orders, isLoading, error, refetch } = useOrders();
+  // Totals and stage counts need every order, not just the newest page, so fetch all pages.
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const refetch = () => setAttempt((n) => n + 1);
+  useEffect(() => {
+    let active = true;
+    setIsLoading(true);
+    setError(false);
+    ordersApi.listAll({ perspective: "selling", order_type: "customer_order" })
+      .then((list) => { if (active) setOrders(list); })
+      .catch(() => { if (active) setError(true); })
+      .finally(() => { if (active) setIsLoading(false); });
+    return () => { active = false; };
+  }, [attempt]);
   const selling = orders.filter((o) => o.order_type === "customer_order" && (!user || o.seller_user_id === user.id));
-  // The default list is what the tailor is selling; material purchases are fetched separately.
+  // Material purchases the tailor made, fetched from the buying side.
   const [purchases, setPurchases] = useState<Order[]>([]);
   useEffect(() => {
     let active = true;
-    ordersApi.list({ perspective: "buying", order_type: "vendor_order" })
+    ordersApi.listAll({ perspective: "buying", order_type: "vendor_order" })
       .then((list) => { if (active) setPurchases(list); })
       .catch(() => { if (active) setPurchases([]); });
     return () => { active = false; };

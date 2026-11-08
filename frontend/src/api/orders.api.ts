@@ -17,6 +17,20 @@ export const ordersApi = {
     return response.data;
   },
 
+  /** Every order for this perspective, page by page. The list endpoint pages at 20 by
+   * default, so totals built from one page would miss older orders. Capped so a very
+   * large account can't loop forever. */
+  async listAll(params: { perspective?: "buying" | "selling"; order_type?: "vendor_order" | "customer_order" } = {}): Promise<Order[]> {
+    const pageSize = 100;
+    const all: Order[] = [];
+    for (let page = 1; page <= 50; page += 1) {
+      const response = await apiClient.get<Order[]>(endpoints.orders.list, { params: { ...params, page, page_size: pageSize } });
+      all.push(...response.data);
+      if (response.data.length < pageSize) break;
+    }
+    return all;
+  },
+
   async getById(id: string): Promise<Order> {
     const response = await apiClient.get<Order>(endpoints.orders.details(id));
     return response.data;
