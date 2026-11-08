@@ -43,7 +43,9 @@ function StockRow({ value, threshold, onRestocked }: { value: InventoryRecord; t
   return (
     <li className="grid gap-3 p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
       <div className="flex min-w-0 flex-col gap-1">
-        <span className="truncate font-semibold text-ink">{value.product_name ?? "Product"}</span>
+        <span className="truncate font-semibold text-ink">
+          {value.product_name ?? "Product"}{value.colour && <span className="font-normal text-ink-soft"> · {value.colour}</span>}
+        </span>
         <span className="font-mono text-xs text-ink-soft">{value.sku}</span>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
           <StockBadge available={value.quantity_available} threshold={threshold} />

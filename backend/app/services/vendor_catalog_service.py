@@ -96,21 +96,28 @@ class VendorCatalogService:
         import uuid
         from app.models.inventory import Inventory
         vendor = self.owned_vendor(user_id)
+        colours = payload.colours or []
+        base_price = min(c.price for c in colours) if colours else payload.base_price
         product = VendorProduct(vendor_id=vendor.id, name=payload.name, description=payload.description,
-                                base_price=payload.base_price, currency='NGN', category_id=payload.category_id,
+                                base_price=base_price, currency='NGN', category_id=payload.category_id,
                                 image_urls=payload.image_urls, unit_of_measure=payload.unit_of_measure,
                                 primary_image_url=payload.image_urls[0] if payload.image_urls else None)
+        # One version per colour, or a single plain version as before.
+        versions = [({'color': c.name}, c.price, c.stock) for c in colours] or [(None, payload.base_price, payload.initial_stock)]
         try:
             self.db.add(product)
             self.db.flush()
-            variant = ProductVariant(product_id=product.id, sku='FH-' + uuid.uuid4().hex, price=payload.base_price)
-            self.db.add(variant)
-            self.db.flush()
-            self.db.add(Inventory(product_variant_id=variant.id, quantity_available=payload.initial_stock, quantity_reserved=0))
-            if payload.initial_stock:
-                from app.models.inventory_restock import InventoryRestock
-                self.db.add(InventoryRestock(product_variant_id=variant.id, actor_user_id=user_id,
-                                             quantity=payload.initial_stock, idempotency_key="initial_" + product.id.hex))
+            from app.models.inventory_restock import InventoryRestock
+            for index, (attributes, price, stock) in enumerate(versions):
+                variant = ProductVariant(product_id=product.id, sku='FH-' + uuid.uuid4().hex, price=price, attributes=attributes)
+                self.db.add(variant)
+                self.db.flush()
+                self.db.add(Inventory(product_variant_id=variant.id, quantity_available=stock, quantity_reserved=0))
+                if stock:
+                    # The first version keeps the original key so existing records stay comparable.
+                    key = "initial_" + product.id.hex + ("" if index == 0 else f"_{index}")
+                    self.db.add(InventoryRestock(product_variant_id=variant.id, actor_user_id=user_id,
+                                                 quantity=stock, idempotency_key=key))
             self.db.commit()
         except Exception:
             self.db.rollback()

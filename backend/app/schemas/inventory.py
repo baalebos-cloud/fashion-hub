@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -13,6 +14,7 @@ class InventoryResponse(BaseModel):
     product_variant_id: uuid.UUID
     product_name: str
     sku: str
+    colour: Optional[str] = None
     quantity_available: int
     quantity_reserved: int
 

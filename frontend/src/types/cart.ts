@@ -4,6 +4,8 @@ export interface CartItem {
   product_id: string;
   vendor_id: string;
   product_name: string;
+  /** Set when the product is sold in colours. */
+  colour?: string | null;
   sku: string;
   vendor_name: string;
   currency: string;

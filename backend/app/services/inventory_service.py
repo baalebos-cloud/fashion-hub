@@ -19,12 +19,14 @@ class InventoryService:
             VendorProduct, VendorProduct.id == ProductVariant.product_id).filter(VendorProduct.vendor_id == vendor.id)
 
     def list(self, user_id, *, offset=0, limit=20):
-        rows = self.owned_query(user_id).add_columns(VendorProduct.name, ProductVariant.sku).order_by(Inventory.product_variant_id).offset(offset).limit(limit).all()
-        return [self.describe(inv, name, sku) for inv, name, sku in rows]
+        rows = (self.owned_query(user_id).add_columns(VendorProduct.name, ProductVariant.sku, ProductVariant.attributes)
+                .order_by(Inventory.product_variant_id).offset(offset).limit(limit).all())
+        return [self.describe(inv, name, sku, attributes) for inv, name, sku, attributes in rows]
 
     @staticmethod
-    def describe(inv, name, sku):
-        return dict(id=inv.id, product_variant_id=inv.product_variant_id, product_name=name, sku=sku,
+    def describe(inv, name, sku, attributes=None):
+        colour = attributes.get("color") if isinstance(attributes, dict) else None
+        return dict(id=inv.id, product_variant_id=inv.product_variant_id, product_name=name, sku=sku, colour=colour,
                     quantity_available=inv.quantity_available, quantity_reserved=inv.quantity_reserved)
 
     def restock(self, product_variant_id, *, owner_user_id, quantity_to_add, idempotency_key):
@@ -58,7 +60,7 @@ class InventoryService:
                 raise
         variant = self.db.get(ProductVariant, inventory.product_variant_id)
         product = self.db.get(VendorProduct, variant.product_id)
-        return self.describe(inventory, product.name, variant.sku)
+        return self.describe(inventory, product.name, variant.sku, variant.attributes)
 
 
     @staticmethod
