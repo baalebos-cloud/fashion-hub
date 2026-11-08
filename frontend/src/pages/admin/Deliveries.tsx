@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { adminDispatchApi, type AdminDispatchBoard, type AvailableRider, type DispatchIssue } from "@/api/admin-dispatch.api";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { DispatchAction } from "@/components/dispatch/DispatchAction";
@@ -34,7 +35,7 @@ function ReassignPicker({ riders, value, onChange }: { riders: AvailableRider[];
     <label className="text-xs text-ink-soft">
       New rider
       <select value={value} onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none">
+        className="mt-1 min-h-11 w-full rounded-control border border-line-strong bg-surface px-3 text-sm text-ink focus:border-indigo focus:outline-none">
         <option value="">Choose a rider…</option>
         {riders.map((r) => (
           <option key={r.id} value={r.id}>
@@ -78,10 +79,10 @@ export default function Deliveries() {
   }, [revision]);
 
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <h1 className="font-display text-xl text-ink">Dispatch operations</h1>
+          <h1 className="font-display text-3xl text-ink">Dispatch</h1>
           <RoutingHealth />
         </div>
         <Button variant="secondary" size="sm" disabled={loading} onClick={refresh}>Refresh</Button>
@@ -92,32 +93,29 @@ export default function Deliveries() {
       {board && !error && (
         <>
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Card><p className="text-xs text-ink-soft">Awaiting rider</p>
-              <p className="text-2xl font-medium">{board.unassigned_count}</p></Card>
-            <Card><p className="text-xs text-ink-soft">Active deliveries</p>
-              <p className="text-2xl font-medium">{board.active_count}</p></Card>
-            <Card><p className="text-xs text-ink-soft">Verified riders online</p>
-              <p className="text-2xl font-medium">{board.available_verified_riders}</p></Card>
+            <Card className={board.unassigned_count > 0 ? "border-warning/40" : undefined}><p className="text-[13px] text-ink-soft">Awaiting rider</p>
+              <p className="font-display text-3xl text-ink">{board.unassigned_count}</p></Card>
+            <Card><p className="text-[13px] text-ink-soft">Active deliveries</p>
+              <p className="font-display text-3xl text-ink">{board.active_count}</p></Card>
+            <Card><p className="text-[13px] text-ink-soft">Verified riders online</p>
+              <p className="font-display text-3xl text-ink">{board.available_verified_riders}</p></Card>
             <Card className={board.open_issue_count > 0 ? "border-thread/40" : undefined}>
-              <p className="text-xs text-ink-soft">Open rider issues</p>
-              <p className={board.open_issue_count > 0 ? "text-2xl font-medium text-thread" : "text-2xl font-medium"}>{board.open_issue_count}</p></Card>
+              <p className="text-[13px] text-ink-soft">Open rider issues</p>
+              <p className={board.open_issue_count > 0 ? "font-display text-3xl text-thread" : "font-display text-3xl text-ink"}>{board.open_issue_count}</p></Card>
           </div>
 
-          <section className="space-y-3" aria-label="Rider issues">
-            <h2 className="font-display text-lg">Rider issues</h2>
+          <section className="flex flex-col gap-3" aria-label="Rider issues">
+            <h2 className="font-display text-2xl text-ink">Rider issues</h2>
             {issues.length === 0 && <p className="text-sm text-ink-soft">No open issues.</p>}
             {issues.map((issue) => (
               <Card key={issue.id} className="flex flex-col gap-2 p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <p className="font-medium text-ink">{ISSUE_LABEL[issue.issue_type] ?? issue.issue_type}</p>
+                    <p className="font-semibold text-ink">{ISSUE_LABEL[issue.issue_type] ?? issue.issue_type}</p>
                     <p className="text-xs text-ink-soft">{issue.order_number} · reported by {issue.rider_first_name} ·{" "}
                       <DateTimeDisplay value={issue.created_at} format="relative" />{issue.has_photo ? " · photo attached" : ""}</p>
                   </div>
-                  <span className={issue.status === "OPEN"
-                    ? "rounded-full bg-[#fbecea] px-2 py-0.5 text-[11px] font-medium text-thread"
-                    : "rounded-full bg-[#e6ecff] px-2 py-0.5 text-[11px] font-medium text-[#2c3e9e]"}>
-                    {issue.status === "OPEN" ? "Open" : "Investigating"}</span>
+                  <Badge tone={issue.status === "OPEN" ? "danger" : "info"}>{issue.status === "OPEN" ? "Open" : "Investigating"}</Badge>
                 </div>
                 <p className="text-sm text-ink">{issue.description}</p>
                 <div className="flex flex-wrap gap-2">
@@ -133,10 +131,10 @@ export default function Deliveries() {
             ))}
           </section>
 
-          <section className="space-y-3" aria-label="Unassigned delivery requests">
+          <section className="flex flex-col gap-3" aria-label="Unassigned delivery requests">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="font-display text-lg">Waiting for a rider</h2>
-              <span className="text-xs text-ink-soft">Auto-offers {board.auto_offers_enabled ? "on" : "off"}</span>
+              <h2 className="font-display text-2xl text-ink">Waiting for a rider</h2>
+              <Badge tone={board.auto_offers_enabled ? "success" : "neutral"}>Auto-offers {board.auto_offers_enabled ? "on" : "off"}</Badge>
             </div>
             {board.pending.length === 0 && <p className="text-sm text-ink-soft">No requests awaiting assignment.</p>}
             {board.pending.map((request) => (
@@ -146,7 +144,7 @@ export default function Deliveries() {
                   <span className="text-xs text-ink-soft">Requested <DateTimeDisplay value={request.created_at} format="relative" /></span>
                 </div>
                 {request.offered_to && request.offer_expires_at && (
-                  <p className="text-xs text-[#2c3e9e]">
+                  <p className="text-[13px] text-indigo">
                     Offered to {request.offered_to} (attempt {request.offer_attempt}) · expires{" "}
                     <DateTimeDisplay value={request.offer_expires_at} format="relative" />
                   </p>
@@ -159,8 +157,8 @@ export default function Deliveries() {
             ))}
           </section>
 
-          <section className="space-y-3" aria-label="Active delivery assignments">
-            <h2 className="font-display text-lg">Active rider assignments</h2>
+          <section className="flex flex-col gap-3" aria-label="Active delivery assignments">
+            <h2 className="font-display text-2xl text-ink">Active rider assignments</h2>
             {board.active.length === 0 && <p className="text-sm text-ink-soft">No active rider assignments.</p>}
             {board.active.map((run) => {
               const collected = run.status !== "assigned";
@@ -175,7 +173,7 @@ export default function Deliveries() {
                       </p>
                     </div>
                     <span className="flex flex-col items-end gap-0.5">
-                      <span className="capitalize text-ink-soft">{run.status.replaceAll("_", " ")}</span>
+                      <span className="text-ink-soft">{run.status.charAt(0).toUpperCase() + run.status.slice(1).replaceAll("_", " ")}</span>
                       {run.tracking && (
                         <span className={`text-xs ${["live", "delayed"].includes(run.tracking.state) ? "text-ink-soft" : "text-thread"}`}>
                           {describeFreshness(run.tracking.state, run.tracking.age_seconds).label}
@@ -188,7 +186,7 @@ export default function Deliveries() {
                       {!collected && <DispatchAction label="Cancel courier booking" confirmLabel="Cancel booking" variant="danger"
                         onConfirm={async (reason) => { await apiClient.post(`/admin/dispatch/deliveries/${run.id}/courier-cancel`, { reason }); refresh(); }} />}
                       {run.provider === "sandbox" && (["picked_up", "delivered"] as const).map((status) => (
-                        <button key={status} type="button" className="text-xs text-brass-deep underline"
+                        <button key={status} type="button" className="min-h-11 text-[13px] font-semibold text-indigo underline"
                           onClick={() => void apiClient.post(`/admin/dispatch/deliveries/${run.id}/courier-simulate`, { status }).then(refresh)}>
                           Simulate {status.replace("_", " ")}
                         </button>

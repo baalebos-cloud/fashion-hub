@@ -217,10 +217,13 @@ describe("Sidebar", () => {
     expect(screen.getByRole("link", { name: /marketplace/i })).toBeTruthy();
   });
 
-  it("renders admin nav with Verification group heading", () => {
+  it("renders admin nav grouped by job, with plain names for the checks", () => {
     wrap(<Sidebar role="admin" />);
-    expect(screen.getByText("Verification")).toBeTruthy();
-    expect(screen.getByRole("link", { name: /kyc/i })).toBeTruthy();
+    expect(screen.getByText("Operations")).toBeTruthy();
+    expect(screen.getByText("Trust")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /identity checks/i }).getAttribute("href")).toBe("/app/admin/kyc");
+    expect(screen.getByRole("link", { name: /business checks/i }).getAttribute("href")).toBe("/app/admin/kyb");
+    expect(screen.getByRole("link", { name: /dispatch/i }).getAttribute("href")).toBe("/app/admin/deliveries");
   });
 
   it("calls onNavigate when a link is clicked", () => {

@@ -23,8 +23,8 @@ const MODE_LABEL: Record<Health["mode"], string> = {
 const VERDICT_STYLE: Record<Verdict["status"], string> = {
   collecting: "bg-muslin text-ink-soft",
   no_difference: "bg-muslin text-ink",
-  learned_better: "bg-[#e7f3ec] text-[#1f6b3a]",
-  rules_better: "bg-[#fbecea] text-thread",
+  learned_better: "bg-success-wash text-success",
+  rules_better: "bg-danger-wash text-thread",
 };
 const pct = (v: number | null) => (v == null ? "—" : `${(v * 100).toFixed(1)}%`);
 
@@ -42,9 +42,9 @@ export function RecommendationsHealth() {
   return (
     <section className="flex flex-col gap-4" aria-label="Recommendations health">
       <Card className="flex flex-col gap-2 p-4">
-        <h2 className="font-display text-lg text-ink">Recommendations health</h2>
+        <h2 className="font-display text-2xl text-ink">Recommendations health</h2>
         <p className="text-sm text-ink">{MODE_LABEL[data.mode]}</p>
-        <p className="text-xs text-ink-soft">
+        <p className="text-[13px] text-ink-soft">
           Last 30 days: {data.data.events_last_30_days.toLocaleString()} shopping actions from{" "}
           {data.data.shoppers_last_30_days.toLocaleString()} shoppers · {data.data.related_pairs.toLocaleString()} related-item pairs
           {data.data.related_items_built_at ? `, rebuilt ${new Date(data.data.related_items_built_at).toLocaleString()}` : ", not built yet"}.
@@ -53,24 +53,24 @@ export function RecommendationsHealth() {
       </Card>
       {data.surfaces.map((s) => (
         <Card key={s.surface} className="flex flex-col gap-3 p-4">
-          <h3 className="text-sm font-medium text-ink">{SURFACE_LABEL[s.surface] ?? s.surface}</h3>
+          <h3 className="font-semibold text-ink">{SURFACE_LABEL[s.surface] ?? s.surface}</h3>
           <table className="w-full text-left text-sm">
-            <thead className="text-xs text-ink-soft">
+            <thead className="text-xs uppercase tracking-wide text-ink-soft">
               <tr><th className="font-normal">Ranking</th><th className="font-normal">Lists shown</th>
                 <th className="font-normal">Clicked</th><th className="font-normal">Added to cart or bought</th></tr>
             </thead>
             <tbody>
               {(["rules", "learned"] as const).map((side) => (
-                <tr key={side}>
-                  <td className="py-1">{side === "rules" ? "Fixed rules" : "Learned"}</td>
-                  <td>{s[side].shown.toLocaleString()}</td>
-                  <td>{pct(s[side].click_rate)}</td>
-                  <td>{pct(s[side].conversion_rate)}</td>
+                <tr key={side} className="border-t border-line">
+                  <td className="py-2">{side === "rules" ? "Fixed rules" : "Learned"}</td>
+                  <td className="font-mono">{s[side].shown.toLocaleString()}</td>
+                  <td className="font-mono">{pct(s[side].click_rate)}</td>
+                  <td className="font-mono">{pct(s[side].conversion_rate)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
-          <p className={`rounded-lg px-3 py-2 text-xs ${VERDICT_STYLE[s.verdict.status]}`}>{s.verdict.message}</p>
+          <p className={`rounded-control px-3 py-2 text-[13px] ${VERDICT_STYLE[s.verdict.status]}`}>{s.verdict.message}</p>
         </Card>
       ))}
       <p className="text-xs text-ink-soft">

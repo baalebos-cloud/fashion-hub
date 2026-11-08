@@ -45,7 +45,7 @@ export function DeliveryEventLog({ deliveryId }: { deliveryId: string }) {
   return (
     <div>
       <button type="button" onClick={() => void toggle()} aria-expanded={open}
-        className="text-xs font-medium text-brass-deep underline">
+        className="min-h-11 self-start text-[13px] font-semibold text-indigo">
         {open ? "Hide event log" : "Event log"}
       </button>
       {open && (

@@ -26,7 +26,7 @@ export function CourierCompanies({ requestId, onBooked }: { requestId: string; o
 
   return (
     <div>
-      <button type="button" aria-expanded={open} className="text-xs font-medium text-brass-deep underline"
+      <button type="button" aria-expanded={open} className="min-h-11 self-start text-[13px] font-semibold text-indigo"
         onClick={() => { const next = !open; setOpen(next); if (next) void load(); }}>
         {open ? "Hide courier companies" : "Courier companies"}
       </button>

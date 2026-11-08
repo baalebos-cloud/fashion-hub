@@ -16,7 +16,7 @@ export function DispatchAction({ label, confirmLabel, variant = "secondary", rea
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!open) return <Button size="sm" variant={variant} onClick={() => setOpen(true)}>{label}</Button>;
+  if (!open) return <Button size="sm" variant={variant} className="self-start" onClick={() => setOpen(true)}>{label}</Button>;
 
   async function confirm() {
     setBusy(true);
@@ -33,12 +33,12 @@ export function DispatchAction({ label, confirmLabel, variant = "secondary", rea
   }
 
   return (
-    <div className="flex w-full flex-col gap-2 rounded-lg bg-muslin p-3">
+    <div className="flex w-full flex-col gap-2 rounded-control border border-line bg-paper p-3">
       {extra}
       <label className="text-xs text-ink-soft">
         {reasonLabel}
         <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} maxLength={500}
-          className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2 text-sm text-ink focus:border-brass focus:outline-none" />
+          className="mt-1 w-full rounded-control border border-line-strong bg-surface px-3 py-2 text-base text-ink focus:border-indigo focus:outline-none" />
       </label>
       {error && <p role="alert" className="text-xs text-thread">{error}</p>}
       <div className="flex gap-2">
