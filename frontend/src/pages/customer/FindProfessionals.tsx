@@ -5,6 +5,7 @@ import { ProfessionalSearch } from "@/components/professionals/ProfessionalSearc
 import { ProfessionalFilters, type ProfessionalFiltersValue } from "@/components/professionals/ProfessionalFilters";
 import { ProfessionalGrid } from "@/components/professionals/ProfessionalGrid";
 import { NearbyProfessionals } from "@/components/search/NearbyProfessionals";
+import { SmartDesignSearch } from "@/components/search/SmartDesignSearch";
 import { customerRoutes } from "@/config/routes.config";
 import type { Professional } from "@/types/professional";
 
@@ -43,6 +44,7 @@ export default function FindProfessionals() {
   return (
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Find a professional</h1>
+      <SmartDesignSearch profilePathFor={customerRoutes.professionalDetails} />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <ProfessionalSearch value={query} onChange={setQuery} />
         <ProfessionalFilters value={filters} onChange={setFilters} />

@@ -4,7 +4,19 @@ import type { Professional } from "@/types/professional";
 import type { Design } from "@/types/design";
 import type { VendorProduct } from "@/types/product";
 
+export type SmartSearchResult = {
+  /** "ai" when the AI built the filters, "keywords" when the keyword parser did. */
+  understood_by: "ai" | "keywords";
+  filters: { keywords: string[]; min_price: number | null; max_price: number | null };
+  designs: (Design & { professional_name: string | null })[];
+};
+
 export const searchApi = {
+  async smart(query: string): Promise<SmartSearchResult> {
+    const response = await apiClient.get<SmartSearchResult>(endpoints.search.smart, { params: { q: query } });
+    return response.data;
+  },
+
   async professionals(query: string): Promise<Professional[]> {
     const response = await apiClient.get<Professional[]>(endpoints.search.professionals, { params: { q: query } });
     return response.data;

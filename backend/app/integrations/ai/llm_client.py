@@ -24,11 +24,12 @@ class ChatCompletionResult:
 
 
 class LLMClient:
-    def __init__(self, api_key: str | None = None, model: str | None = None):
+    def __init__(self, api_key: str | None = None, model: str | None = None, timeout: float | None = None):
         self.api_key = api_key if api_key is not None else settings.AI_API_KEY
         # Distinct API key: n8n or Anthropic secrets must never be passed to Google.
         self.vertex_api_key = api_key if api_key is not None else settings.VERTEX_AI_API_KEY
         self.model = model or settings.AI_MODEL
+        self.timeout = timeout  # seconds; None keeps each provider's default
 
     def complete(self, messages: list[ChatMessage], max_tokens: int = 512) -> ChatCompletionResult:
         provider = settings.AI_PROVIDER.lower()
@@ -67,7 +68,7 @@ class LLMClient:
             response = httpx.post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json=payload, timeout=20.0,
+                json=payload, timeout=self.timeout or 20.0,
             )
         except httpx.RequestError:
             logger.warning("seam_groq_transport_failure")
@@ -120,7 +121,7 @@ class LLMClient:
                 url,
                 headers={"x-goog-api-key": self.vertex_api_key, "Content-Type": "application/json"},
                 json=payload,
-                timeout=20.0,
+                timeout=self.timeout or 20.0,
             )
         except httpx.RequestError as exc:
             logger.warning("seam_vertex_transport_failure", extra={
@@ -177,7 +178,8 @@ class LLMClient:
             request = dict(model=self.model, max_tokens=max_tokens, messages=conversation)
             if system_messages:
                 request["system"] = "\n".join(system_messages)
-            with anthropic.Anthropic(api_key=self.api_key) as client:
+            options = {"timeout": self.timeout} if self.timeout else {}
+            with anthropic.Anthropic(api_key=self.api_key, **options) as client:
                 response = client.messages.create(**request)
         except Exception as exc:
             raise ExternalProviderError("AI provider request failed. Please try again.") from exc

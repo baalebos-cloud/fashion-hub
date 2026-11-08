@@ -76,6 +76,11 @@ class Settings(BaseSettings):
     RECOMMENDATIONS_MODE: Literal["rules", "learned", "experiment"] = "experiment"
     # Changing this name reshuffles who gets which ranking (start a fresh test).
     RECOMMENDATIONS_EXPERIMENT: str = "ranking_v1"
+    # Free-text design search ("blue agbada under 50k"). Off: a keyword parser builds the
+    # filters. On: the configured AI provider builds them, falling back to keywords if it's
+    # slow, failing or unclear. Only the search text (emails/phones removed) is sent.
+    AI_SEARCH_ENABLED: bool = False
+    AI_SEARCH_TIMEOUT_SECONDS: float = 6.0
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
