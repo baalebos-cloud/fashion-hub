@@ -13,7 +13,7 @@ where a passport/driver's license might be the primary document instead).
 """
 import uuid
 from sqlalchemy import Boolean, Date, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -47,9 +47,20 @@ class KYCVerification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # full_name closely enough (see NINVerificationService) -- surfaced to
     # admins reviewing the submission, not auto-approved on a match alone.
     identity_match: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    # Keyed HMAC of the NIN (identity_fingerprint), so the same NIN on another account is caught.
+    nin_fingerprint: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    # Results of the automatic approval rules (services/nin_matching.py); no personal data.
+    auto_checks: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    @property
+    def auto_approved(self) -> bool:
+        """Verified by the automatic rules, not by an admin."""
+        return (self.status == "verified" and self.reviewed_by_user_id is None
+                and bool((self.auto_checks or {}).get("passed")))
+

@@ -9,6 +9,8 @@ class SubmitKYCRequest(BaseModel):
     home_latitude: Optional[float] = Field(None, ge=-90, le=90)
     home_longitude: Optional[float] = Field(None, ge=-180, le=180)
     home_formatted_address: Optional[str] = Field(None, max_length=512)
+    # Compared with the NIN record's date of birth; never stored from here.
+    date_of_birth: Optional[date] = None
 
 
 class KYCStatusResponse(BaseModel):
@@ -22,5 +24,7 @@ class KYCStatusResponse(BaseModel):
     nin_verified_gender: Optional[str] = None
     identity_match: Optional[bool] = None
     rejection_reason: Optional[str] = None
+    # True when approved by the automatic rules rather than an admin.
+    auto_approved: bool = False
 
     model_config = {"from_attributes": True}

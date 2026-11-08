@@ -21,11 +21,13 @@ document-review KYCProvider above, which handles ID-photo upload +
 admin review, not a live government-database lookup)."""
 from app.integrations.kyc.manual_nin import ManualNINProvider
 from app.integrations.kyc.nin_provider import NINVerificationProvider
+from app.integrations.kyc.dojah import DojahNINProvider
 from app.integrations.kyc.prembly import PremblyNINProvider
 
 _NIN_PROVIDERS = {
     "manual": ManualNINProvider,
     "prembly": PremblyNINProvider,
+    "dojah": DojahNINProvider,
 }
 
 
