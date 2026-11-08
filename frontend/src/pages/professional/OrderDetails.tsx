@@ -12,6 +12,7 @@ import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { OrderItems } from "@/components/orders/OrderItems";
 import { OrderTimeline } from "@/components/orders/OrderTimeline";
 import { OrderActions } from "@/components/orders/OrderActions";
+import { OrderMaterials } from "@/components/orders/OrderMaterials";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { formatCurrency } from "@/lib/formatters/currency";
@@ -78,6 +79,8 @@ export default function OrderDetails() {
       <section aria-label="Items" className="rounded-card border border-line bg-surface p-5">
         <OrderItems items={order.items} currency={order.currency} />
       </section>
+
+      {order.order_type === "customer_order" && <OrderMaterials order={order} />}
 
       <section aria-label="Customer measurements" className="flex flex-col gap-2 rounded-card border border-dashed border-line-strong bg-surface p-5">
         <div className="flex flex-wrap items-center gap-2">

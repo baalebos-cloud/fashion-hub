@@ -27,6 +27,14 @@ export default function VendorOrderDetails() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
   const [liveStatus, setLiveStatus] = useState<string | null>(null);
+  const [parentNumber, setParentNumber] = useState<string | null>(null);
+  const parentId = order?.parent_customer_order_id ?? null;
+  useEffect(() => {
+    if (!parentId) return;
+    let active = true;
+    ordersApi.getById(parentId).then((parent) => { if (active) setParentNumber(parent.order_number); }).catch(() => {});
+    return () => { active = false; };
+  }, [parentId]);
   // The order loads once; while a rider is moving the materials, re-check its status so
   // "Confirm materials received" appears as soon as delivery completes, without a reload.
   const loadedId = order?.id;
@@ -58,6 +66,14 @@ export default function VendorOrderDetails() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <h1 className="font-display text-xl text-ink">{order.order_number}</h1>
+      {order.parent_customer_order_id && (
+        <p className="text-sm text-ink-soft">
+          For order{" "}
+          <Link to={professionalRoutes.orderDetails(order.parent_customer_order_id)} className="font-mono font-semibold text-indigo">
+            {parentNumber ?? "your customer's order"}
+          </Link>
+        </p>
+      )}
       <p>Status: {order.status.replaceAll("_", " ")}</p>
       <OrderItems items={order.items} currency={order.currency} />
       <p className="text-lg font-medium">Final total: {formatCurrency(order.total_amount, order.currency)}</p>

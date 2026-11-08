@@ -74,6 +74,8 @@ export interface Order {
   received_at?: string | null;
   completed_at?: string | null;
   cancelled_at?: string | null;
+  /** Material purchases only: the customer order these materials are for. */
+  parent_customer_order_id?: string | null;
 }
 
 export interface OrderTimelineEntry {
