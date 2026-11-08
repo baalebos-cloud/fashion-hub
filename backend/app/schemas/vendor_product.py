@@ -1,7 +1,14 @@
 import uuid
 from typing import Literal
 from decimal import Decimal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+
+class ColourOption(BaseModel):
+    model_config = {'extra': 'forbid', 'str_strip_whitespace': True}
+    name: str = Field(min_length=1, max_length=40)
+    price: Decimal = Field(gt=0, max_digits=12, decimal_places=2, allow_inf_nan=False)
+    stock: int = Field(0, ge=0, le=1000000000, strict=True)
 
 
 class VendorProductCreateRequest(BaseModel):
@@ -13,6 +20,19 @@ class VendorProductCreateRequest(BaseModel):
     unit_of_measure: Literal['yard', 'meter', 'roll', 'piece'] = 'yard'
     initial_stock: int = Field(0, ge=0, le=1000000000, strict=True)
     category_id: uuid.UUID | None = None
+    # Optional: one version per colour, each with its own price and stock. When given, the
+    # product's base price is the lowest colour price and initial_stock must be left at 0.
+    colours: list[ColourOption] | None = Field(None, min_length=1, max_length=20)
+
+    @model_validator(mode='after')
+    def _colours_are_distinct(self):
+        if self.colours:
+            names = [c.name.casefold() for c in self.colours]
+            if len(set(names)) != len(names):
+                raise ValueError('Each colour needs a different name.')
+            if self.initial_stock:
+                raise ValueError('Set stock per colour, not initial_stock, when listing colours.')
+        return self
 
 
 class VendorProductUpdateRequest(BaseModel):

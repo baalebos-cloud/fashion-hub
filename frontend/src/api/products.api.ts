@@ -11,6 +11,8 @@ export interface ProductCreatePayload {
   initial_stock?: number;
   image_urls: string[];
   unit_of_measure: 'yard' | 'meter' | 'roll' | 'piece';
+  /** One version per colour, each with its own price and stock. Leave initial_stock at 0 when set. */
+  colours?: { name: string; price: number; stock: number }[];
 }
 
 export const productsApi = {

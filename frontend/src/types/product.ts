@@ -24,6 +24,8 @@ export interface ProductVariant {
 export interface Inventory {
   product_name?: string;
   sku?: string;
+  /** Set when the product is listed in colours. */
+  colour?: string | null;
   id: string;
   product_variant_id: string;
   quantity_available: number;

@@ -14,6 +14,13 @@ import { vendorRoutes } from "@/config/routes.config";
 type Unit = "yard" | "meter" | "roll" | "piece";
 const UNIT_LABEL: Record<Unit, string> = { yard: "yard", meter: "metre", roll: "roll", piece: "piece" };
 const MAX_STOCK = 1000000000;
+const MAX_COLOURS = 20;
+
+type ColourRow = { key: number; name: string; price: string; stock: string };
+let colourKey = 0;
+const newColour = (): ColourRow => ({ key: ++colourKey, name: "", price: "", stock: "0" });
+const colourValid = (c: ColourRow) => c.name.trim() !== "" && Number(c.price) > 0
+  && Number.isSafeInteger(Number(c.stock)) && Number(c.stock) >= 0 && Number(c.stock) <= MAX_STOCK;
 
 /** Add a product in three parts (details, price and stock, photos), with what's missing listed up top
  * and a preview of how tailors will see it. Same request as before. */
@@ -30,19 +37,34 @@ export default function AddProduct() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // Optional colours, each with its own price and stock.
+  const [useColours, setUseColours] = useState(false);
+  const [colours, setColours] = useState<ColourRow[]>([newColour(), newColour()]);
+  const updateColour = (key: number, patch: Partial<ColourRow>) =>
+    setColours((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)));
 
   const stockValid = Number.isSafeInteger(stock) && stock >= 0 && stock <= MAX_STOCK;
+  const colourNames = colours.map((c) => c.name.trim().toLowerCase()).filter(Boolean);
+  const duplicateColour = new Set(colourNames).size !== colourNames.length;
+  const coloursValid = colours.length > 0 && colours.every(colourValid) && !duplicateColour;
+  const lowestColourPrice = Math.min(...colours.map((c) => Number(c.price)).filter((v) => v > 0));
   const missing = [
     !name.trim() && "add a product name",
-    !(Number(basePrice) > 0) && "set a price",
+    !useColours && !(Number(basePrice) > 0) && "set a price",
+    useColours && !coloursValid && (duplicateColour ? "give each colour a different name" : "fill in a name, price and stock for every colour"),
     images.length === 0 && "add at least one photo",
-    !stockValid && "enter a whole number for stock",
+    !useColours && !stockValid && "enter a whole number for stock",
   ].filter(Boolean) as string[];
 
   async function handleSubmit() {
-    const validationErrors = validateProduct({ name, basePrice: Number(basePrice) });
+    const price = useColours ? lowestColourPrice : Number(basePrice);
+    const validationErrors = validateProduct({ name, basePrice: price });
     if (images.length === 0) {
       setFormError("Upload at least one material photo.");
+      return;
+    }
+    if (useColours && !coloursValid) {
+      setFormError("Check the colours: each needs a different name, a price and a stock number.");
       return;
     }
     if (validationErrors.length > 0) {
@@ -53,7 +75,10 @@ export default function AddProduct() {
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await productsApi.create({ name, description, base_price: Number(basePrice), initial_stock: stock, image_urls: images, unit_of_measure: unit });
+      await productsApi.create(useColours
+        ? { name, description, base_price: price, initial_stock: 0, image_urls: images, unit_of_measure: unit,
+            colours: colours.map((c) => ({ name: c.name.trim(), price: Number(c.price), stock: Number(c.stock) })) }
+        : { name, description, base_price: price, initial_stock: stock, image_urls: images, unit_of_measure: unit });
       navigate(vendorRoutes.products);
     } catch (err) {
       // The form keeps everything typed, so the vendor can retry.
@@ -118,16 +143,50 @@ export default function AddProduct() {
                   <option value="roll">Roll</option><option value="piece">Piece</option>
                 </select>
               </Field>
-              <Field label={`Price per ${UNIT_LABEL[unit]} (₦)`} htmlFor="new-product-price" error={errors.basePrice}>
-                <Input id="new-product-price" type="number" inputMode="decimal" min="0.01" step="0.01" value={basePrice}
-                  onChange={(e) => setBasePrice(e.target.value)} error={errors.basePrice} aria-describedby="new-product-price-hint" />
-              </Field>
-              <Field label={`In stock (${UNIT_LABEL[unit]}s)`} htmlFor="new-product-stock" help="0 lists it as out of stock."
-                error={stockValid ? undefined : "Enter a whole number, 0 or more."}>
-                <Input id="new-product-stock" type="number" inputMode="numeric" min={0} max={MAX_STOCK} step={1} value={stock}
-                  onChange={(event) => setStock(Number(event.target.value))} aria-describedby="new-product-stock-hint" />
-              </Field>
+              {!useColours && <>
+                <Field label={`Price per ${UNIT_LABEL[unit]} (₦)`} htmlFor="new-product-price" error={errors.basePrice}>
+                  <Input id="new-product-price" type="number" inputMode="decimal" min="0.01" step="0.01" value={basePrice}
+                    onChange={(e) => setBasePrice(e.target.value)} error={errors.basePrice} aria-describedby="new-product-price-hint" />
+                </Field>
+                <Field label={`In stock (${UNIT_LABEL[unit]}s)`} htmlFor="new-product-stock" help="0 lists it as out of stock."
+                  error={stockValid ? undefined : "Enter a whole number, 0 or more."}>
+                  <Input id="new-product-stock" type="number" inputMode="numeric" min={0} max={MAX_STOCK} step={1} value={stock}
+                    onChange={(event) => setStock(Number(event.target.value))} aria-describedby="new-product-stock-hint" />
+                </Field>
+              </>}
             </div>
+            <label className="flex min-h-11 items-center gap-3 text-sm font-semibold text-ink">
+              <input type="checkbox" className="size-5 accent-[var(--tl-indigo)]" checked={useColours} onChange={(e) => setUseColours(e.target.checked)} />
+              This comes in more than one colour
+            </label>
+            {useColours && (
+              <div className="flex flex-col gap-3">
+                <p className="text-[13px] text-ink-soft">Each colour gets its own price and stock. Tailors pick a colour when they order; a colour with 0 stock shows as out of stock.</p>
+                <ul className="flex flex-col gap-3" aria-label="Colours">
+                  {colours.map((c, i) => (
+                    <li key={c.key} className="grid grid-cols-2 gap-2 rounded-control border border-line p-3 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto] sm:items-end">
+                      <Field label={`Colour ${i + 1}`} htmlFor={`colour-name-${c.key}`} className="col-span-2 sm:col-span-1">
+                        <Input id={`colour-name-${c.key}`} value={c.name} maxLength={40} placeholder="Royal blue"
+                          onChange={(e) => updateColour(c.key, { name: e.target.value })} />
+                      </Field>
+                      <Field label={`Price per ${UNIT_LABEL[unit]} (₦)`} htmlFor={`colour-price-${c.key}`}>
+                        <Input id={`colour-price-${c.key}`} type="number" inputMode="decimal" min="0.01" step="0.01" value={c.price}
+                          onChange={(e) => updateColour(c.key, { price: e.target.value })} />
+                      </Field>
+                      <Field label={`In stock (${UNIT_LABEL[unit]}s)`} htmlFor={`colour-stock-${c.key}`}>
+                        <Input id={`colour-stock-${c.key}`} type="number" inputMode="numeric" min={0} max={MAX_STOCK} step={1} value={c.stock}
+                          onChange={(e) => updateColour(c.key, { stock: e.target.value })} />
+                      </Field>
+                      <Button variant="ghost" size="sm" className="col-span-2 justify-self-start sm:col-span-1" disabled={colours.length === 1}
+                        aria-label={`Remove colour ${i + 1}`} onClick={() => setColours((rows) => rows.filter((row) => row.key !== c.key))}>Remove</Button>
+                    </li>
+                  ))}
+                </ul>
+                <Button variant="secondary" size="sm" className="self-start" disabled={colours.length >= MAX_COLOURS}
+                  onClick={() => setColours((rows) => [...rows, newColour()])}>Add a colour</Button>
+                {duplicateColour && <p role="alert" className="text-sm text-thread">Each colour needs a different name.</p>}
+              </div>
+            )}
           </section>
 
           <section aria-label="Photos" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
@@ -165,14 +224,20 @@ export default function AddProduct() {
             <div className="flex flex-col gap-1 p-3">
               <span className="font-semibold text-ink">{name.trim() || "Product name"}</span>
               <span className="font-mono text-sm text-ink">
-                {Number(basePrice) > 0 ? formatCurrency(Number(basePrice), "NGN") : "₦ —"} / {UNIT_LABEL[unit]}
+                {useColours
+                  ? (Number.isFinite(lowestColourPrice) ? `from ${formatCurrency(lowestColourPrice, "NGN")}` : "₦ —")
+                  : (Number(basePrice) > 0 ? formatCurrency(Number(basePrice), "NGN") : "₦ —")} / {UNIT_LABEL[unit]}
               </span>
-              <span className="text-[13px] text-ink-soft">{stock > 0 ? "In stock" : "Out of stock"}</span>
+              <span className="text-[13px] text-ink-soft">
+                {useColours
+                  ? `${colours.filter((c) => c.name.trim()).length} colour${colours.filter((c) => c.name.trim()).length === 1 ? "" : "s"}`
+                  : stock > 0 ? "In stock" : "Out of stock"}
+              </span>
             </div>
           </div>
           {formError && <p role="alert" className="text-sm text-thread">{formError}</p>}
           <Button size="lg" onClick={() => { void handleSubmit(); }} isLoading={isSubmitting}
-            disabled={uploading || images.length === 0 || !stockValid}>Add product</Button>
+            disabled={uploading || images.length === 0 || (useColours ? !coloursValid : !stockValid)}>Add product</Button>
           <p className="text-[13px] text-ink-soft">If saving fails, everything you typed stays here so you can try again.</p>
         </aside>
       </div>
