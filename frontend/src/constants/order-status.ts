@@ -21,13 +21,13 @@ export const CUSTOMER_ORDER_STATUS_LABELS: Record<CustomerOrderStatus, string> =
 export const VENDOR_ORDER_STATUS_LABELS: Record<VendorOrderStatus, string> = {
   cart: "Cart",
   checkout: "Checkout",
-  payment_pending: "Payment Pending",
+  payment_pending: "Payment pending",
   paid: "Paid",
   confirmed: "Confirmed",
   processing: "Processing",
-  ready_for_pickup: "Ready for Pickup",
-  picked_up: "Picked Up",
-  in_transit: "In Transit",
+  ready_for_pickup: "Ready for pickup",
+  picked_up: "Picked up",
+  in_transit: "In transit",
   delivered: "Delivered",
   received: "Received",
   completed: "Completed",
@@ -86,3 +86,52 @@ export const WORKROOM_STAGES: { key: string; title: string; statuses: CustomerOr
   { key: "delivery", title: "With the rider", statuses: ["out_for_delivery", "delivered"] },
   { key: "done", title: "Done", statuses: ["received", "completed"] },
 ];
+
+export const VENDOR_ORDER_STATUS_TONE: Partial<Record<VendorOrderStatus, StatusTone>> = {
+  payment_pending: "neutral",
+  paid: "warning",
+  confirmed: "info",
+  processing: "info",
+  ready_for_pickup: "info",
+  picked_up: "info",
+  in_transit: "info",
+  delivered: "success",
+  received: "success",
+  completed: "success",
+  cancelled: "danger",
+  refunded: "neutral",
+};
+
+/** What the vendor does next, in plain words. Statuses with no entry need nothing from them. */
+export const VENDOR_ORDER_NEXT_STEP: Partial<Record<VendorOrderStatus, string>> = {
+  paid: "Confirm you have it",
+  confirmed: "Start preparing",
+  processing: "Mark ready for pickup",
+  ready_for_pickup: "Request a rider",
+  picked_up: "With the rider",
+  in_transit: "With the rider",
+  delivered: "Waiting for the buyer to confirm",
+};
+
+/** The vendor's fulfilment steps, matching the backend's vendor order statuses. */
+export const VENDOR_FULFILMENT_STEPS: { key: string; title: string; statuses: VendorOrderStatus[] }[] = [
+  { key: "received", title: "Order received", statuses: ["paid"] },
+  { key: "confirm", title: "Confirmed", statuses: ["confirmed"] },
+  { key: "prepare", title: "Preparing", statuses: ["processing"] },
+  { key: "pickup", title: "Ready for pickup", statuses: ["ready_for_pickup"] },
+  { key: "road", title: "On the road", statuses: ["picked_up", "in_transit"] },
+  { key: "done", title: "Delivered", statuses: ["delivered", "received", "completed"] },
+];
+
+/** Groups for the vendor's order list. Covers every status a sold order can be in. */
+export const VENDOR_ORDER_GROUPS: { key: string; title: string; statuses: VendorOrderStatus[] }[] = [
+  { key: "confirm", title: "To confirm", statuses: ["paid"] },
+  { key: "prepare", title: "To prepare", statuses: ["confirmed", "processing"] },
+  { key: "pickup", title: "Waiting for pickup", statuses: ["ready_for_pickup"] },
+  { key: "road", title: "On the road", statuses: ["picked_up", "in_transit"] },
+  { key: "done", title: "Done", statuses: ["delivered", "received", "completed"] },
+  { key: "closed", title: "Cancelled", statuses: ["cancelled", "refunded"] },
+];
+
+/** Stock at or below this many units counts as low. The backend has no threshold yet. */
+export const LOW_STOCK_THRESHOLD = 10;
