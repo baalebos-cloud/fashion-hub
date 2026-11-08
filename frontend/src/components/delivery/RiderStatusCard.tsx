@@ -47,11 +47,11 @@ export function RiderStatusCard({ onChange }: { onChange?: (profile: RiderProfil
   const blocker = !profile.vehicle_type ? "vehicle" : !profile.is_verified ? "verification" : null;
 
   return (
-    <Card className={online ? "border-[#256a3f]/30 bg-[#f1f8f3] p-5" : "p-5"} role="region" aria-label="Rider status">
+    <Card className={online ? "border-success/30 bg-success-wash/60 p-5" : "p-5"} role="region" aria-label="Rider status">
       <div className="flex items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${online ? "bg-[#2f8a4f]" : "bg-line"}`} />
+            <span aria-hidden="true" className={`h-2.5 w-2.5 rounded-full ${online ? "bg-success" : "bg-line-strong"}`} />
             <p className="font-display text-lg text-ink">{online ? "You're online" : "You're offline"}</p>
             {profile.is_verified && <VerificationBadge />}
           </div>
@@ -62,8 +62,8 @@ export function RiderStatusCard({ onChange }: { onChange?: (profile: RiderProfil
         <button type="button" role="switch" aria-checked={online} aria-label={online ? "Go offline" : "Go online"}
           disabled={busy || (!online && blocker !== null)}
           onClick={() => void run(() => deliveryPartnersApi.setAvailability(!online))}
-          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors disabled:opacity-50 ${online ? "bg-[#2f8a4f]" : "bg-line"}`}>
-          <span className={`absolute top-1 h-6 w-6 rounded-full bg-paper shadow transition-all ${online ? "left-7" : "left-1"}`} />
+          className={`relative h-8 w-14 shrink-0 rounded-full transition-colors disabled:opacity-50 ${online ? "bg-success" : "bg-line-strong"}`}>
+          <span className={`absolute top-1 h-6 w-6 rounded-full bg-surface shadow transition-all ${online ? "left-7" : "left-1"}`} />
         </button>
       </div>
 
@@ -79,7 +79,7 @@ export function RiderStatusCard({ onChange }: { onChange?: (profile: RiderProfil
         </div>
       )}
       {blocker === "verification" && (
-        <p className="mt-4 rounded-lg bg-[#fbf0dd] px-3 py-2 text-xs text-[#8a5f1f]">
+        <p className="mt-4 rounded-control bg-warning-wash px-3 py-2 text-[13px] text-warning">
           You can go online once your identity is verified.{" "}
           <Link to={deliveryRoutes.verification} className="font-medium underline">Check verification</Link>
         </p>

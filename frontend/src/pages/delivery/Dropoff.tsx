@@ -6,6 +6,8 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { isApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { deliveryRoutes } from "@/config/routes.config";
+import { CodeEntry, codeOutcome } from "@/components/delivery/CodeEntry";
+import { OrderContacts } from "@/components/calls/OrderContacts";
 
 export default function Dropoff() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
@@ -13,6 +15,9 @@ export default function Dropoff() {
   const [busy, setBusy] = useState(false);
   const [handoverCode, setHandoverCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [wrongCount, setWrongCount] = useState(0);
+  const [locked, setLocked] = useState(false);
+  const [wrongMessage, setWrongMessage] = useState<string | null>(null);
   const { delivery } = useDelivery(deliveryId);
   const attemptKey = useRef("");
   if (!attemptKey.current) attemptKey.current = newIdempotencyKey();
@@ -28,32 +33,35 @@ export default function Dropoff() {
       // A definite rejection (wrong code, wrong state) starts a new attempt; a dropped
       // connection or server error keeps the key so the retry can't apply twice.
       if (isApiError(err) && err.status != null && err.status >= 400 && err.status < 500) attemptKey.current = newIdempotencyKey();
-      setError(getDisplayErrorMessage(err));
+      const outcome = codeOutcome(err);
+      if (outcome.kind === "wrong") { setWrongCount((n) => n + 1); setWrongMessage(outcome.message); setHandoverCode(""); }
+      else if (outcome.kind === "locked") setLocked(true);
+      else setError(outcome.message || getDisplayErrorMessage(err));
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="max-w-sm">
-      <h1 className="mb-4 font-display text-xl text-ink">Confirm drop-off</h1>
-      <p className="mb-4 text-sm text-ink-soft">
-        Confirm only after handing over the package. Photo proof upload is not enabled in this version.
-      </p>
+    <div className="mx-auto flex w-full max-w-md flex-col gap-4 pb-28 md:pb-0">
+      <h1 className="font-display text-3xl text-ink">Confirm drop-off</h1>
       {delivery?.package_count != null && (
-        <p className="mb-4 rounded-lg bg-muslin px-3 py-2 text-sm text-ink">
+        <p className="rounded-control bg-warning-wash px-3 py-2 text-sm text-warning">
           Hand over all {delivery.package_count} package{delivery.package_count === 1 ? "" : "s"} you collected.
         </p>
       )}
-      <label className="mb-3 block text-sm">Customer handover code
-        <input aria-label="Customer handover code" value={handoverCode} inputMode="numeric"
-          className="mt-2 w-full rounded border border-line p-3"
-          onChange={(event) => setHandoverCode(event.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
-          maxLength={6} placeholder="6-digit code" autoComplete="one-time-code" />
-      </label>
-      <p className="mb-3 text-xs text-ink-soft">Ask the customer for their code only after handing over the package. If it has expired, they can open a fresh one in the app.</p>
-      <Button isLoading={busy} disabled={busy || handoverCode.length !== 6} onClick={() => void confirmDelivery()}>Confirm delivered</Button>
-      {error && <p role="alert" className="mt-3 text-sm text-thread">{error}</p>}
+      <section className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
+        <CodeEntry id="handover-code" label="Customer handover code" value={handoverCode} onChange={setHandoverCode}
+          hint="Hand over the package first, then ask the customer for their 6-digit code. If it has expired, they can open a fresh one in the app."
+          wrongCount={wrongCount} locked={locked} message={wrongMessage} />
+        <p className="text-[13px] text-ink-soft">Photo proof upload isn't switched on in this version.</p>
+      </section>
+      {delivery?.order_id && <OrderContacts orderId={delivery.order_id} />}
+      {error && <p role="alert" className="text-sm text-thread">{error}</p>}
+      <div className="bottom-action-bar fixed inset-x-0 bottom-0 z-40 border-t border-line bg-surface p-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:static md:border-0 md:bg-transparent md:p-0">
+        <Button size="lg" className="w-full" isLoading={busy} disabled={busy || locked || handoverCode.length !== 6}
+          onClick={() => void confirmDelivery()}>Confirm delivered</Button>
+      </div>
     </div>
   );
 }

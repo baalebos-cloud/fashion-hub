@@ -93,7 +93,11 @@ describe("rider pickup", () => {
     expect(await screen.findByRole("alert")).toBeTruthy();
     vi.mocked(deliveriesApi.markPickedUp).mockRejectedValueOnce(new ApiError("Incorrect pickup code.", "VALIDATION_ERROR", 422, null));
     fireEvent.click(confirm);
-    expect(await screen.findByText("Incorrect pickup code.")).toBeTruthy();
+    // The backend's wording, plus how many tries this device knows are left (5 in total).
+    expect(await screen.findByText("Incorrect pickup code. At most 4 tries left.")).toBeTruthy();
+    expect((screen.getByLabelText("Pickup code") as HTMLInputElement).value).toBe("");
+    // A wrong code clears the field; the rider types the corrected code.
+    fireEvent.change(screen.getByLabelText("Pickup code"), { target: { value: "730155" } });
     vi.mocked(deliveriesApi.markPickedUp).mockResolvedValueOnce({ id: "d1", order_id: "o1", status: "in_transit", delivery_fee: 2500 });
     fireEvent.click(confirm);
     expect(await screen.findByText("navigated")).toBeTruthy();
