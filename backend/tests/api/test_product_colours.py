@@ -64,3 +64,20 @@ def test_without_colours_it_works_as_before(ctx):
 ])
 def test_rejects_unclear_colour_lists(ctx, extra):
     assert _create(ctx["http"], **extra).status_code == 422
+
+
+def test_cart_lines_and_order_snapshots_name_the_colour(ctx, make_user):
+    from types import SimpleNamespace
+    from app.services.checkout_service import _colour_suffix
+    from app.services.cart_service import CartService
+    product = _create(ctx["http"], colours=[dict(name="Royal blue", price="9500.00", stock=30),
+                                             dict(name="Gold", price="9500.00", stock=12)]).json()
+    tailor = make_user(role="tailor")
+    service = CartService(ctx["db"])
+    for v in product["variants"]:
+        service.add_item(owner_user_id=tailor.id, product_variant_id=v["id"], quantity=2)
+    lines = service.get_cart_summary(tailor.id)["items"]
+    assert sorted(line["colour"] for line in lines) == ["Gold", "Royal blue"]
+    # Checkout copies the colour into the order line's name.
+    assert _colour_suffix(SimpleNamespace(attributes={"color": "Gold"})) == " · Gold"
+    assert _colour_suffix(SimpleNamespace(attributes=None)) == ""

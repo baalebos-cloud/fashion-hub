@@ -1,4 +1,5 @@
 import uuid
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
@@ -19,6 +20,8 @@ class CartItemResponse(BaseModel):
     product_id: uuid.UUID
     vendor_id: uuid.UUID
     quantity: int
+    # Set when the product is sold in colours: which one this line is.
+    colour: Optional[str] = None
     unit_price_snapshot: float
     product_name: str
     sku: str

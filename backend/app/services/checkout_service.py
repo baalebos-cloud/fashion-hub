@@ -22,6 +22,12 @@ from app.services.vendor_catalog_service import MAX_AMOUNT, assert_purchasable, 
 from app.utils.order_number import generate_order_number
 
 
+
+def _colour_suffix(variant) -> str:
+    """' · Royal blue' for a colour version, so the order keeps which colour was bought."""
+    colour = variant.attributes.get('color') if isinstance(variant.attributes, dict) else None
+    return f' · {colour}' if colour else ''
+
 class CheckoutService:
     def __init__(self, db):
         self.db = db
@@ -70,7 +76,7 @@ class CheckoutService:
             subtotal += price * item.quantity
             seller_id = seller.id
             snapshots.append(OrderItem(reference_type='product_variant', reference_id=variant.id,
-                name_snapshot=(product.name + ' (' + variant.sku + ')')[:255], description_snapshot=product.description,
+                name_snapshot=(product.name + _colour_suffix(variant) + ' (' + variant.sku + ')')[:255], description_snapshot=product.description,
                 unit_price=price, quantity=item.quantity, line_total=price * item.quantity))
         if subtotal <= 0 or subtotal > MAX_AMOUNT:
             raise ValidationAppError('Order exceeds the supported total.')

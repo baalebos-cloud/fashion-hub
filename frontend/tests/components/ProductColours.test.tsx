@@ -69,3 +69,24 @@ describe("colour picker for buyers", () => {
     expect(screen.getByRole("button", { name: "Gold" }).getAttribute("aria-pressed")).toBe("false");
   });
 });
+
+describe("single colour and cart lines", () => {
+  it("names the colour even when there's only one", () => {
+    render(<ProductVariantSelector selectedId="a" onSelect={() => {}} variants={[
+      { id: "a", product_id: "p", sku: "A", price: 1, attributes: { color: "Navy" } }]} />);
+    expect(screen.getByText("Navy")).toBeTruthy();
+    cleanup();
+    const { container } = render(<ProductVariantSelector selectedId="a" onSelect={() => {}} variants={[
+      { id: "a", product_id: "p", sku: "A", price: 1, attributes: null }]} />);
+    expect(container.textContent).toBe("");
+  });
+
+  it("shows the colour on each cart line", async () => {
+    const { CartItem } = await import("@/components/cart/CartItem");
+    render(<CartItem item={{ id: "c1", product_variant_id: "v1", product_id: "p", vendor_id: "v", vendor_name: "Lagos Fabrics",
+      product_name: "French lace", colour: "Gold", sku: "FH-1", quantity: 2, unit_price_snapshot: 9500, currency: "NGN", is_available: true } as never} />);
+    expect(screen.getByText(/· Gold/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove French lace (Gold)" })).toBeTruthy();
+  });
+});
+

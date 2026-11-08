@@ -2,6 +2,10 @@ import { cn } from "@/lib/utils/cn";
 import type { ProductVariant } from "@/types/product";
 
 export function ProductVariantSelector({ variants, selectedId, onSelect }: { variants: ProductVariant[]; selectedId: string | null; onSelect: (variantId: string) => void }) {
+  // A product sold in a single named colour still says which colour it is.
+  if (variants.length === 1 && variants[0].attributes?.color) {
+    return <p className="text-sm text-ink"><span className="font-semibold">Colour:</span> {variants[0].attributes.color}</p>;
+  }
   if (variants.length <= 1) return null;
 
   return (
