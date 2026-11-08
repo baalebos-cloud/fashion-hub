@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { OrderContacts } from "@/components/calls/OrderContacts";
 import { DeliveryJourney } from "@/components/dispatch/DeliveryJourney";
@@ -19,6 +20,8 @@ import { CUSTOMER_ORDER_NEXT_STEP } from "@/constants/order-status";
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
   const { order, timeline, isLoading, error, markReceived } = useOrder(orderId);
+  // Changes when a rider is assigned or replaced, so Contacts picks them up without a reload.
+  const [riderKey, setRiderKey] = useState("");
 
   if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !order) return <LoadingScreen label="Loading order…" />;
@@ -51,8 +54,8 @@ export default function OrderDetails() {
         <ShareTrackingCard orderId={order.id} orderNumber={order.order_number}
           allowCreate={!["received", "completed"].includes(order.status)} />
       )}
-      <OrderContacts orderId={order.id} />
-      {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} />}
+      <OrderContacts orderId={order.id} refreshKey={riderKey} />
+      {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} onRiderChange={setRiderKey} />}
       <SandboxSagaStatus orderId={order.id} />
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
       {order.order_type === "customer_order" && order.status === "completed" && (

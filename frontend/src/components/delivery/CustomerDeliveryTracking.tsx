@@ -8,7 +8,9 @@ import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { RiderCard } from "@/components/delivery/RiderCard";
 import { OneTimeCode } from "@/components/delivery/OneTimeCode";
 
-export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
+/** `onRiderChange` is called with a key that changes whenever a rider is assigned or replaced,
+ * so the order page can reload who the customer can contact. */
+export function CustomerDeliveryTracking({ orderId, onRiderChange }: { orderId: string; onRiderChange?: (riderKey: string) => void }) {
   const [delivery, setDelivery] = useState<Delivery | null>(null);
   const [riderPosition, setRiderPosition] = useState<RiderPosition | null>(null);
   const [showCode, setShowCode] = useState(false);
@@ -21,6 +23,7 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
         const next = await deliveriesApi.getByOrder(orderId);
         if (active) {
           setDelivery(next);
+          onRiderChange?.(next?.rider_name ? `${next.id}:${next.rider_name}` : "");
           if (next?.status !== "in_transit") { setShowCode(false); setRiderPosition(null); }
         }
         if (next?.status === "in_transit") {
@@ -37,6 +40,8 @@ export function CustomerDeliveryTracking({ orderId }: { orderId: string }) {
     const schedule = (ms: number) => { timer = window.setTimeout(async () => { await refresh(); schedule(nextDelay.current); }, ms); };
     void refresh().then(() => schedule(nextDelay.current));
     return () => { active = false; if (timer) window.clearTimeout(timer); };
+    // onRiderChange is a setter from the parent; polling restarts only when the order changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderId]);
 
   return (
