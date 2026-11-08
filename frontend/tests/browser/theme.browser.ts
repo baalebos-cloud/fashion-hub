@@ -8,12 +8,14 @@ for (const viewport of [{ width: 1280, height: 900 }, { width: 375, height: 812 
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: "Welcome back" })).toBeVisible();
     const email = page.getByLabel("Email address", { exact: true });
-    await expect(email).toHaveCSS("background-color", "rgb(250, 249, 245)");
-    await expect(email).toHaveCSS("border-top-color", "rgb(217, 210, 193)");
-    await expect(email).toHaveCSS("border-radius", "8px");
+    // UI/UX proposal v2: white field on the stone page, line-strong border, 10px control radius.
+    await expect(email).toHaveCSS("background-color", "rgb(255, 255, 255)");
+    await expect(email).toHaveCSS("border-top-color", "rgb(201, 198, 189)");
+    await expect(email).toHaveCSS("border-radius", "10px");
     const button = page.getByRole("button", { name: "Sign in" });
-    await expect(button).toHaveCSS("background-color", "rgb(28, 34, 48)");
-    await expect(button).toHaveCSS("color", "rgb(250, 249, 245)");
+    // Adire indigo is the primary action colour, with white text.
+    await expect(button).toHaveCSS("background-color", "rgb(47, 61, 143)");
+    await expect(button).toHaveCSS("color", "rgb(255, 255, 255)");
     await email.focus();
     await page.keyboard.press("Tab");
     const password = page.getByLabel("Password", { exact: true });
