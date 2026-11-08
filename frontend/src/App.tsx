@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "react-router-dom";
 import { AppCalls } from "@/components/calls/AppCalls";
+import { NativeBridge } from "@/components/native/NativeBridge";
 import { router } from "@/router";
 import { AIAssistant } from "@/components/ai/AIAssistant";
 import { AIPublicTeaser } from "@/components/ai/AIPublicTeaser";
@@ -42,6 +43,7 @@ export default function App() {
       <ToastProvider>
         <RouterProvider router={router} />
         <AppCalls />
+        <NativeBridge />
         <GlobalAssistant />
       </ToastProvider>
       </QueryClientProvider>

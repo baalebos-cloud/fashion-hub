@@ -6,7 +6,9 @@
  * sessionStorage (not localStorage) is used deliberately: it clears when
  * the tab closes, limiting the blast radius of an XSS-exfiltrated token
  * compared to a token that persists indefinitely across browser restarts.
+ * The phone apps additionally mirror them into secure storage (lib/native/session.ts).
  */
+import { persistNativeSession } from "@/lib/native/session";
 const ACCESS_TOKEN_KEY = "tailora.access_token";
 const REFRESH_TOKEN_KEY = "tailora.refresh_token";
 /** Pre-rebrand keys. Read once and moved so open sessions survive the rename. */
@@ -42,12 +44,16 @@ export function getRefreshToken(): string | null {
 export function setTokens({ accessToken, refreshToken }: TokenPair): void {
   sessionStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   sessionStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  // In the phone apps only, also keep them in the Keychain/Keystore so closing the app
+  // doesn't sign the person out. No effect on the website.
+  persistNativeSession({ accessToken, refreshToken });
 }
 
 export function clearTokens(): void {
   sessionStorage.removeItem(ACCESS_TOKEN_KEY);
   sessionStorage.removeItem(REFRESH_TOKEN_KEY);
   Object.values(LEGACY_KEYS).forEach((legacyKey) => sessionStorage.removeItem(legacyKey));
+  persistNativeSession(null);
 }
 
 export function hasSession(): boolean {

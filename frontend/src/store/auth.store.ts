@@ -85,6 +85,12 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch {
       // Never let call cleanup block signing out.
     }
+    try {
+      const { unregisterPush } = await import("@/lib/native/push");
+      await unregisterPush();
+    } catch {
+      // The phone simply keeps no push registration for anyone.
+    }
     const refreshToken = getRefreshToken();
     if (refreshToken) {
       try {

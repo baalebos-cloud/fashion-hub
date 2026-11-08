@@ -11,9 +11,20 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "playwright test"
+    "test:browser": "playwright test",
+    "app:sync": "node scripts/check-app-build.mjs && vite build && cap sync",
+    "app:ios": "cap open ios",
+    "app:android": "cap open android"
   },
   "dependencies": {
+    "@aparajita/capacitor-secure-storage": "8.0.1",
+    "@capacitor/android": "8.6.0",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.6.0",
+    "@capacitor/ios": "8.6.0",
+    "@capacitor/push-notifications": "8.1.3",
+    "@capacitor/splash-screen": "8.0.2",
+    "@capacitor/status-bar": "8.0.4",
     "@hookform/resolvers": "7.0.2",
     "@tanstack/react-query": "5.106.0",
     "axios": "^1.21.0",
@@ -31,6 +42,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.6.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.58.0",
     "@tailwindcss/postcss": "^4.3.4",

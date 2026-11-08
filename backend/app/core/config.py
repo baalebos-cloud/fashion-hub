@@ -84,6 +84,9 @@ class Settings(BaseSettings):
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]
+    # The iPhone and Android apps load Tailora from these fixed local origins (Capacitor):
+    # iOS capacitor://localhost, Android https://localhost. Auth is bearer tokens, not cookies.
+    MOBILE_APP_ORIGINS: List[str] = ["capacitor://localhost", "https://localhost"]
 
     # --- Rate limiting ---
     RATE_LIMIT_DEFAULT: str = "100/minute"

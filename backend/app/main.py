@@ -38,7 +38,7 @@ app.add_middleware(RequestContextMiddleware)
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ALLOWED_ORIGINS + [
+    allow_origins=settings.CORS_ALLOWED_ORIGINS + settings.MOBILE_APP_ORIGINS + [
         origin.strip() for origin in settings.HACKATHON_UI_ORIGINS.split(",")
         if origin.strip().startswith("https://")
     ],

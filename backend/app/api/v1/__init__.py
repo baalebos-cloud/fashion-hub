@@ -5,6 +5,7 @@ layout for readability; import order doesn't affect routing behavior.
 from fastapi import APIRouter
 
 from app.api.v1 import (
+    devices,
     courier_webhooks,
     admin,
     ai_commerce,
@@ -129,3 +130,4 @@ api_router.include_router(dashboard.router)
 api_router.include_router(admin.router)
 api_router.include_router(weather.router)
 api_router.include_router(referrals.router)
+api_router.include_router(devices.router)
