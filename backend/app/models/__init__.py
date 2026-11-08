@@ -69,8 +69,10 @@ from app.models.courier_event import CourierEventRecord
 from app.models.interaction_event import InteractionEvent
 from app.models.item_similarity import ItemSimilarity
 from app.models.recommendation_impression import RecommendationImpression
+from app.models.device_token import DeviceToken
 
 __all__ = [
+    "DeviceToken",
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
     "Vendor", "VendorCategory", "VendorProduct", "ProductVariant", "Inventory",
     "Cart", "CartItem", "Order", "OrderItem", "OrderStatusDefinition", "OrderTimelineEntry",
