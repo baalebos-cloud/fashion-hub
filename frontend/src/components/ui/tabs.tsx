@@ -22,7 +22,7 @@ export function Tabs({ items, defaultTabId }: { items: TabItem[]; defaultTabId?:
             onClick={() => setActiveId(item.id)}
             className={cn(
               "px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors",
-              item.id === activeId ? "border-brass text-ink" : "border-transparent text-ink-soft hover:text-ink"
+              item.id === activeId ? "border-indigo text-ink" : "border-transparent text-ink-soft hover:text-ink"
             )}
           >
             {item.label}

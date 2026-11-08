@@ -83,7 +83,7 @@ export default function Home() {
               </Button>
             </Link>
             <Link to={authRoutes.signup}>
-              <Button size="lg" variant="secondary" className="border-paper/30 text-paper hover:border-brass hover:text-brass">
+              <Button size="lg" variant="secondary" className="border-paper/30 bg-transparent text-paper hover:border-brass hover:text-brass">
                 Join as a professional
               </Button>
             </Link>

@@ -16,7 +16,7 @@ const ToastContext = createContext<ToastContextValue | null>(null);
 
 const TONE_CLASSES: Record<Toast["tone"], string> = {
   success: "bg-ink text-paper",
-  error: "bg-thread text-paper",
+  error: "bg-thread text-surface",
   info: "bg-ink text-paper",
 };
 

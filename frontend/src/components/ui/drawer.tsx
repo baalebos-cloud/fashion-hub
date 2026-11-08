@@ -29,7 +29,7 @@ export function Drawer({ isOpen, onClose, side = "right", title, children }: Dra
         aria-modal="true"
         aria-label={title}
         className={cn(
-          "absolute top-0 h-full w-full max-w-sm bg-paper border-line shadow-xl flex flex-col",
+          "absolute top-0 h-full w-full max-w-sm bg-surface border-line shadow-xl flex flex-col",
           side === "right" ? "right-0 border-l" : "left-0 border-r"
         )}
       >

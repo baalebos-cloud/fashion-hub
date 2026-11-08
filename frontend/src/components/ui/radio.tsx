@@ -6,7 +6,7 @@ export const Radio = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
     <input
       ref={ref}
       type="radio"
-      className={cn("h-4 w-4 border-line text-brass focus:ring-brass", className)}
+      className={cn("h-4 w-4 border-line-strong text-indigo accent-[var(--tl-indigo)] focus:ring-indigo", className)}
       {...props}
     />
   )

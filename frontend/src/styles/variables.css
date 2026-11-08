@@ -1,27 +1,83 @@
 /*
-  Design tokens available as plain CSS variables, mirrored into
-  tailwind.config.js under theme.extend.colors. Kept here too so
-  non-Tailwind contexts (e.g. a portal-rendered widget, or a PDF/email
-  template shared with the backend) can reference the same palette without
-  depending on Tailwind's build step.
+  Tailora design tokens ("The workroom, made calm and trustworthy" — UI/UX proposal v2).
+
+  Raw values live in --tl-* variables. tailwind.config.js points every colour at them
+  (text-ink, bg-surface, bg-indigo, …), and the --color-* aliases below keep non-Tailwind
+  code (globals.css, portal widgets) on the same palette.
+
+  Dark theme: the values under [data-theme="dark"] are defined but only apply when that
+  attribute is set on <html>. It is not switched on automatically yet, because some pages
+  still use hard-coded light colours; those are migrated page by page in later steps.
 */
 :root {
-  --color-ink: #1c2230;
-  --color-ink-soft: #565a66;
-  --color-muslin: #ece7db;
-  --color-paper: #faf9f5;
-  --color-brass: #ab8a52;
-  --color-brass-deep: #8d7040;
-  --color-thread: #8a3a2b;
-  --color-line: #d9d2c1;
-  --color-focus: #6b7cff;
+  /* Brand */
+  --tl-ink: #1c2230;          /* text, dark surfaces */
+  --tl-ink-soft: #5a6072;     /* secondary text, 4.5:1+ on stone and white */
+  --tl-indigo: #2f3d8f;       /* the one action colour: primary buttons, links */
+  --tl-indigo-deep: #1f2a66;  /* hover / pressed */
+  --tl-indigo-wash: #e8ebf8;  /* selected chips, info tint */
+  --tl-brass: #a8823f;        /* brand accent; not for small body text */
+  --tl-brass-deep: #7d5f2a;   /* brass when it carries text */
+  --tl-paper: #f6f5f2;        /* page background ("stone") */
+  --tl-surface: #ffffff;      /* cards, fields, panels */
+  --tl-muslin: #eeede8;       /* subtle fills, neutral pills, skeletons */
+  --tl-line: #e3e1da;         /* borders and dividers */
+  --tl-line-strong: #c9c6bd;  /* field borders */
+
+  /* Semantic (text colour + tint); every pair is at least 4.5:1 */
+  --tl-success: #1f6b3a;
+  --tl-success-wash: #e3f1e8;
+  --tl-warning: #8a5300;
+  --tl-warning-wash: #fbf0dc;
+  --tl-thread: #8a3a2b;       /* danger / errors (kept name for existing usage) */
+  --tl-danger-wash: #f9e7e3;
+  --tl-disabled: #8d92a3;
+
+  --tl-focus: #6b7cff;
+
+  /* Aliases for non-Tailwind code */
+  --color-ink: var(--tl-ink);
+  --color-ink-soft: var(--tl-ink-soft);
+  --color-muslin: var(--tl-muslin);
+  --color-paper: var(--tl-paper);
+  --color-surface: var(--tl-surface);
+  --color-brass: var(--tl-brass);
+  --color-brass-deep: var(--tl-brass-deep);
+  --color-thread: var(--tl-thread);
+  --color-line: var(--tl-line);
+  --color-indigo: var(--tl-indigo);
+  --color-focus: var(--tl-focus);
 
   --font-display: "Fraunces", Georgia, serif;
-  --font-body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
 
-  --radius-card: 16px;
+  --radius-card: 12px;
   --radius-control: 10px;
 
   --header-height: 64px;
   --sidebar-width: 264px;
+}
+
+:root[data-theme="dark"] {
+  --tl-ink: #e9ebf5;
+  --tl-ink-soft: #a3a9c4;
+  --tl-indigo: #9fb0ff;
+  --tl-indigo-deep: #c3ccff;
+  --tl-indigo-wash: #232a4d;
+  --tl-brass: #c9a35c;
+  --tl-brass-deep: #e2b65c;
+  --tl-paper: #12141f;
+  --tl-surface: #1a1d2c;
+  --tl-muslin: #232842;
+  --tl-line: #2c3047;
+  --tl-line-strong: #4a5175;
+  --tl-success: #7fd19a;
+  --tl-success-wash: #1b3324;
+  --tl-warning: #f0c070;
+  --tl-warning-wash: #33291a;
+  --tl-thread: #f2a497;
+  --tl-danger-wash: #3a2220;
+  --tl-disabled: #7d84a3;
+  color-scheme: dark;
 }

@@ -18,12 +18,12 @@ export function Switch({ checked, onChange, label, disabled }: SwitchProps) {
       onClick={() => onChange(!checked)}
       className={cn(
         "relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50",
-        checked ? "bg-brass" : "bg-line"
+        checked ? "bg-indigo" : "bg-line-strong"
       )}
     >
       <span
         className={cn(
-          "inline-block h-4 w-4 transform rounded-full bg-paper transition-transform",
+          "inline-block h-4 w-4 transform rounded-full bg-surface transition-transform",
           checked ? "translate-x-6" : "translate-x-1"
         )}
       />

@@ -30,7 +30,7 @@ export function Modal({ isOpen, onClose, title, children, className }: ModalProp
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={cn("relative w-full max-w-md rounded-card border border-line bg-paper p-6 shadow-xl", className)}
+        className={cn("relative w-full max-w-md rounded-card border border-line bg-surface p-6 shadow-xl", className)}
       >
         {title && <h2 className="mb-4 font-display text-lg text-ink">{title}</h2>}
         {children}
