@@ -8,7 +8,7 @@ import { adminSecurityApi } from "@/api/admin-security.api";
 import { verificationApi } from "@/api/verification.api";
 import { dashboardApi } from "@/api/dashboard.api";
 
-vi.mock("@/api/admin-operations.api", () => ({ adminOperationsApi: { operations: vi.fn() } }));
+vi.mock("@/api/admin-operations.api", () => ({ adminOperationsApi: { operations: vi.fn(), orderExceptions: vi.fn() } }));
 vi.mock("@/api/admin-dispatch.api", () => ({ adminDispatchApi: { board: vi.fn() } }));
 vi.mock("@/api/admin-security.api", () => ({ adminSecurityApi: { summary: vi.fn() } }));
 vi.mock("@/api/verification.api", () => ({ verificationApi: { queue: vi.fn() } }));
@@ -32,6 +32,12 @@ const check = (id: string, extra = {}) => ({
 
 beforeEach(() => {
   vi.mocked(adminOperationsApi.operations).mockResolvedValue(OPS);
+  vi.mocked(adminOperationsApi.orderExceptions).mockResolvedValue([
+    { kind: "overdue", order_id: "o1", order_number: "TL-249E21", order_type: "customer_order", status: "in_production",
+      seller_name: "Chidi Tailoring", item: "Senator", since: "2026-11-01T00:00:00Z", message: "Past the 7-day estimate by 1 day." },
+    { kind: "vendor_no_confirm", order_id: "o2", order_number: "VO-3352", order_type: "vendor_order", status: "paid",
+      seller_name: "Balogun Mart", item: "Aso oke", since: "2026-11-06T00:00:00Z", message: "Paid 26 h ago; the vendor hasn't confirmed stock." },
+  ]);
   vi.mocked(adminDispatchApi.board).mockResolvedValue(BOARD);
   vi.mocked(adminSecurityApi.summary).mockResolvedValue({
     active_now: 3, sign_ins_24h: 40, failed_sign_ins_24h: 14, admin_sign_ins_24h: 1, distinct_ips_24h: 12,
@@ -107,5 +113,14 @@ describe("admin overview", () => {
     expect(adminDispatchApi.board).toHaveBeenCalledTimes(2);
     expect(adminSecurityApi.summary).toHaveBeenCalledTimes(2);
     expect(verificationApi.queue).toHaveBeenCalledTimes(4);
+  });
+
+  it("lists orders waiting too long or past their estimate", async () => {
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
+    const list = screen.getByRole("region", { name: "Orders needing attention" });
+    const rows = await within(list).findAllByRole("listitem");
+    expect(within(rows[0]).getByText("Overdue")).toBeTruthy();
+    expect(within(rows[0]).getByText(/Chidi Tailoring · Past the 7-day estimate/)).toBeTruthy();
+    expect(within(rows[1]).getByText("Vendor hasn't confirmed")).toBeTruthy();
   });
 });

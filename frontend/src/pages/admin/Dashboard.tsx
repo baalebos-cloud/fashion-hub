@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { dashboardApi, type CommerceSummary } from "@/api/dashboard.api";
-import { adminOperationsApi, type AdminOperations } from "@/api/admin-operations.api";
+import { adminOperationsApi, type AdminOperations, type OrderException } from "@/api/admin-operations.api";
 import { adminDispatchApi, type AdminDispatchBoard } from "@/api/admin-dispatch.api";
 import { adminSecurityApi, type ActivitySummary } from "@/api/admin-security.api";
 import { verificationApi } from "@/api/verification.api";
@@ -20,6 +20,12 @@ const ROLE_LABEL: Record<string, string> = {
 const ISSUE_LABEL: Record<string, string> = {
   CUSTOMER_UNREACHABLE: "Customer unreachable", WRONG_ADDRESS: "Wrong address", PACKAGE_DAMAGED: "Package damaged",
   TRAFFIC_ACCIDENT_DELAY: "Traffic or accident delay", RECIPIENT_REJECTED: "Recipient rejected", VEHICLE_BREAKDOWN: "Vehicle breakdown",
+};
+const EXCEPTION_LABEL: Record<OrderException["kind"], { text: string; tone: "warning" | "danger" }> = {
+  tailor_no_reply: { text: "No reply", tone: "warning" },
+  overdue: { text: "Overdue", tone: "danger" },
+  vendor_no_confirm: { text: "Vendor hasn't confirmed", tone: "warning" },
+  vendor_stuck: { text: "Stuck before pickup", tone: "warning" },
 };
 const humanize = (s: string) => s.replace(/[._]/g, " ").replace(/^\w/, (c) => c.toUpperCase());
 
@@ -54,6 +60,8 @@ export default function Dashboard() {
   const [security, setSecurity] = useState<ActivitySummary | null>(null);
   const [commerce, setCommerce] = useState<CommerceSummary | null>(null);
   // undefined while loading, null when it failed.
+  // undefined while loading, null when it failed.
+  const [exceptions, setExceptions] = useState<OrderException[] | null | undefined>(undefined);
   const [checks, setChecks] = useState<Array<VerificationQueueItem & { kind: "kyc" | "kyb" }> | null | undefined>(undefined);
 
   useEffect(() => {
@@ -72,6 +80,7 @@ export default function Dashboard() {
     adminDispatchApi.board().then((v) => { if (active) setBoard(v); }).catch(() => { if (active) setBoard(null); });
     adminSecurityApi.summary().then((v) => { if (active) setSecurity(v); }).catch(() => { if (active) setSecurity(null); });
     dashboardApi.getCommerceSummary().then((v) => { if (active) setCommerce(v); }).catch(() => { if (active) setCommerce(null); });
+    adminOperationsApi.orderExceptions().then((v) => { if (active) setExceptions(v); }).catch(() => { if (active) setExceptions(null); });
     return () => { active = false; };
   }, [revision]);
 
@@ -121,6 +130,36 @@ export default function Dashboard() {
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
+            <section aria-label="Orders needing attention" className="flex flex-col gap-3">
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <h2 className="font-display text-2xl text-ink">Orders needing attention</h2>
+                <Link to={adminRoutes.orders} className="text-sm font-semibold text-indigo">All orders</Link>
+              </div>
+              {exceptions === undefined && <SkeletonRows rows={2} label="Checking orders" onRetry={refresh} />}
+              {exceptions === null && <p className="text-sm text-ink-soft">Order checks couldn't be loaded.</p>}
+              {exceptions?.length === 0 && (
+                <p className="rounded-card border border-dashed border-line-strong bg-surface p-6 text-center text-sm text-ink-soft">
+                  Nothing overdue or waiting too long.
+                </p>
+              )}
+              {exceptions && exceptions.length > 0 && (
+                <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
+                  {exceptions.slice(0, 8).map((x) => (
+                    <li key={`${x.kind}-${x.order_id}`} className="flex flex-wrap items-center gap-x-4 gap-y-1.5 p-4">
+                      <span className="flex min-w-0 flex-1 flex-col">
+                        <span className="truncate font-semibold text-ink">
+                          <span className="font-mono text-xs font-normal text-ink-soft">{x.order_number}</span> {x.item ?? ""}
+                        </span>
+                        <span className="text-[13px] text-ink-soft">{x.seller_name ? `${x.seller_name} · ` : ""}{x.message}</span>
+                      </span>
+                      <Badge tone={EXCEPTION_LABEL[x.kind].tone}>{EXCEPTION_LABEL[x.kind].text}</Badge>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {exceptions && exceptions.length > 8 && <p className="text-[13px] text-ink-soft">Showing the oldest 8 of {exceptions.length}.</p>}
+            </section>
+
             <section aria-label="Waiting for verification" className="flex flex-col gap-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
                 <h2 className="font-display text-2xl text-ink">Waiting for verification</h2>
