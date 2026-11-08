@@ -22,8 +22,16 @@ vi.mock("@capacitor/push-notifications", () => ({
   },
 }));
 vi.mock("@/lib/api/client", () => ({ apiClient: { post: vi.fn(async () => ({})), delete: vi.fn(async () => ({})) } }));
+const appPlugin = vi.hoisted(() => ({ launchUrl: undefined as string | undefined, listeners: {} as Record<string, (e: unknown) => void> }));
+vi.mock("@capacitor/app", () => ({ App: {
+  addListener: vi.fn(async (name: string, fn: (e: unknown) => void) => { appPlugin.listeners[name] = fn; }),
+  getLaunchUrl: vi.fn(async () => (appPlugin.launchUrl ? { url: appPlugin.launchUrl } : undefined)),
+  minimizeApp: vi.fn(async () => {}),
+} }));
+vi.mock("@capacitor/splash-screen", () => ({ SplashScreen: { hide: vi.fn(async () => {}) } }));
+vi.mock("@capacitor/status-bar", () => ({ StatusBar: { setStyle: vi.fn(async () => {}), setBackgroundColor: vi.fn(async () => {}) }, Style: { Light: "LIGHT" } }));
 
-import { internalPath } from "@/lib/native/app-shell";
+import { initNativeShell, internalPath } from "@/lib/native/app-shell";
 import { restoreNativeSession } from "@/lib/native/session";
 import { clearTokens, getRefreshToken, setTokens } from "@/lib/auth/token";
 import { registerForPush, unregisterPush } from "@/lib/native/push";
@@ -92,3 +100,25 @@ describe("push registration", () => {
     expect(PushNotifications.checkPermissions).not.toHaveBeenCalled();
   });
 });
+
+describe("opening the app from a link", () => {
+  it("goes to the page in the link that started the app, and to later links too", async () => {
+    native.on = true;
+    native.platform = "android";
+    appPlugin.launchUrl = "tailora://app/customer/orders/42";
+    const navigate = vi.fn();
+    await initNativeShell(navigate);
+    expect(navigate).toHaveBeenCalledWith("/app/customer/orders/42");
+    appPlugin.listeners.appUrlOpen({ url: "tailora://app/delivery" });
+    expect(navigate).toHaveBeenLastCalledWith("/app/delivery");
+  });
+
+  it("stays on the start page when the app was opened normally", async () => {
+    native.on = true;
+    appPlugin.launchUrl = undefined;
+    const navigate = vi.fn();
+    await initNativeShell(navigate);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+});
+

@@ -39,5 +39,14 @@ export async function initNativeShell(navigate: Navigate): Promise<void> {
     const path = internalPath(url);
     if (path) navigate(path);
   });
+  // A link that started the app from closed isn't sent to the listener above (on Android it
+  // only fires for links arriving while the app runs), so read the launch link too.
+  try {
+    const launch = await App.getLaunchUrl();
+    const path = launch?.url ? internalPath(launch.url) : null;
+    if (path) navigate(path);
+  } catch {
+    // No launch link.
+  }
   await SplashScreen.hide();
 }
