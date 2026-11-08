@@ -65,3 +65,18 @@ class OrderResponse(BaseModel):
     reservation_expires_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
+
+
+class OrderMeasurementField(BaseModel):
+    field_name: str
+    value: str
+    unit: str
+
+
+class OrderMeasurementsResponse(BaseModel):
+    """The measurements copied onto the order when it was placed. Later edits to the
+    customer's saved profile don't change what the tailor sees for this order."""
+    order_id: uuid.UUID
+    label: Optional[str] = None
+    garment_type: Optional[str] = None
+    fields: list[OrderMeasurementField] = Field(default_factory=list)

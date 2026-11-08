@@ -38,7 +38,7 @@ from app.core.exceptions import ForbiddenError, NotFoundError
 from app.core.permissions import Role, require_roles
 from app.models.user import User
 from app.repositories.order_repository import OrderRepository
-from app.schemas.order import CreateCustomerOrderRequest, OrderResponse, OrderTransitionRequest
+from app.schemas.order import CreateCustomerOrderRequest, OrderMeasurementsResponse, OrderResponse, OrderTransitionRequest
 from app.schemas.review import CreateReviewRequest, ReviewResponse
 from app.services.review_service import ReviewService
 from app.services.vendor_fulfillment_service import VendorFulfillmentService
@@ -95,6 +95,39 @@ def get_order(order_id: uuid.UUID, current_user: User = Depends(get_current_user
         raise NotFoundError("Order not found.")
     _assert_can_view_order(order, current_user)
     return order
+
+
+# The seller sees the customer's measurements only while there is work to do on the order:
+# from payment until the customer has it. Not before payment, and not after it's closed.
+SELLER_MEASUREMENT_STATUSES = frozenset({
+    "paid", "accepted", "in_production", "ready_for_delivery", "shipped", "out_for_delivery", "delivered",
+})
+
+
+@router.get("/{order_id}/measurements", response_model=OrderMeasurementsResponse)
+def get_order_measurements(order_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """GET /api/v1/orders/{order_id}/measurements -- the measurement copy saved on the order.
+
+    The buyer can always see their own. The seller (tailor or designer) can see them only while
+    the order is active. Nobody else can, admins included: measurements are personal data and
+    no admin task needs them."""
+    order = OrderRepository(db).get_by_id(order_id)
+    if not order or order.order_type != "customer_order":
+        raise NotFoundError("Order not found.")
+    is_buyer = str(order.buyer_user_id) == str(current_user.id)
+    is_seller = str(order.seller_user_id) == str(current_user.id)
+    if not (is_buyer or is_seller):
+        raise ForbiddenError("You do not have permission to view these measurements.")
+    if is_seller and not is_buyer and order.status not in SELLER_MEASUREMENT_STATUSES:
+        raise ForbiddenError("Measurements are shown once the order is paid and until it's closed.")
+    snapshot = order.measurement_snapshot
+    if not snapshot:
+        raise NotFoundError("No measurements were saved with this order.")
+    return OrderMeasurementsResponse(
+        order_id=order.id, label=snapshot.get("label"), garment_type=snapshot.get("garment_type"),
+        fields=[dict(field_name=f.get("field_name", ""), value=str(f.get("value", "")), unit=f.get("unit", "cm"))
+                for f in snapshot.get("fields", []) if isinstance(f, dict)],
+    )
 
 
 @router.post("/{order_id}/accept", response_model=OrderResponse)
