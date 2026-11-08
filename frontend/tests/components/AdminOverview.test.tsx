@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import Dashboard from "@/pages/admin/Dashboard";
 import { adminOperationsApi } from "@/api/admin-operations.api";
 import { adminDispatchApi } from "@/api/admin-dispatch.api";
 import { adminSecurityApi } from "@/api/admin-security.api";
 import { verificationApi } from "@/api/verification.api";
+import { dashboardApi } from "@/api/dashboard.api";
 
 vi.mock("@/api/admin-operations.api", () => ({ adminOperationsApi: { operations: vi.fn() } }));
 vi.mock("@/api/admin-dispatch.api", () => ({ adminDispatchApi: { board: vi.fn() } }));
@@ -83,9 +84,28 @@ describe("admin overview", () => {
     expect(within(screen.getByRole("region", { name: "Needs your attention" })).getByText("No rider yet").closest("a")!.textContent).toMatch(/—Couldn't load/);
   });
 
-  it("offers a retry when the overview itself can't load", async () => {
+  it("keeps the review queue and payments when the operations request fails, and offers a retry", async () => {
     vi.mocked(adminOperationsApi.operations).mockRejectedValue(new Error("down"));
+    vi.mocked(dashboardApi.getCommerceSummary).mockResolvedValueOnce({ verified_count: 4, verified_volume_ngn: "120000", note: "Test mode." } as never);
     render(<MemoryRouter><Dashboard /></MemoryRouter>);
-    expect(await screen.findByText("Couldn't load the overview")).toBeTruthy();
+    expect(await screen.findByText("Part of the overview couldn't load")).toBeTruthy();
+    const queue = screen.getByRole("region", { name: "Waiting for verification" });
+    expect(await within(queue).findByText("Balogun Mart")).toBeTruthy();
+    expect(await screen.findByRole("region", { name: "Verified payments" })).toBeTruthy();
+    expect(within(screen.getByRole("region", { name: "Platform switches" })).getAllByText("Couldn't load")).toHaveLength(2);
+    expect(screen.queryByRole("region", { name: "People" })).toBeNull();
+  });
+
+  it("refreshes every source, not just the operations counts", async () => {
+    render(<MemoryRouter><Dashboard /></MemoryRouter>);
+    await screen.findByRole("region", { name: "Platform switches" });
+    vi.mocked(adminDispatchApi.board).mockResolvedValue({ ...BOARD, unassigned_count: 5 });
+    vi.mocked(adminSecurityApi.summary).mockRejectedValue(new Error("blip"));
+    fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+    const attention = screen.getByRole("region", { name: "Needs your attention" });
+    expect(await within(within(attention).getByText("No rider yet").closest("a")!).findByText("5")).toBeTruthy();
+    expect(adminDispatchApi.board).toHaveBeenCalledTimes(2);
+    expect(adminSecurityApi.summary).toHaveBeenCalledTimes(2);
+    expect(verificationApi.queue).toHaveBeenCalledTimes(4);
   });
 });

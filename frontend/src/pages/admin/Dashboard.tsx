@@ -48,11 +48,13 @@ export default function Dashboard() {
   const [ops, setOps] = useState<AdminOperations | null>(null);
   const [opsLoading, setOpsLoading] = useState(true);
   const [opsError, setOpsError] = useState(false);
-  const [opsRevision, setOpsRevision] = useState(0);
+  const [revision, setRevision] = useState(0);
+  const refresh = () => setRevision((n) => n + 1);
   const [board, setBoard] = useState<AdminDispatchBoard | null>(null);
   const [security, setSecurity] = useState<ActivitySummary | null>(null);
   const [commerce, setCommerce] = useState<CommerceSummary | null>(null);
-  const [checks, setChecks] = useState<Array<VerificationQueueItem & { kind: "kyc" | "kyb" }> | null>(null);
+  // undefined while loading, null when it failed.
+  const [checks, setChecks] = useState<Array<VerificationQueueItem & { kind: "kyc" | "kyb" }> | null | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
@@ -62,14 +64,16 @@ export default function Dashboard() {
       .catch(() => { if (active) setOpsError(true); })
       .finally(() => { if (active) setOpsLoading(false); });
     return () => { active = false; };
-  }, [opsRevision]);
+  }, [revision]);
 
   useEffect(() => {
-    // Each source loads on its own, so one failing doesn't blank the whole page.
-    adminDispatchApi.board().then(setBoard).catch(() => setBoard(null));
-    adminSecurityApi.summary().then(setSecurity).catch(() => setSecurity(null));
-    dashboardApi.getCommerceSummary().then(setCommerce).catch(() => setCommerce(null));
-  }, []);
+    // Each source loads on its own, so one failing doesn't blank the whole page, and Refresh reloads them all.
+    let active = true;
+    adminDispatchApi.board().then((v) => { if (active) setBoard(v); }).catch(() => { if (active) setBoard(null); });
+    adminSecurityApi.summary().then((v) => { if (active) setSecurity(v); }).catch(() => { if (active) setSecurity(null); });
+    dashboardApi.getCommerceSummary().then((v) => { if (active) setCommerce(v); }).catch(() => { if (active) setCommerce(null); });
+    return () => { active = false; };
+  }, [revision]);
 
   useEffect(() => {
     let active = true;
@@ -81,7 +85,7 @@ export default function Dashboard() {
       })
       .catch(() => { if (active) setChecks(null); });
     return () => { active = false; };
-  }, [opsRevision]);
+  }, [revision]);
 
   const pendingChecks = ops ? ops.verification.kyc_pending.length + ops.verification.kyb_pending.length : null;
   const openIssues = ops ? ops.delivery_issues.filter((x) => x.status !== "RESOLVED") : [];
@@ -94,7 +98,7 @@ export default function Dashboard() {
           <h1 className="font-display text-3xl text-ink">Overview</h1>
           <p className="text-sm text-ink-soft">What needs a decision now. Every action here is written to the audit log.</p>
         </div>
-        <Button variant="secondary" disabled={opsLoading} onClick={() => setOpsRevision((n) => n + 1)}>Refresh</Button>
+        <Button variant="secondary" disabled={opsLoading} onClick={refresh}>Refresh</Button>
       </div>
 
       <section aria-label="Needs your attention" className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -109,14 +113,13 @@ export default function Dashboard() {
           hint={topIp ? `${topIp.attempts} from one address` : "No repeated failures"} />
       </section>
 
-      {opsLoading && !ops && <SkeletonRows rows={3} label="Loading the overview" onRetry={() => setOpsRevision((n) => n + 1)} />}
       {!opsLoading && opsError && (
-        <ErrorState title="Couldn't load the overview" description="Check your connection and administrator access, then try again."
-          onRetry={() => setOpsRevision((n) => n + 1)} />
+        <ErrorState title="Part of the overview couldn't load"
+          description="Account counts, recent activity and payment switches are missing. Check your connection and administrator access, then try again."
+          onRetry={refresh} />
       )}
 
-      {ops && (
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
           <div className="flex flex-col gap-6">
             <section aria-label="Waiting for verification" className="flex flex-col gap-3">
               <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -126,6 +129,7 @@ export default function Dashboard() {
                   <Link to={adminRoutes.kyb} className="text-indigo">Business checks</Link>
                 </span>
               </div>
+              {checks === undefined && <SkeletonRows rows={2} label="Loading the review queue" onRetry={refresh} />}
               {checks === null && <p className="text-sm text-ink-soft">The review queue couldn't be loaded. Open Identity checks or Business checks.</p>}
               {checks?.length === 0 && (
                 <p className="rounded-card border border-dashed border-line-strong bg-surface p-6 text-center text-sm text-ink-soft">No checks waiting.</p>
@@ -153,7 +157,8 @@ export default function Dashboard() {
               )}
             </section>
 
-            <section aria-label="Recent admin activity" className="flex flex-col gap-3">
+            {opsLoading && !ops && <SkeletonRows rows={3} label="Loading recent activity" onRetry={refresh} />}
+            {ops && <section aria-label="Recent admin activity" className="flex flex-col gap-3">
               <div className="flex items-baseline justify-between">
                 <h2 className="font-display text-2xl text-ink">Recent activity</h2>
                 <Link to={adminRoutes.auditLogs} className="text-sm font-semibold text-indigo">Audit log</Link>
@@ -167,7 +172,7 @@ export default function Dashboard() {
                   ))}
                 </ul>
               )}
-            </section>
+            </section>}
           </div>
 
           <div className="flex flex-col gap-6">
@@ -175,10 +180,12 @@ export default function Dashboard() {
               <h2 className="font-semibold text-ink">Platform switches</h2>
               <ul className="flex flex-col divide-y divide-line">
                 <HealthRow label="Payments">
-                  {ops.financial_controls.production_payments_enabled ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Switched off</Badge>}
+                  {!ops ? <span className="text-[13px] text-ink-soft">{opsLoading ? "Loading…" : "Couldn't load"}</span>
+                    : ops.financial_controls.production_payments_enabled ? <Badge tone="success">On</Badge> : <Badge tone="neutral">Switched off</Badge>}
                 </HealthRow>
                 <HealthRow label="Ledger">
-                  {ops.financial_controls.ledger_balanced ? <Badge tone="success">Balanced</Badge> : <Badge tone="danger">Needs investigation</Badge>}
+                  {!ops ? <span className="text-[13px] text-ink-soft">{opsLoading ? "Loading…" : "Couldn't load"}</span>
+                    : ops.financial_controls.ledger_balanced ? <Badge tone="success">Balanced</Badge> : <Badge tone="danger">Needs investigation</Badge>}
                 </HealthRow>
                 <HealthRow label="Auto-offers to riders">
                   {board == null ? <span className="text-[13px] text-ink-soft">Couldn't load</span>
@@ -188,7 +195,7 @@ export default function Dashboard() {
               <p className="pt-1 text-xs text-ink-soft">Read-only. These change only in the backend settings.</p>
             </section>
 
-            <section aria-label="People" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4">
+            {ops && <section aria-label="People" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4">
               <div className="flex items-baseline justify-between">
                 <h2 className="font-semibold text-ink">Active accounts</h2>
                 <Link to={adminRoutes.users} className="text-sm font-semibold text-indigo">Users</Link>
@@ -201,7 +208,7 @@ export default function Dashboard() {
                   </div>
                 ))}
               </dl>
-            </section>
+            </section>}
 
             {commerce && (
               <section aria-label="Verified payments" className="flex flex-col gap-2 rounded-card border border-line bg-surface p-4">
@@ -215,7 +222,6 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      )}
     </div>
   );
 }
