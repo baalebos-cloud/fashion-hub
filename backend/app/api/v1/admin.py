@@ -258,6 +258,16 @@ def commerce_summary(
     return load_commerce_summary(db)
 
 
+@router.get("/order-exceptions")
+def order_exceptions(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(Role.ADMIN)),
+):
+    """Admin-only, read-only: orders waiting too long on a tailor or vendor, or past their estimate."""
+    from app.services.order_exceptions_service import OrderExceptionsService
+    return OrderExceptionsService(db).list()
+
+
 @router.get("/operations")
 def operations_dashboard(
     db: Session = Depends(get_db),

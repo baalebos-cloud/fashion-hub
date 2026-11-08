@@ -12,9 +12,25 @@ export interface AdminOperations {
   audit_events: Array<{ id: string; action: string; actor_id?: string | null }>;
 }
 
+export interface OrderException {
+  kind: "tailor_no_reply" | "overdue" | "vendor_no_confirm" | "vendor_stuck";
+  order_id: string;
+  order_number: string;
+  order_type: "customer_order" | "vendor_order";
+  status: string;
+  seller_name: string | null;
+  item: string | null;
+  since: string;
+  message: string;
+}
+
 /** Admin overview counts. No raw NIN or document contents are returned here. */
 export const adminOperationsApi = {
   async operations(): Promise<AdminOperations> {
     return (await apiClient.get<AdminOperations>(endpoints.admin.operations)).data;
+  },
+  /** Read-only: orders waiting too long on a tailor or vendor, or past their estimate. */
+  async orderExceptions(): Promise<OrderException[]> {
+    return (await apiClient.get<OrderException[]>("/admin/order-exceptions")).data;
   },
 };
