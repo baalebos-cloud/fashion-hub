@@ -64,3 +64,25 @@ export const CUSTOMER_ORDER_NEXT_STEP: Partial<Record<CustomerOrderStatus, strin
   out_for_delivery: "On its way to you · track it",
   delivered: "Delivered · confirm you received it",
 };
+
+/** What the tailor/designer should do next, for each status of an order they're making. */
+export const PROFESSIONAL_ORDER_NEXT_STEP: Partial<Record<CustomerOrderStatus, string>> = {
+  pending: "Waiting for the customer to pay",
+  paid: "Accept or decline this order",
+  accepted: "Start production",
+  in_production: "Mark ready when it's finished",
+  ready_for_delivery: "Request a rider",
+  shipped: "Waiting for a rider",
+  out_for_delivery: "With the rider",
+  delivered: "Waiting for the customer to confirm",
+};
+
+/** Board columns for the workroom, built only from the platform's real statuses. */
+export const WORKROOM_STAGES: { key: string; title: string; statuses: CustomerOrderStatus[] }[] = [
+  { key: "new", title: "New", statuses: ["pending", "paid"] },
+  { key: "accepted", title: "Accepted", statuses: ["accepted"] },
+  { key: "making", title: "Being made", statuses: ["in_production"] },
+  { key: "ready", title: "Ready to send", statuses: ["ready_for_delivery", "shipped"] },
+  { key: "delivery", title: "With the rider", statuses: ["out_for_delivery", "delivered"] },
+  { key: "done", title: "Done", statuses: ["received", "completed"] },
+];
