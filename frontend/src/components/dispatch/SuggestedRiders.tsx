@@ -26,7 +26,7 @@ export function SuggestedRiders({ requestId, onAssigned }: { requestId: string; 
 
   return (
     <div>
-      <button type="button" onClick={() => void toggle()} aria-expanded={open} className="text-xs font-medium text-brass-deep underline">
+      <button type="button" onClick={() => void toggle()} aria-expanded={open} className="min-h-11 self-start text-[13px] font-semibold text-indigo">
         {open ? "Hide suggested riders" : "Suggested riders"}
       </button>
       {open && (

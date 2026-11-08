@@ -21,7 +21,7 @@ const LABEL: Record<string, string> = {
   unassigned_too_long: "No rider yet", pickup_delayed: "Late pickup", dropoff_delayed: "Late delivery",
   tracking_lost: "Tracking lost", location_off: "Location off", off_route: "Off route", rider_issue: "Rider issue",
 };
-const TONE = { critical: "border-thread/50 bg-thread/5", warning: "border-brass/50 bg-muslin", info: "border-line" };
+const TONE = { critical: "border-thread/50 bg-thread/5", warning: "border-warning/40 bg-warning-wash", info: "border-line" };
 const REFRESH_MS = 30_000;
 type Tab = "attention" | "riders" | "today";
 
@@ -67,7 +67,7 @@ export function ControlTower() {
       <div className="flex flex-wrap gap-1" role="tablist">
         {tabs.map(([key, label]) => (
           <button key={key} type="button" role="tab" aria-selected={tab === key} onClick={() => setTab(key)}
-            className={`rounded-full px-3 py-1 text-sm ${tab === key ? "bg-ink text-paper" : "text-ink-soft hover:text-ink"}`}>
+            className={`min-h-11 rounded-full px-4 text-sm font-semibold ${tab === key ? "bg-indigo-wash text-indigo" : "text-ink-soft hover:text-ink"}`}>
             {label}{key === "attention" && critical > 0 && <span className="ml-1 rounded-full bg-thread px-1.5 text-xs text-paper">{critical}</span>}
           </button>
         ))}

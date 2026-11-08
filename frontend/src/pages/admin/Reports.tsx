@@ -14,7 +14,7 @@ const REPORT_TYPES = [
 export default function Reports() {
   return (
     <div>
-      <h1 className="mb-6 font-display text-xl text-ink">Reports</h1>
+      <h1 className="mb-6 font-display text-3xl text-ink">Reports</h1>
       <div className="mb-8"><DeliveryInsights /></div>
       <div className="mb-8"><RecommendationsHealth /></div>
       <h2 className="mb-3 text-sm font-medium text-ink-soft">More reports (not built yet)</h2>

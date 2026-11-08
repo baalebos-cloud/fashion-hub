@@ -175,26 +175,31 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
     {
       items: [
         { label: "Overview", path: adminRoutes.dashboard, icon: <Icon d={ICONS.home} /> },
-        { label: "Users", path: adminRoutes.users, icon: <Icon d={ICONS.users} /> },
+      ],
+    },
+    {
+      heading: "Operations",
+      items: [
         { label: "Orders", path: adminRoutes.orders, icon: <Icon d={ICONS.orders} /> },
+        { label: "Dispatch", path: adminRoutes.deliveries, icon: <Icon d={ICONS.delivery} /> },
         { label: "Payments", path: adminRoutes.payments, icon: <Icon d={ICONS.payment} /> },
-        { label: "Deliveries", path: adminRoutes.deliveries, icon: <Icon d={ICONS.delivery} /> },
       ],
     },
     {
-      heading: "Verification",
+      heading: "Trust",
       items: [
-        { label: "KYC", path: adminRoutes.kyc, icon: <Icon d={ICONS.kyc} /> },
-        { label: "KYB", path: adminRoutes.kyb, icon: <Icon d={ICONS.kyc} /> },
+        { label: "Identity checks", path: adminRoutes.kyc, icon: <Icon d={ICONS.kyc} /> },
+        { label: "Business checks", path: adminRoutes.kyb, icon: <Icon d={ICONS.kyc} /> },
         { label: "Disputes", path: adminRoutes.disputes, icon: <Icon d={ICONS.dispute} /> },
+        { label: "Security", path: adminRoutes.security, icon: <Icon d={ICONS.lock} /> },
+        { label: "Audit log", path: adminRoutes.auditLogs, icon: <Icon d={ICONS.audit} /> },
       ],
     },
     {
-      heading: "Reports",
+      heading: "People and reports",
       items: [
+        { label: "Users", path: adminRoutes.users, icon: <Icon d={ICONS.users} /> },
         { label: "Reports", path: adminRoutes.reports, icon: <Icon d={ICONS.report} /> },
-        { label: "Security", path: adminRoutes.security, icon: <Icon d={ICONS.lock} /> },
-        { label: "Audit Logs", path: adminRoutes.auditLogs, icon: <Icon d={ICONS.audit} /> },
         { label: "Notifications", path: adminRoutes.notifications, icon: <Icon d={ICONS.notification} /> },
         { label: "Settings", path: adminRoutes.settings, icon: <Icon d={ICONS.settings} /> },
       ],

@@ -14,7 +14,7 @@ export function RiderRouteToggle({ partnerId }: { partnerId: string }) {
   }
   return (
     <div>
-      <button type="button" onClick={() => void toggle()} aria-expanded={open} className="text-xs font-medium text-brass-deep underline">
+      <button type="button" onClick={() => void toggle()} aria-expanded={open} className="min-h-11 self-start text-[13px] font-semibold text-indigo">
         {open ? "Hide rider's route" : "Rider's route"}
       </button>
       {open && route === undefined && <p className="text-xs text-ink-soft">Loading…</p>}
