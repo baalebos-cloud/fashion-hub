@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { trackView } from "@/lib/tracking/interactions";
-import { useParams, useNavigate } from "react-router-dom";
+import { trackView, viewSource } from "@/lib/tracking/interactions";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { professionalsApi } from "@/api/professionals.api";
 import { ProfessionalProfile as ProfessionalProfileComponent } from "@/components/professionals/ProfessionalProfile";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
@@ -10,13 +10,17 @@ import type { User } from "@/types/user";
 
 export default function ProfessionalProfile() {
   const { professionalId } = useParams<{ professionalId: string }>();
+  const [search] = useSearchParams();
+  const from = search.get("from");
   const navigate = useNavigate();
   const [professional, setProfessional] = useState<Professional | null>(null);
 
   useEffect(() => {
     if (professionalId) professionalsApi.getById(professionalId).then(setProfessional);
   }, [professionalId]);
-  useEffect(() => { if (professional) trackView("professional", professional.id, "public_profile"); }, [professional]);
+  // Only `professional` should re-record a view; `from` is read once with it.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { if (professional) trackView("professional", professional.id, viewSource(from, "public_profile")); }, [professional]);
 
   if (!professional) return <LoadingScreen label="Loading profile…" />;
 

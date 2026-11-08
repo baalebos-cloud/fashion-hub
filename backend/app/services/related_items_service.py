@@ -37,6 +37,12 @@ def _buyable(db: Session, product_ids) -> dict:
     return {product.id: (product, vendor, prices[product.id]) for product, vendor in rows}
 
 
+def _in_stock():
+    return exists().where(ProductVariant.product_id == VendorProduct.id,
+                          Inventory.product_variant_id == ProductVariant.id,
+                          Inventory.quantity_available > 0)
+
+
 def _card(product, vendor, price, reason: str, learned: bool) -> dict:
     return dict(product_id=product.id, name=product.name, vendor_name=vendor.business_name,
                 primary_image_url=product.primary_image_url, price_ngn=float(price), currency=product.currency,
@@ -70,9 +76,7 @@ def _fallback(db: Session, seeds: list[VendorProduct], exclude: set, limit: int)
     low, high = anchor * FALLBACK_PRICE_BAND[0], anchor * FALLBACK_PRICE_BAND[1]
 
     # Only in-stock products enter the pool, so sold-out items can't use up the candidate limit.
-    in_stock = exists().where(ProductVariant.product_id == VendorProduct.id,
-                              Inventory.product_variant_id == ProductVariant.id,
-                              Inventory.quantity_available > 0)
+    in_stock = _in_stock()
     picked: list[dict] = []
     for scope in ("category", "vendor"):
         query = VendorCatalogService(db).query().filter(VendorProduct.id.notin_(exclude), in_stock)
@@ -116,3 +120,30 @@ def bought_together(db: Session, product_ids: list[uuid.UUID], limit: int = 6) -
     """'Often bought together' for a cart: learned from cart adds and purchases only."""
     seeds = db.query(VendorProduct).filter(VendorProduct.id.in_(product_ids)).all()
     return _recommend(db, seeds, ("bought_together",), limit) if seeds else []
+
+
+PICKED_POOL = 200
+
+
+def picked_for_you(db: Session, assignment, limit: int = 8) -> list[dict]:
+    """'Picked for you' on the materials marketplace.
+
+    rules:   newest buyable products (reason new_in), the marketplace's own default order.
+    learned: the same pool ranked by personal_ranking_service (reason for_you when the shopper's
+             own history contributed, otherwise trending)."""
+    from app.services import personal_ranking_service
+
+    pool = (VendorCatalogService(db).query().filter(_in_stock())
+            .order_by(VendorProduct.created_at.desc(), VendorProduct.id).limit(PICKED_POOL).all())
+    buyable = _buyable(db, [product.id for product, _ in pool])
+    ordered = [product.id for product, _ in pool if product.id in buyable]
+    if assignment.learned:
+        ranked = personal_ranking_service.score_items(
+            db, assignment, "product", [(pid, buyable[pid][1].average_rating) for pid in ordered])
+        items = [_card(*buyable[pid], reason="for_you" if personal else "trending", learned=True)
+                 for pid, _, personal in ranked[:limit]]
+    else:
+        items = [_card(*buyable[pid], reason="new_in", learned=False) for pid in ordered[:limit]]
+    personal_ranking_service.log_impression(db, assignment, "picked_for_you", "product",
+                                            [item["product_id"] for item in items])
+    return items

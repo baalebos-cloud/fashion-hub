@@ -6,7 +6,7 @@ Never hard-code secrets here. This module is imported everywhere via the
 `settings` singleton, so keep it free of side effects other than reading env.
 """
 from functools import lru_cache
-from typing import Annotated, List, Optional
+from typing import Annotated, List, Literal, Optional
 
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import NoDecode, BaseSettings, SettingsConfigDict
@@ -68,6 +68,14 @@ class Settings(BaseSettings):
     SIMILARITY_HALF_LIFE_DAYS: int = 30
     SIMILARITY_MIN_SUPPORT: int = 2  # different shoppers needed before two items count as related
     SIMILARITY_TOP_N: int = 20
+    # Ranking for the budget guide, "Picked for you" and tailor search:
+    #   rules      -- today's fixed ordering for everyone
+    #   learned    -- personal ranking for everyone
+    #   experiment -- each shopper is fixed to one of the two (50/50), and the admin
+    #                 "Recommendations health" card compares them
+    RECOMMENDATIONS_MODE: Literal["rules", "learned", "experiment"] = "experiment"
+    # Changing this name reshuffles who gets which ranking (start a fresh test).
+    RECOMMENDATIONS_EXPERIMENT: str = "ranking_v1"
 
     # --- CORS ---
     CORS_ALLOWED_ORIGINS: List[str] = ["http://localhost:5173"]

@@ -185,6 +185,7 @@ export const endpoints = {
   recommendations: {
     similarProducts: (productId: string) => `/recommendations/products/${productId}/similar`,
     boughtTogether: "/recommendations/products/bought-together",
+    pickedForYou: "/recommendations/products/picked-for-you",
   },
   interactions: {
     events: "/interactions/events",

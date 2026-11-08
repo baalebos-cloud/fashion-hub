@@ -68,6 +68,7 @@ from app.models.delivery_batch import DeliveryBatch
 from app.models.courier_event import CourierEventRecord
 from app.models.interaction_event import InteractionEvent
 from app.models.item_similarity import ItemSimilarity
+from app.models.recommendation_impression import RecommendationImpression
 
 __all__ = [
     "User", "RefreshSession", "Customer", "Professional", "Tailor", "Designer",
@@ -78,7 +79,7 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord", "InteractionEvent", "ItemSimilarity",
+    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord", "InteractionEvent", "ItemSimilarity", "RecommendationImpression",
 ]
 
 from app.models.saga import SagaStepLog, LedgerEntry

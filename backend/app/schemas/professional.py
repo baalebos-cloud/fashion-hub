@@ -1,5 +1,5 @@
 import uuid
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -23,6 +23,8 @@ class ProfessionalPage(BaseModel):
     page: int
     page_size: int
     total: int
+    # Which ordering this shopper got: fixed rules, or learned personal ranking.
+    ranking: Literal["rules", "learned"] = "rules"
 
 
 class ProfessionalProfileRequest(BaseModel):

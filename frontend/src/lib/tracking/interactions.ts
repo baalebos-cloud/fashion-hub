@@ -94,6 +94,12 @@ function enqueue(event: InteractionEventIn): void {
 
 export type ItemType = "product" | "design" | "professional";
 
+/** Browser ID to send with ranking requests, or undefined when this browser opted out of
+ * tracking (the server then uses the fixed ordering and records nothing). */
+export function rankingBrowserId(): string | undefined {
+  return trackingDisabled() ? undefined : getAnonymousId() || undefined;
+}
+
 /** The page section a visit came from (e.g. ?from=similar_items), or the given default. */
 export function viewSource(fromParam: string | null, fallback: string): string {
   return fromParam && /^[a-z][a-z_]{0,31}$/.test(fromParam) ? fromParam : fallback;

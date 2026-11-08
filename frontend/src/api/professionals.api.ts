@@ -9,6 +9,9 @@ export interface ProfessionalSearchParams extends PaginationParams {
   longitude?: number;
   radiusKm?: number;
   query?: string;
+  /** Tailor search pages only: personal ranking (or the fixed order, per the ranking test). */
+  ranked?: boolean;
+  browserId?: string;
 }
 
 export const professionalsApi = {
@@ -28,6 +31,8 @@ export const professionalsApi = {
         q: params.query,
         page: params.page,
         page_size: params.pageSize,
+        ranked: params.ranked || undefined,
+        browser_id: params.ranked ? params.browserId : undefined,
       },
     });
     return response.data;

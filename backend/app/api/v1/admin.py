@@ -606,6 +606,13 @@ def courier_simulate(delivery_id: UUID, payload: CourierSimulation,
 
 
 # ---- Delivery intelligence (advisory) ------------------------------------------------------------
+@router.get("/recommendations/health")
+def recommendations_health(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
+    """Rules vs learned ranking: lists shown, click and conversion rates, and a verdict."""
+    from app.services.recommendation_health import summary
+    return summary(db)
+
+
 @router.get("/dispatch/insights")
 def dispatch_insights(db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
     """Baselines, reports and advisory recommendations. Nothing here changes a delivery."""

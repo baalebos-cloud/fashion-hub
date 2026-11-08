@@ -19,7 +19,8 @@ from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.dependencies import PaginationParams, get_current_user
+from app.core.dependencies import PaginationParams, get_current_user, get_optional_current_user
+from app.services import personal_ranking_service
 from app.core.exceptions import NotFoundError
 from app.core.permissions import Role, require_roles
 from app.models.professional import Professional
@@ -29,6 +30,7 @@ from app.schemas.professional import ProfessionalResponse, ProfessionalPage, Pro
 from app.services.professional_service import ProfessionalService
 
 router = APIRouter(prefix="/professionals", tags=["Professionals"])
+LEARNED_POOL = 500  # matches ranked personally in the learned variant; the rest follow in rules order
 
 
 @router.get("", response_model=ProfessionalPage)
@@ -38,7 +40,11 @@ def list_professionals(
     lat: float | None = Query(None, ge=-90, le=90),
     lng: float | None = Query(None, ge=-180, le=180),
     radius_km: float = Query(10, gt=0, le=200),
+    # Only the tailor search pages ask for personal ranking; other lists keep the fixed order.
+    ranked: bool = False,
+    browser_id: UUID | None = None,
     pagination: PaginationParams = Depends(),
+    user: User | None = Depends(get_optional_current_user),
     db: Session = Depends(get_db),
 ):
     if (lat is None) != (lng is None):
@@ -46,8 +52,23 @@ def list_professionals(
         raise ValidationAppError('Provide both latitude and longitude.')
     query = ProfessionalRepository(db).verified_query(professional_type=professional_type,
         query=q, latitude=lat, longitude=lng, radius_km=radius_km)
-    return {'items': query.order_by(desc(Professional.average_rating), desc(Professional.review_count), Professional.id).offset(pagination.offset).limit(pagination.page_size).all(),
-            'total': query.count(), 'page': pagination.page, 'page_size': pagination.page_size}
+    rules_order = query.order_by(desc(Professional.average_rating), desc(Professional.review_count), Professional.id)
+    total = query.count()
+    assignment = (personal_ranking_service.assign(user, str(browser_id) if browser_id else None) if ranked
+                  else personal_ranking_service.Assignment('rules', None, None, log=False))
+    pool = (rules_order.with_entities(Professional.id, Professional.average_rating).limit(LEARNED_POOL).all()
+            if assignment.learned else [])
+    if pool and pagination.offset < len(pool):
+        # Rank the best LEARNED_POOL matches (in rules order) for this shopper, then paginate.
+        ranked = [pid for pid, _, _ in personal_ranking_service.score_items(db, assignment, 'professional', pool)]
+        page_ids = ranked[pagination.offset:pagination.offset + pagination.page_size]
+        found = {p.id: p for p in db.query(Professional).filter(Professional.id.in_(page_ids))}
+        items = [found[pid] for pid in page_ids if pid in found]
+    else:
+        items = rules_order.offset(pagination.offset).limit(pagination.page_size).all()
+    personal_ranking_service.log_impression(db, assignment, 'tailor_search', 'professional', [p.id for p in items])
+    return {'items': items, 'total': total, 'page': pagination.page, 'page_size': pagination.page_size,
+            'ranking': assignment.variant}
 
 
 @router.get('/me', response_model=ProfessionalResponse | None)

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { rankingBrowserId } from "@/lib/tracking/interactions";
 import { professionalsApi } from "@/api/professionals.api";
 import { ProfessionalGrid } from "@/components/professionals/ProfessionalGrid";
 import { ProfessionalSearch } from "@/components/professionals/ProfessionalSearch";
@@ -18,7 +19,7 @@ export default function FindDesigner() {
     setError("");
     setIsLoading(true);
     professionalsApi
-      .list({ professionalType: "designer", query })
+      .list({ professionalType: "designer", query, ranked: true, browserId: rankingBrowserId() })
       .then((response) => {
         if (!active) return;
         setProfessionals(response.items);
@@ -34,7 +35,7 @@ export default function FindDesigner() {
       <h1 className="mb-6 font-display text-2xl text-ink">Find a designer</h1>
       <div className="mb-6"><ProfessionalSearch value={query} onChange={setQuery} /></div>
       {error && <p role="alert">{error}</p>}
-      <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={publicRoutes.professionalProfile} />
+      <ProfessionalGrid professionals={professionals} total={total} isLoading={isLoading} detailsPathFor={(id) => `${publicRoutes.professionalProfile(id)}?from=tailor_search`} />
     </div>
   );
 }
