@@ -55,14 +55,17 @@ When on, an identity check is approved without an admin only if **every** rule p
 (`app/services/nin_matching.py`):
 
 1. **NIN record found** by the provider.
-2. **Name matches**: each word of the account name (at least two) matches a word on the
-   NIN record, any order, allowing a one-letter typo; extra official names are fine.
+2. **Name matches**: each word of the account name (at least two) matches a *different* word
+   on the NIN record, any order, allowing a one-letter typo; extra official names are fine.
 3. **Date of birth matches**: the date the person enters equals the NIN record exactly.
    The entered date is only compared, never stored.
 4. **Profile photo** on the account.
 5. **NIN not used elsewhere**: no other account has this NIN verified or waiting. NINs are
    compared by a keyed fingerprint (`nin_fingerprint`, HMAC from `IDENTITY_ENCRYPTION_KEY`),
-   never in readable form.
+   never in readable form. Migration 0035 fingerprints existing records; any it missed are
+   fingerprinted on the next submission, and one that can't be read sends that submission to
+   manual review. Submissions of the same NIN are handled one at a time (a per-NIN database
+   lock), so two accounts racing with one NIN can't both be approved.
 
 An automatic approval has the same effects as an admin's (profile badge, notification) and
 writes an audit entry `kyc.auto_approved` with the rule results and no personal data.
@@ -70,3 +73,6 @@ If any rule fails, the check goes to the admin queue with the failed rules liste
 is ever rejected automatically.
 
 Turn it on only after the provider is configured and tested against its sandbox.
+
+HTTP client loggers (`httpx`, `httpcore`) are held at WARNING so lookup URLs, which can carry
+the NIN, never reach the logs.

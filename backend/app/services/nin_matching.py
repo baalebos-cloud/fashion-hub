@@ -18,13 +18,30 @@ def _tokens(name: str) -> list[str]:
     return [t for t in re.split(r"[^a-z]+", text) if len(t) >= 2]
 
 
+def _similar(a: str, b: str) -> bool:
+    return a == b or SequenceMatcher(None, a, b).ratio() >= TOKEN_SIMILARITY
+
+
 def name_matches(account_name: str, official_name: str) -> bool:
-    """Each word of the account name (at least two words) must match a word on the NIN record,
-    in any order. Extra official names (e.g. a middle name) are fine."""
+    """Each word of the account name (at least two words) must match a *different* word on the
+    NIN record, in any order. Extra official names (e.g. a middle name) are fine. Matching is
+    one-to-one, so "Kemi Kemi" can't use the record's single "KEMI" twice."""
     mine, theirs = _tokens(account_name), _tokens(official_name)
-    if len(mine) < 2 or not theirs:
+    if len(mine) < 2 or len(mine) > len(theirs):
         return False
-    return all(any(t == o or SequenceMatcher(None, t, o).ratio() >= TOKEN_SIMILARITY for o in theirs) for t in mine)
+    owner: dict[int, int] = {}  # official index -> account index (bipartite matching)
+
+    def place(i: int, seen: set[int]) -> bool:
+        for j, official in enumerate(theirs):
+            if j in seen or not _similar(mine[i], official):
+                continue
+            seen.add(j)
+            if j not in owner or place(owner[j], seen):
+                owner[j] = i
+                return True
+        return False
+
+    return all(place(i, set()) for i in range(len(mine)))
 
 
 def evaluate(*, account_name: str, official_name: str | None, entered_dob: date | None, official_dob: date | None,

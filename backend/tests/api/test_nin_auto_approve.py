@@ -173,3 +173,84 @@ def test_dojah_errors(monkeypatch, status, error):
 def test_dojah_needs_both_keys():
     with pytest.raises(ExternalProviderError):
         DojahNINProvider(secret_key="sk", app_id="").verify(NIN)
+
+
+# ---- review fixes -----------------------------------------------------------------------
+
+def test_http_client_logs_are_kept_quiet_so_nins_in_urls_never_reach_logs():
+    import logging
+    from app.core.logging import configure_logging
+    configure_logging()
+    assert logging.getLogger("httpx").getEffectiveLevel() >= logging.WARNING
+    assert logging.getLogger("httpcore").getEffectiveLevel() >= logging.WARNING
+
+
+def test_older_records_without_a_fingerprint_still_count_as_used(ctx):
+    from app.core.identity_encryption import encrypt_identity
+    db = ctx["db"]
+    older = ctx["make_user"](role="tailor", full_name="Kemi Adeyemi", profile_photo_url=PHOTO)
+    legacy = KYCVerification(user_id=older.id, id_type="nin", status="verified", id_number_encrypted=encrypt_identity(NIN))
+    db.add(legacy)
+    db.commit()
+    body = _submit(ctx).json()
+    assert body["status"] == "under_review"
+    db.refresh(legacy)
+    assert legacy.nin_fingerprint  # fingerprinted on the way
+    record = db.query(KYCVerification).filter_by(user_id=ctx["tailor"].id).one()
+    assert record.auto_checks["checks"]["nin_not_used_elsewhere"] is False
+
+
+def test_an_unreadable_older_record_sends_the_check_to_review(ctx):
+    db = ctx["db"]
+    older = ctx["make_user"](role="tailor")
+    db.add(KYCVerification(user_id=older.id, id_type="nin", status="verified", id_number_encrypted="fernet:v1:not-readable"))
+    db.commit()
+    assert _submit(ctx).json()["status"] == "under_review"
+
+
+@pytest.mark.parametrize("mine, theirs, ok", [
+    ("Kemi Kemi", "KEMI ABOSEDE ADEYEMI", False),          # one official word can't be used twice
+    ("Kemi Kemi", "KEMI KEMI ADEYEMI", True),               # unless the record has it twice
+    ("Ade Adeyemi", "ADEYEMI ADE", True),
+    ("Kemi Abosede Adeyemi Bola", "KEMI ABOSEDE ADEYEMI", False),
+])
+def test_name_words_are_matched_one_to_one(mine, theirs, ok):
+    assert name_matches(mine, theirs) is ok
+
+
+def test_same_nin_sent_by_two_accounts_at_once_verifies_only_one(engine, monkeypatch):
+    """Two submissions racing with the same NIN: the per-NIN lock makes the second wait and
+    see the first, so it goes to manual review instead of a second automatic approval."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    from sqlalchemy.orm import Session
+    from app.models.user import User
+    from app.services.kyc_service import KYCService
+    import uuid as _uuid
+    monkeypatch.setattr(settings, "IDENTITY_ENCRYPTION_KEY", Fernet.generate_key().decode())
+    monkeypatch.setattr(settings, "NIN_AUTO_APPROVE", True)
+    monkeypatch.setattr(kyc_factory, "get_nin_provider", lambda: FakeProvider())
+    nin = "7" + _uuid.uuid4().int.__str__()[:10]
+    with Session(engine) as s:
+        users = [User(email=f"{_uuid.uuid4()}@example.com", hashed_password="x", full_name="Kemi Adeyemi",
+                      role="tailor", profile_photo_url=PHOTO, is_active=True) for _ in range(2)]
+        s.add_all(users)
+        s.commit()
+        ids = [u.id for u in users]
+    barrier = Barrier(2)
+
+    def submit(user_id):
+        with Session(engine) as s:
+            barrier.wait(timeout=10)
+            return KYCService(s).submit(user_id=user_id, nin_number=nin, document_storage_keys=["kyc/id.jpg"],
+                                        home_latitude=None, home_longitude=None,
+                                        home_formatted_address="3 Allen Avenue, Ikeja", date_of_birth=date(1990, 4, 12)).status
+    try:
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            statuses = sorted(f.result(timeout=30) for f in [pool.submit(submit, i) for i in ids])
+        assert statuses == ["under_review", "verified"]
+    finally:
+        with Session(engine) as s:
+            s.query(KYCVerification).filter(KYCVerification.user_id.in_(ids)).delete(synchronize_session=False)
+            s.query(Notification).filter(Notification.recipient_user_id.in_(ids)).delete(synchronize_session=False)
+            s.commit()

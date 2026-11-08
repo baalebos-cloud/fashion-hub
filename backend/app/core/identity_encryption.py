@@ -24,3 +24,14 @@ def identity_fingerprint(value: str) -> str:
         raise ExternalProviderError("Identity storage is not configured.")
     key = hmac.new(settings.IDENTITY_ENCRYPTION_KEY.encode(), b"tailora:nin-fingerprint:v1", hashlib.sha256).digest()
     return hmac.new(key, value.strip().encode(), hashlib.sha256).hexdigest()
+
+
+def decrypt_identity(sealed: str) -> str:
+    """Reverse encrypt_identity. Used only to fingerprint older records; never logged or returned."""
+    if not settings.IDENTITY_ENCRYPTION_KEY:
+        raise ExternalProviderError("Identity storage is not configured.")
+    try:
+        cipher = Fernet(settings.IDENTITY_ENCRYPTION_KEY.encode())
+        return cipher.decrypt(sealed.removeprefix("fernet:v1:").encode()).decode()
+    except Exception as exc:  # wrong key, corrupt value
+        raise ExternalProviderError("A stored identity value could not be read.") from exc

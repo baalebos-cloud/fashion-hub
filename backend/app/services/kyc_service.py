@@ -80,10 +80,17 @@ class KYCService:
             similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
             identity_match = similarity >= NAME_MATCH_THRESHOLD or name_matches(user.full_name, nin_result.full_name)
 
+        # One submission per NIN at a time: two accounts sending the same NIN together are
+        # handled one after the other (lock held until this transaction commits), so the
+        # second always sees the first and goes to manual review.
+        from sqlalchemy import text
+        self.db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"), {"key": "kyc-nin:" + fingerprint})
+        legacy_complete = self._fingerprint_legacy_records()
         # The same NIN on another account (verified or waiting) never goes through automatically.
         duplicate = (self.db.query(KYCVerification.id)
                      .filter(KYCVerification.nin_fingerprint == fingerprint, KYCVerification.user_id != user_id,
-                             KYCVerification.status.in_(("pending", "under_review", "verified"))).first() is not None)
+                             KYCVerification.status.in_(("pending", "under_review", "verified"))).first() is not None
+                     or not legacy_complete)
         from app.core.profile_photo import has_photo as has_profile_photo
         decision = evaluate(account_name=user.full_name,
                             official_name=nin_result.full_name if nin_result is not None else None,
@@ -148,6 +155,28 @@ class KYCService:
         self.db.commit()
         self.db.refresh(verification)
         return verification
+
+    def _fingerprint_legacy_records(self) -> bool:
+        """Records from before fingerprints existed get one now, so the duplicate check sees them.
+        Migration 0035 does this up front when the key is available; this catches any it missed.
+        Returns False if any older record couldn't be fingerprinted: the caller then treats the
+        NIN as possibly used elsewhere (manual review) rather than skipping it."""
+        from app.core.exceptions import ExternalProviderError as _Unreadable
+        from app.core.identity_encryption import decrypt_identity, identity_fingerprint
+        from app.models.kyc_verification import KYCVerification
+        legacy = (self.db.query(KYCVerification)
+                  .filter(KYCVerification.nin_fingerprint.is_(None), KYCVerification.id_number_encrypted.isnot(None),
+                          KYCVerification.status.in_(("pending", "under_review", "verified")))
+                  .limit(501).all())
+        complete = len(legacy) <= 500
+        for record in legacy[:500]:
+            try:
+                record.nin_fingerprint = identity_fingerprint(decrypt_identity(record.id_number_encrypted))
+            except _Unreadable:
+                complete = False
+        if legacy:
+            self.db.flush()
+        return complete
 
     def _record_auto_approval(self, user, verification):
         """Same effects as an admin approval: profile badge, notification, audit entry (no personal data)."""

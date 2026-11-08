@@ -43,6 +43,12 @@ def configure_logging() -> None:
     for noisy in ("uvicorn.access", "sqlalchemy.engine"):
         logging.getLogger(noisy).setLevel(logging.WARNING if not settings.DEBUG else logging.INFO)
 
+    # HTTP clients log full request URLs at INFO/DEBUG, and some identity lookups put the
+    # identifier in the query string (Dojah: ?nin=...). Never let those reach the logs,
+    # even when debugging.
+    for client in ("httpx", "httpcore"):
+        logging.getLogger(client).setLevel(logging.WARNING)
+
 
 def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
