@@ -31,14 +31,26 @@ export async function initNativeShell(navigate: Navigate): Promise<void> {
   } catch {
     // Status bar styling is cosmetic.
   }
-  await App.addListener("backButton", ({ canGoBack }) => {
-    if (canGoBack) window.history.back();
-    else void App.minimizeApp();
-  });
-  await App.addListener("appUrlOpen", ({ url }) => {
-    const path = internalPath(url);
-    if (path) navigate(path);
-  });
+  // Links first, and each listener on its own: one that fails (the back button only exists on
+  // Android) must never stop tailora:// links from opening the right page.
+  try {
+    await App.addListener("appUrlOpen", ({ url }) => {
+      const path = internalPath(url);
+      if (path) navigate(path);
+    });
+  } catch {
+    // Links then open the app on its current page.
+  }
+  if (nativePlatform() === "android") {
+    try {
+      await App.addListener("backButton", ({ canGoBack }) => {
+        if (canGoBack) window.history.back();
+        else void App.minimizeApp();
+      });
+    } catch {
+      // Android's default back behaviour applies.
+    }
+  }
   // A link that started the app from closed isn't sent to the listener above (on Android it
   // only fires for links arriving while the app runs), so read the launch link too.
   try {
