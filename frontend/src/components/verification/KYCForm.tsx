@@ -191,9 +191,12 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         {!useManualAddress && (
           <AddressMapPicker label="Home address" onAddressSelect={(location) => {
             setHomeLocation({ latitude: location.latitude, longitude: location.longitude, formatted_address: location.formatted_address ?? undefined });
+            if (!location.formatted_address && !location.street) return; // still looking the address up
             setManualAddress((old) => ({ ...old,
-              street: location.formatted_address ?? "",
-              city: location.city ?? "", state: location.state_region ?? "",
+              street: [location.street, location.area].filter(Boolean).join(", ") || location.formatted_address || "",
+              city: [location.city, location.lga].filter((v, i, all) => v && all.indexOf(v) === i).join(", "),
+              state: location.state_region ?? "",
+              landmark: old.landmark?.trim() ? old.landmark : (location.landmark ?? old.landmark),
             }));
           }} />
         )}

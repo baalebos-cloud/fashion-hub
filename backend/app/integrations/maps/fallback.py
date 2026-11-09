@@ -12,6 +12,7 @@ from redis import Redis
 from app.core.config import settings
 from app.core.exceptions import ExternalProviderError
 from app.integrations.maps.base import GeocodeResult
+from app.integrations.maps.nigeria_address import parse_nominatim_reverse
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,7 @@ def reverse_geocode_fallback(latitude: float, longitude: float) -> GeocodeResult
     contact = settings.GEOCODING_CONTACT_EMAIL
     if not base_url.startswith("https://") or not contact or "@" not in contact:
         raise ExternalProviderError("Secondary geocoding is not configured.")
-    cache_key = f"geocoding:reverse:v1:{latitude:.5f}:{longitude:.5f}"
+    cache_key = f"geocoding:reverse:v2:{latitude:.5f}:{longitude:.5f}"
     try:
         redis = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2, socket_timeout=2)
         cached = redis.get(cache_key)
@@ -49,14 +50,7 @@ def reverse_geocode_fallback(latitude: float, longitude: float) -> GeocodeResult
         data = response.json()
         if not isinstance(data, dict) or not data.get("display_name"):
             raise ExternalProviderError("Secondary geocoding found no address.")
-        addr = data.get("address") or {}
-        result = GeocodeResult(
-            latitude=latitude, longitude=longitude,
-            formatted_address=data["display_name"],
-            city=addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality"),
-            state_region=addr.get("state"), country=addr.get("country"),
-            postal_code=addr.get("postcode"),
-        )
+        result = parse_nominatim_reverse(data, latitude, longitude)
         redis.setex(cache_key, 604800, json.dumps(result.__dict__))
         return result
     except (httpx.HTTPError, ValueError, TypeError, KeyError) as exc:
