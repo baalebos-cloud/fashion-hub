@@ -137,9 +137,10 @@ class Settings(BaseSettings):
     AI_MODEL: str = "claude-sonnet-4-6"
     AI_FALLBACK_PROVIDER: str = "groq"
     GROQ_API_KEY: Optional[str] = Field(None, repr=False)
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
+    # Groq retired Llama 3.3 70B and Llama 4 Scout for free/developer accounts (2026); see console.groq.com/docs/deprecations.
+    GROQ_MODEL: str = "openai/gpt-oss-120b"
     # Vision-capable Groq model used as the photo-measurement fallback.
-    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
+    GROQ_VISION_MODEL: str = "qwen/qwen3.8-27b"  # image input + JSON mode (console.groq.com/docs/vision)
     VERTEX_AI_API_KEY: Optional[str] = Field(None, repr=False)
     VERTEX_AI_ENABLED: bool = False
     # Temporary hackathon discoverability; does not grant KYC/KYB approval.
@@ -150,7 +151,7 @@ class Settings(BaseSettings):
     GCP_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)
     GEMINI_API_KEY: Optional[str] = Field(None, repr=False)
     GCP_REGION: str = "us-central1"
-    VERTEX_AI_MODEL_NAME: str = "gemini-1.5-flash"
+    VERTEX_AI_MODEL_NAME: str = "gemini-3.6-flash"  # Gemini 1.5 was shut down in Sept 2025
 
     # --- Notifications ---
     EMAIL_PROVIDER: str = "smtp"

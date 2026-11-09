@@ -23,6 +23,27 @@ class ChatCompletionResult:
     raw_response: dict
 
 
+# Reasoning models (gpt-oss, Qwen 3) spend part of the length allowance thinking before they answer.
+# Give them room for that on top of the answer's own limit, and keep gpt-oss's thinking short.
+REASONING_MODEL_PREFIXES = ("openai/gpt-oss", "qwen/qwen3")
+REASONING_TOKENS = 1536
+
+
+def groq_length_settings(model: str, answer_tokens: int) -> dict:
+    if not model.startswith(REASONING_MODEL_PREFIXES):
+        return {"max_tokens": answer_tokens}
+    # gpt-oss: keep thinking short (its thinking never appears in the answer text). Qwen 3: keep the
+    # thinking out of the answer text, which JSON replies need.
+    extra = ({"reasoning_effort": "low"} if model.startswith("openai/gpt-oss")
+             else {"reasoning_format": "hidden"})
+    return {"max_completion_tokens": answer_tokens + REASONING_TOKENS, **extra}
+
+
+def strip_reasoning(text: str) -> str:
+    """Remove a <think>…</think> block some models put before their answer."""
+    return re.sub(r"<think>.*?</think>", "", text or "", flags=re.DOTALL).strip()
+
+
 class LLMClient:
     def __init__(self, api_key: str | None = None, model: str | None = None, timeout: float | None = None):
         self.api_key = api_key if api_key is not None else settings.AI_API_KEY
@@ -59,8 +80,8 @@ class LLMClient:
             "model": settings.GROQ_MODEL,
             "messages": [{"role": msg.role, "content": msg.content}
                          for msg in messages if msg.role in {"system", "user", "assistant"}],
-            "max_tokens": max_tokens,
             "temperature": 0.2,
+            **groq_length_settings(settings.GROQ_MODEL, max_tokens),
         }
         if not payload["messages"]:
             raise ExternalProviderError("Seam requires a message.")
@@ -78,7 +99,7 @@ class LLMClient:
             raise ExternalProviderError(f"Groq request failed (HTTP {response.status_code}).")
         try:
             data = response.json()
-            answer = data["choices"][0]["message"]["content"]
+            answer = strip_reasoning(data["choices"][0]["message"]["content"])
             if not isinstance(answer, str) or not answer.strip():
                 raise ValueError("empty")
         except (ValueError, KeyError, IndexError, TypeError):
