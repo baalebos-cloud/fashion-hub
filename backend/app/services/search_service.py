@@ -43,7 +43,7 @@ class SearchService:
     def search_vendor_products(self, *, query: str, category_id=None):
         catalog = VendorCatalogService(self.db)
         pattern = _contains(query)
-        results = catalog.query().filter(or_(
+        results = catalog.query(include_unverified=True).filter(or_(
             VendorProduct.name.ilike(pattern, escape="\\"),
             VendorProduct.description.ilike(pattern, escape="\\"),
         ))

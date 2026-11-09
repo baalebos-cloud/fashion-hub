@@ -67,17 +67,21 @@ class VendorCatalogService:
                     variants=[dict(id=v.id, product_id=v.product_id, sku=v.sku, attributes=v.attributes,
                                    price=float(v.price), quantity_available=i.quantity_available if i else 0) for v, i in variants])
 
-    def query(self, owner_user_id=None):
+    def query(self, owner_user_id=None, *, include_unverified=False):
+        """Active NGN products of active vendors. Verified vendors only, unless include_unverified: the
+        marketplace, product pages and search show products from vendors still being verified (marked,
+        not orderable); recommendations and the budget guide suggest only orderable products."""
         query = self.db.query(VendorProduct, Vendor).join(Vendor, Vendor.id == VendorProduct.vendor_id).join(User, User.id == Vendor.user_id)
         if owner_user_id:
             return query.filter(Vendor.user_id == owner_user_id, User.role == 'vendor', User.is_active.is_(True))
         # Owner's choice: tailors and customers see every active vendor's products straight away; products
         # from vendors still being verified are marked (vendor_verified=False) and can't be ordered until
         # the vendor is verified (assert_purchasable, cart_service).
-        return query.filter(VendorProduct.is_active.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
+        query = query.filter(VendorProduct.is_active.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
+        return query if include_unverified else query.filter(Vendor.is_verified.is_(True))
 
-    def list(self, pagination, *, vendor_id=None, category_id=None, owner_user_id=None):
-        query = self.query(owner_user_id)
+    def list(self, pagination, *, vendor_id=None, category_id=None, owner_user_id=None, include_unverified=True):
+        query = self.query(owner_user_id, include_unverified=include_unverified)
         if vendor_id:
             query = query.filter(VendorProduct.vendor_id == vendor_id)
         if category_id:
@@ -91,7 +95,7 @@ class VendorCatalogService:
                     page_size=pagination.page_size, total_pages=(total + pagination.page_size - 1) // pagination.page_size)
 
     def get(self, product_id):
-        row = self.query().filter(VendorProduct.id == product_id).first()
+        row = self.query(include_unverified=True).filter(VendorProduct.id == product_id).first()
         if not row:
             from app.core.exceptions import NotFoundError
             raise NotFoundError('Product not found.')

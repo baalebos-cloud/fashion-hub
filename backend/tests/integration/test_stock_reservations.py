@@ -459,3 +459,22 @@ def test_concurrent_restock_retry_is_applied_once(migration_database):
         inv = db.query(Inventory).filter_by(product_variant_id=variant_id).one()
         assert (inv.quantity_available, inv.quantity_reserved) == (6, 0)
         assert db.query(InventoryRestock).count() == 1
+
+
+def test_recommendations_and_budget_guide_suggest_only_verified_vendors(db, make_user):
+    from decimal import Decimal
+    from app.models.vendor import Vendor
+    from app.models.vendor_product import VendorProduct
+    from app.services.vendor_catalog_service import VendorCatalogService
+    verified_user, pending_user = make_user(role="vendor"), make_user(role="vendor")
+    verified = Vendor(user_id=verified_user.id, business_name="Verified Fabrics", is_verified=True)
+    pending = Vendor(user_id=pending_user.id, business_name="Pending Fabrics", is_verified=False)
+    db.add_all([verified, pending])
+    db.flush()
+    db.add_all([VendorProduct(vendor_id=v.id, name=f"{v.business_name} lace", base_price=Decimal(1000), currency="NGN",
+                              image_urls=[], unit_of_measure="yard") for v in (verified, pending)])
+    db.commit()
+    names = lambda q: {p.name for p, _ in q.all() if p.vendor_id in (verified.id, pending.id)}
+    service = VendorCatalogService(db)
+    assert names(service.query()) == {"Verified Fabrics lace"}  # recommendations / related items
+    assert names(service.query(include_unverified=True)) == {"Verified Fabrics lace", "Pending Fabrics lace"}
