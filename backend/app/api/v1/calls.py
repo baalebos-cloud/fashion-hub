@@ -10,7 +10,7 @@ import uuid
 from datetime import datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
@@ -84,26 +84,48 @@ def _app_calls(db: Session):
     return AppCallService(db)
 
 
+def _push_after(background: BackgroundTasks, service, *, incoming: str | None = None) -> None:
+    """Phone alerts go out after the response: ring for a new call, and replace the alert with
+    "Missed call" for calls that stopped ringing unanswered during this request."""
+    from app.services import call_push
+    if incoming:
+        background.add_task(call_push.notify_incoming, incoming)
+    for call_id in service.ended_unanswered:
+        background.add_task(call_push.notify_missed, call_id)
+
+
 @router.post("/app", response_model=AppCallJoin, status_code=201)
 @limiter.limit("10/10minutes")
-def start_app_call(request: Request, payload: StartCallRequest, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def start_app_call(request: Request, payload: StartCallRequest, background: BackgroundTasks,
+                   user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    service = _app_calls(db)
     try:
-        return _app_calls(db).start(actor=user, order_id=payload.order_id, callee=payload.callee)
+        result = service.start(actor=user, order_id=payload.order_id, callee=payload.callee)
     except livekit.AppCallsNotConfigured as exc:
         raise HTTPException(503, str(exc)) from exc
+    _push_after(background, service, incoming=result["call_id"])
+    return result
 
 
 @router.get("/app/incoming", response_model=list[AppCallView])
 @limiter.limit("60/minute")
-def incoming_app_calls(request: Request, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def incoming_app_calls(request: Request, background: BackgroundTasks, user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
     if not livekit.configured():
         return []
-    return _app_calls(db).incoming(actor=user)
+    service = _app_calls(db)
+    result = service.incoming(actor=user)
+    _push_after(background, service)
+    return result
 
 
 @router.get("/app/{call_id}", response_model=AppCallView)
-def app_call_status(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _app_calls(db).status(actor=user, call_id=call_id)
+def app_call_status(call_id: uuid.UUID, background: BackgroundTasks, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    service = _app_calls(db)
+    result = service.status(actor=user, call_id=call_id)
+    _push_after(background, service)
+    return result
 
 
 @router.post("/app/{call_id}/answer", response_model=AppCallJoin)
@@ -115,23 +137,39 @@ def answer_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), 
 
 
 @router.post("/app/{call_id}/heartbeat", response_model=AppCallView)
-def app_call_heartbeat(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _app_calls(db).heartbeat(actor=user, call_id=call_id)
+def app_call_heartbeat(call_id: uuid.UUID, background: BackgroundTasks, user: User = Depends(get_current_user),
+                       db: Session = Depends(get_db)):
+    service = _app_calls(db)
+    result = service.heartbeat(actor=user, call_id=call_id)
+    _push_after(background, service)
+    return result
 
 
 @router.post("/app/{call_id}/decline", response_model=AppCallView)
-def decline_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _app_calls(db).decline(actor=user, call_id=call_id)
+def decline_app_call(call_id: uuid.UUID, background: BackgroundTasks, user: User = Depends(get_current_user),
+                     db: Session = Depends(get_db)):
+    service = _app_calls(db)
+    result = service.decline(actor=user, call_id=call_id)
+    _push_after(background, service)
+    return result
 
 
 @router.post("/app/{call_id}/cancel", response_model=AppCallView)
-def cancel_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _app_calls(db).cancel(actor=user, call_id=call_id)
+def cancel_app_call(call_id: uuid.UUID, background: BackgroundTasks, user: User = Depends(get_current_user),
+                    db: Session = Depends(get_db)):
+    service = _app_calls(db)
+    result = service.cancel(actor=user, call_id=call_id)
+    _push_after(background, service)
+    return result
 
 
 @router.post("/app/{call_id}/end", response_model=AppCallView)
-def end_app_call(call_id: uuid.UUID, user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    return _app_calls(db).end(actor=user, call_id=call_id)
+def end_app_call(call_id: uuid.UUID, background: BackgroundTasks, user: User = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
+    service = _app_calls(db)
+    result = service.end(actor=user, call_id=call_id)
+    _push_after(background, service)
+    return result
 
 
 @router.post("", response_model=StartCallResponse, status_code=201)
