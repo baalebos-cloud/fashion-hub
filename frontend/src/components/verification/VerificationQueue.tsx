@@ -28,23 +28,34 @@ function RegistryCheck({ item, kind }: { item: VerificationQueueItem; kind: "kyc
   );
 }
 
-const RULE_LABEL: Record<string, string> = {
-  record_found: "NIN record found",
-  name_matches: "Name matches the NIN record",
-  date_of_birth_matches: "Date of birth matches the NIN record",
-  profile_photo: "Has a profile photo",
-  nin_not_used_elsewhere: "NIN not used on another account",
+const RULE_LABEL: Record<"kyc" | "kyb", Record<string, string>> = {
+  kyc: {
+    record_found: "NIN record found",
+    name_matches: "Name matches the NIN record",
+    date_of_birth_matches: "Date of birth matches the NIN record",
+    profile_photo: "Has a profile photo",
+    nin_not_used_elsewhere: "NIN not used on another account",
+  },
+  kyb: {
+    record_found: "CAC record found",
+    company_active: "Company is active on the CAC register",
+    business_name_matches: "Business name matches the CAC record",
+    identity_verified: "Owner's identity (NIN) is verified",
+    owner_listed: "Owner is listed as a director, proprietor or shareholder",
+    profile_photo: "Has a profile photo",
+    registration_not_used_elsewhere: "Registration number not used on another account",
+  },
 };
 
-/** Why an identity check wasn't approved automatically. */
-function AutoChecks({ checks }: { checks: Record<string, boolean> }) {
+/** Why a check wasn't approved automatically. */
+function AutoChecks({ checks, kind }: { checks: Record<string, boolean>; kind: "kyc" | "kyb" }) {
   const failed = Object.entries(checks).filter(([, ok]) => !ok);
   if (failed.length === 0) return null;
   return (
     <div className="rounded-control border border-line bg-paper px-3 py-2 text-[13px]">
       <p className="font-semibold text-ink">Not approved automatically because:</p>
       <ul className="mt-1 list-disc pl-5 text-ink-soft">
-        {failed.map(([key]) => <li key={key}>{RULE_LABEL[key] ?? key}: no</li>)}
+        {failed.map(([key]) => <li key={key}>{RULE_LABEL[kind][key] ?? key}: no</li>)}
       </ul>
     </div>
   );
@@ -121,7 +132,7 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
         <span className="text-[13px] text-ink-soft">Submitted <DateTimeDisplay value={item.submitted_at} format="relative" /></span>
       </div>
       <RegistryCheck item={item} kind={kind} />
-      {kind === "kyc" && item.auto_checks && <AutoChecks checks={item.auto_checks} />}
+      {item.auto_checks && <AutoChecks checks={item.auto_checks} kind={kind} />}
       <div className="flex flex-wrap gap-2">
         {item.documents.length === 0 && <span className="text-xs text-thread">No documents attached.</span>}
         {item.documents.map((doc, i) => (

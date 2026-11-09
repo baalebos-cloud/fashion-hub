@@ -54,3 +54,17 @@ describe("admin identity queue", () => {
     expect(screen.queryByText(/Name matches the NIN record/)).toBeNull();
   });
 });
+
+describe("admin business queue", () => {
+  it("lists the business rules that stopped automatic approval", async () => {
+    vi.mocked(verificationApi.queue).mockResolvedValue([{ id: "b1", status: "under_review", submitted_at: new Date().toISOString(),
+      applicant_name: "Ada Obi", applicant_role: "vendor", documents: [], official_name: "LACE WORLD LIMITED", name_match: true,
+      registry_checked: true, business_name: "Lace World", registration: "RC 1234567",
+      auto_checks: { record_found: true, company_active: true, business_name_matches: true, identity_verified: true,
+        owner_listed: false, profile_photo: true, registration_not_used_elsewhere: true } }]);
+    render(<VerificationQueue kind="kyb" />);
+    expect(await screen.findByText("Not approved automatically because:")).toBeTruthy();
+    expect(screen.getByText("Owner is listed as a director, proprietor or shareholder: no")).toBeTruthy();
+    expect(screen.queryByText(/Company is active/)).toBeNull();
+  });
+});

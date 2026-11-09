@@ -1,7 +1,9 @@
 """Prembly CAC (Corporate Affairs Commission) lookup for Nigerian business KYB.
 
-Returns only the registry's company name and status. Raw provider payloads,
-keys and directors' details are never logged or stored.
+Returns the registry's company name and status, and the people listed on the company
+(directors, proprietors, shareholders) for the automatic-approval check. The people are
+used in memory only: raw provider payloads, keys and directors' details are never logged
+or stored.
 
 Prembly has published more than one URL for this product, so the endpoint
 is configurable (PREMBLY_CAC_URL). Any provider failure is reported as
@@ -10,7 +12,8 @@ ExternalProviderError, which the KYB flow turns into manual admin review.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import date, datetime
 
 import httpx
 
@@ -21,9 +24,48 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class CACPerson:
+    full_name: str
+    date_of_birth: date | None
+    role: str | None  # e.g. DIRECTOR, PROPRIETOR, SHAREHOLDER, SECRETARY (as the registry names it)
+    active: bool
+
+
+@dataclass
 class CACResult:
     company_name: str
     registration_status: str | None
+    people: list[CACPerson] = field(default_factory=list)
+
+
+def _date(value) -> date | None:
+    text = str(value or "").strip()[:10]
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(text, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _people(record: dict) -> list[CACPerson]:
+    raw = record.get("directors") or record.get("affiliates") or []
+    people = []
+    for item in raw if isinstance(raw, list) else []:
+        if not isinstance(item, dict) or item.get("isCorporate") is True:
+            continue  # a company holding shares is not a person who can own this account
+        name = " ".join(str(item.get(k) or "").strip() for k in ("firstname", "otherName", "surname")).strip()
+        if not name:
+            name = str(item.get("name") or item.get("fullName") or "").strip()
+        if not name:
+            continue
+        kind = item.get("affiliateTypeFk")
+        role = (kind.get("name") if isinstance(kind, dict) else None) or item.get("affiliateType") or item.get("role")
+        status = str(item.get("status") or "").strip().upper()
+        people.append(CACPerson(full_name=name[:255], date_of_birth=_date(item.get("dateOfBirth")),
+                                role=str(role).strip().upper()[:64] if role else None,
+                                active=status in {"", "ACTIVE"}))
+    return people
 
 
 def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
@@ -71,5 +113,5 @@ def lookup_cac(rc_number: str, company_type: str, http_post=None) -> CACResult:
                  if record.get(k)), "")
     if not name:
         raise ExternalProviderError("Business lookup returned no company name.")
-    status = next((str(record[k]) for k in ("status", "companyStatus", "company_status") if record.get(k)), None)
-    return CACResult(company_name=name[:255], registration_status=status)
+    status = next((str(record[k]) for k in ("company_status", "companyStatus", "status") if record.get(k)), None)
+    return CACResult(company_name=name[:255], registration_status=status, people=_people(record))

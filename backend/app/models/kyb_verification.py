@@ -4,7 +4,7 @@ from typing import Any
 """Business (KYB) verification for vendors and professional businesses."""
 import uuid
 from sqlalchemy import String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -22,6 +22,8 @@ class KYBVerification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     # Filled only from the CAC registry lookup, never from user input.
     verified_company_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     name_match: Mapped[bool | None] = mapped_column(nullable=True)
+    # Which automatic-approval rules passed (services/kyb_matching.py); no personal data.
+    auto_checks: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending", index=True)
     rejection_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)

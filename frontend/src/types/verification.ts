@@ -28,7 +28,7 @@ export interface VerificationQueueItem {
   official_name: string | null;
   name_match: boolean | null;
   registry_checked: boolean;
-  /** Identity checks only: which automatic-approval rules passed (true) or failed (false). */
+  /** Which automatic-approval rules passed (true) or failed (false). */
   auto_checks?: Record<string, boolean> | null;
   business_name?: string | null;
   registration?: string;
