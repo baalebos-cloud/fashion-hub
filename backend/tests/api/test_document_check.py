@@ -240,3 +240,68 @@ def test_admins_can_open_documents_from_any_storage(ctx, monkeypatch):
     monkeypatch.setattr(object_storage, "get_storage_provider", lambda: Gone())
     res = ctx["http"].get(f"/api/v1/admin/verification-documents/{doc.id}/content")
     assert res.status_code == 404 and "upload it again" in res.text
+
+
+# ---- saying why a check couldn't run, and reading PDFs ---------------------------------------------
+def _groq_only(monkeypatch):
+    monkeypatch.setattr(settings, "VERTEX_AI_ENABLED", False)
+    monkeypatch.setattr(settings, "AI_FALLBACK_PROVIDER", "groq")
+    monkeypatch.setattr(settings, "GROQ_API_KEY", "test")
+
+
+@pytest.mark.parametrize("status, body, words", [
+    (401, {"error": {"code": "invalid_api_key"}}, "API key was refused"),
+    (404, {"error": {"code": "model_not_found"}}, "wasn't found"),
+    (429, {}, "too many requests"),
+])
+def test_the_note_says_exactly_why_groq_failed(monkeypatch, status, body, words):
+    _groq_only(monkeypatch)
+    result = DocumentCheckService(http_post=lambda *a, **k: Reply(body, status)).check(
+        [(JPEG, "image/jpeg")], account_name="Kemi Adeyemi", reference_dob=DOB, entered_nin=NIN)
+    assert not result.passed and not result.checked
+    assert f"HTTP {status}" in result.note and words in result.note
+
+
+def test_vertex_failure_is_named_before_falling_back(monkeypatch):
+    monkeypatch.setattr(settings, "VERTEX_AI_ENABLED", True)
+    monkeypatch.setattr(settings, "GROQ_API_KEY", None)
+
+    class Broken:
+        def _structured(self, schema, parts):
+            raise PermissionError("no access")
+
+    result = DocumentCheckService(vertex=Broken()).check([(JPEG, "image/jpeg")], account_name="Kemi Adeyemi",
+                                                        reference_dob=DOB, entered_nin=NIN)
+    assert "Vertex AI: PermissionError" in result.note and not result.checked
+
+
+def _pdf_with_a_page() -> bytes:
+    import io
+
+    import pypdfium2 as pdfium
+    pdf = pdfium.PdfDocument.new()
+    pdf.new_page(300, 200)
+    out = io.BytesIO()
+    pdf.save(out)
+    return out.getvalue()
+
+
+def test_a_pdf_nin_slip_is_sent_to_groq_as_an_image(monkeypatch):
+    _groq_only(monkeypatch)
+    sent = {}
+
+    def post(url, **kwargs):
+        sent.update(kwargs)
+        return Reply({"choices": [{"message": {"content": json.dumps(GOOD)}}]})
+
+    result = DocumentCheckService(http_post=post).check([(_pdf_with_a_page(), "application/pdf")],
+                                                        account_name="Kemi Adeyemi", reference_dob=DOB, entered_nin=NIN)
+    assert result.passed and result.checked
+    assert sent["json"]["messages"][0]["content"][1]["image_url"]["url"].startswith("data:image/png;base64,")
+
+
+def test_a_damaged_pdf_is_explained(monkeypatch):
+    _groq_only(monkeypatch)
+    result = DocumentCheckService(http_post=lambda *a, **k: Reply({}, 500)).check(
+        [(b"%PDF-1.4 not really", "application/pdf")], account_name="Kemi Adeyemi", reference_dob=DOB, entered_nin=NIN)
+    assert "couldn't be turned into an image" in result.note and not result.checked

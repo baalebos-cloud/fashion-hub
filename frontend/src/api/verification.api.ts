@@ -38,7 +38,7 @@ export const verificationApi = {
     return { url: URL.createObjectURL(response.data), type: response.data.type || "application/octet-stream" };
   },
   /** Run Tailora's document check on a waiting identity submission (adds a note; never decides). */
-  async checkDocument(id: string): Promise<{ checks: Record<string, boolean>; document_note: string; passed: boolean }> {
+  async checkDocument(id: string): Promise<{ checks: Record<string, boolean>; document_note: string; passed: boolean; checked: boolean }> {
     return (await apiClient.post(`/admin/kyc/${id}/document-check`, null, { timeout: 60_000 })).data;
   },
 };

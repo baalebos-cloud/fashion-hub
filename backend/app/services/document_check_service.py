@@ -61,6 +61,7 @@ class DocumentCheck:
     passed: bool
     note: str
     provider: str | None
+    checked: bool = True  # False: the document couldn't be read, so the note only explains why
 
 
 class DocumentCheckUnavailable(Exception):
@@ -148,7 +149,28 @@ def compare(reading: DocumentReading, *, account_name: str, reference_dob: date 
 def unavailable_check(reason: str) -> DocumentCheck:
     return DocumentCheck(checks={"document_readable": None}, passed=False,
                          note=f"Tailora couldn't check the document automatically ({reason}). Compare it by hand.",
-                         provider=None)
+                         provider=None, checked=False)
+
+
+def pdf_first_page_png(data: bytes) -> bytes | None:
+    """First page of a PDF as a PNG, so photo-only readers (Groq) can read NIN slips sent as PDFs."""
+    try:
+        import io
+
+        import pypdfium2 as pdfium
+        pdf = pdfium.PdfDocument(data)
+        try:
+            if len(pdf) == 0:
+                return None
+            image = pdf[0].render(scale=2).to_pil()
+            image.thumbnail((2000, 2000))
+            out = io.BytesIO()
+            image.convert("RGB").save(out, format="PNG", optimize=True)
+            return out.getvalue()
+        finally:
+            pdf.close()
+    except Exception:  # noqa: BLE001 - a broken or encrypted PDF just can't be read automatically
+        return None
 
 
 class DocumentCheckService:
@@ -169,16 +191,20 @@ class DocumentCheckService:
         usable = [(data, ctype) for data, ctype in documents
                   if 0 < len(data) <= MAX_DOCUMENT_BYTES and (ctype in IMAGE_TYPES or ctype == "application/pdf")][:2]
         if not usable:
-            return unavailable_check("no readable image was uploaded")
+            kinds = ", ".join(sorted({ctype for _, ctype in documents})) or "no file"
+            return unavailable_check(f"the upload isn't a photo or PDF under 5 MB ({kinds})")
         try:
             reading, provider = self._read(usable)
-        except DocumentCheckUnavailable:
-            return unavailable_check("the reading service is unavailable right now")
+        except DocumentCheckUnavailable as exc:
+            return unavailable_check(str(exc))
         result = compare(reading, account_name=account_name, reference_dob=reference_dob, entered_nin=entered_nin)
         result.provider = provider
         return result
 
     def _read(self, documents: list[tuple[bytes, str]]) -> tuple[DocumentReading, str]:
+        """Read with Vertex AI, then Groq. On failure, the exception says why, in words an admin can act
+        on (no document content): which service failed and how."""
+        problems: list[str] = []
         if settings.VERTEX_AI_ENABLED:
             try:
                 from google.genai import types
@@ -189,35 +215,69 @@ class DocumentCheckService:
                     types.Part.from_bytes(data=data, mime_type=ctype) for data, ctype in documents]
                 # Bounded wait, so a slow provider can't outlast the app's request (Groq is tried next).
                 from concurrent.futures import ThreadPoolExecutor
+                from concurrent.futures import TimeoutError as Timeout
                 pool = ThreadPoolExecutor(max_workers=1)
                 try:
                     reading = pool.submit(vertex._structured, DocumentReading, parts).result(timeout=READ_TIMEOUT_SECONDS)
+                except Timeout:
+                    raise TimeoutError("timed out") from None
                 finally:
                     pool.shutdown(wait=False)
                 return reading, "vertex_ai"
             except Exception as exc:  # noqa: BLE001 - provider errors must not leak; fall back.
                 logger.warning("document_check_vertex_failed", extra={"error_type": type(exc).__name__})
-        images = [(data, ctype) for data, ctype in documents if ctype in IMAGE_TYPES]
-        if settings.AI_FALLBACK_PROVIDER.lower() == "groq" and settings.GROQ_API_KEY and images:
-            content = [{"type": "text", "text": PROMPT}] + [
-                {"type": "image_url", "image_url": {"url": f"data:{ctype};base64,{base64.b64encode(data).decode()}"}}
-                for data, ctype in images]
+                problems.append(f"Vertex AI: {'took too long' if isinstance(exc, TimeoutError) else type(exc).__name__}")
+        groq_ready = settings.AI_FALLBACK_PROVIDER.lower() == "groq" and bool(settings.GROQ_API_KEY)
+        if groq_ready:
+            images = []
+            for data, ctype in documents:
+                if ctype in IMAGE_TYPES:
+                    images.append((data, ctype))
+                elif ctype == "application/pdf" and (png := pdf_first_page_png(data)):
+                    images.append((png, "image/png"))
+            if not images:
+                problems.append("Groq: the PDF couldn't be turned into an image (it may be encrypted or damaged)")
+            else:
+                reading = self._groq(images, problems)
+                if reading is not None:
+                    return reading, "groq"
+        raise DocumentCheckUnavailable("; ".join(problems) or "no reading service is configured")
+
+    def _groq(self, images: list[tuple[bytes, str]], problems: list[str]) -> DocumentReading | None:
+        content = [{"type": "text", "text": PROMPT}] + [
+            {"type": "image_url", "image_url": {"url": f"data:{ctype};base64,{base64.b64encode(data).decode()}"}}
+            for data, ctype in images]
+        try:
+            response = self._post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+                json={"model": settings.GROQ_VISION_MODEL, "temperature": 0, "max_tokens": 600,
+                      "response_format": {"type": "json_object"},
+                      "messages": [{"role": "user", "content": content}]},
+                timeout=READ_TIMEOUT_SECONDS)
+        except httpx.TimeoutException:
+            problems.append("Groq: took too long")
+            return None
+        except httpx.HTTPError as exc:
+            problems.append(f"Groq: couldn't connect ({type(exc).__name__})")
+            return None
+        if response.status_code != 200:
+            code = ""
             try:
-                response = self._post(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                    json={"model": settings.GROQ_VISION_MODEL, "temperature": 0, "max_tokens": 600,
-                          "response_format": {"type": "json_object"},
-                          "messages": [{"role": "user", "content": content}]},
-                    timeout=READ_TIMEOUT_SECONDS)
-            except httpx.HTTPError as exc:
-                raise DocumentCheckUnavailable("network") from exc
-            if response.status_code != 200:
-                logger.warning("document_check_groq_http status=%d", response.status_code)
-                raise DocumentCheckUnavailable("http")
-            try:
-                text = response.json()["choices"][0]["message"]["content"]
-                return DocumentReading.model_validate(json.loads(text)), "groq"
-            except (KeyError, IndexError, TypeError, ValueError, ValidationError) as exc:
-                raise DocumentCheckUnavailable("invalid") from exc
-        raise DocumentCheckUnavailable("none")
+                error = response.json().get("error") or {}
+                code = str(error.get("code") or error.get("type") or "")[:60]
+            except (ValueError, AttributeError):
+                pass
+            logger.warning("document_check_groq_http status=%d code=%s", response.status_code, code or "-")
+            hint = {401: "the API key was refused", 403: "the API key isn't allowed to use this model",
+                    404: f"the model {settings.GROQ_VISION_MODEL} wasn't found",
+                    429: "too many requests right now"}.get(response.status_code, "")
+            problems.append(f"Groq: HTTP {response.status_code}" + (f", {hint}" if hint else "")
+                            + (f" [{code}]" if code else ""))
+            return None
+        try:
+            text = response.json()["choices"][0]["message"]["content"]
+            return DocumentReading.model_validate(json.loads(text))
+        except (KeyError, IndexError, TypeError, ValueError, ValidationError):
+            problems.append("Groq: the reply couldn't be understood")
+            return None

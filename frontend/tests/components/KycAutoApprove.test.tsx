@@ -75,7 +75,7 @@ describe("Tailora's document check in the identity queue", () => {
     official_name: null, name_match: null, registry_checked: false };
 
   it("shows the note, pre-fills it for the applicant, and explains the authenticator code", async () => {
-    vi.mocked(verificationApi.queue).mockResolvedValue([{ ...base, document_note: "Tailora checked your NIN slip: the name matches your account." }]);
+    vi.mocked(verificationApi.queue).mockResolvedValue([{ ...base, document_checked: true, document_note: "Tailora checked your NIN slip: the name matches your account." }]);
     render(<VerificationQueue kind="kyc" />);
     expect(await screen.findByText("Tailora's document check")).toBeTruthy();
     expect((screen.getByLabelText(/Note to applicant/) as HTMLTextAreaElement).value).toMatch(/the name matches your account/);
@@ -84,7 +84,7 @@ describe("Tailora's document check in the identity queue", () => {
 
   it("runs the check on an older submission", async () => {
     vi.mocked(verificationApi.queue).mockResolvedValue([base]);
-    vi.mocked(verificationApi.checkDocument).mockResolvedValue({ passed: false,
+    vi.mocked(verificationApi.checkDocument).mockResolvedValue({ passed: false, checked: true,
       checks: { document_readable: true, document_name_matches: false },
       document_note: "Tailora checked your document: the name on the NIN slip (ADA OBI) doesn't match." });
     render(<VerificationQueue kind="kyc" />);
@@ -93,4 +93,15 @@ describe("Tailora's document check in the identity queue", () => {
     expect(screen.getByText("Name on the document matches the account: no")).toBeTruthy();
     expect(verificationApi.checkDocument).toHaveBeenCalledWith("k2");
   });
+});
+
+it("doesn't put a 'couldn't check' note into the message to the applicant, and offers a retry", async () => {
+  vi.mocked(verificationApi.queue).mockResolvedValue([{ id: "k3", status: "under_review", submitted_at: new Date().toISOString(),
+    applicant_name: "Bisi Ade", applicant_role: "tailor", documents: [{ id: "d1", type: "nin" }], official_name: null,
+    name_match: null, registry_checked: false, document_checked: false,
+    document_note: "Tailora couldn't check the document automatically (Groq: HTTP 404, the model wasn't found). Compare it by hand." }]);
+  render(<VerificationQueue kind="kyc" />);
+  expect(await screen.findByText(/Groq: HTTP 404/)).toBeTruthy();
+  expect((screen.getByLabelText(/Note to applicant/) as HTMLTextAreaElement).value).toBe("");
+  expect(screen.getByRole("button", { name: "Try the check again" })).toBeTruthy();
 });
