@@ -18,11 +18,11 @@ done by the owner from their own Apple and Google accounts.
 | App icon 1024×1024 (iOS) and all Android sizes | `AppIcon.appiconset`, `res/mipmap-*` |
 | Privacy policy and terms pages | `/privacy`, `/terms` on the website |
 
-## Still to decide before the first submission
+## Also needed before the first submission
 
-- **In-app account deletion.** Apple requires that anyone who can create an account in the app can
-  also start deleting it in the app (App Review Guideline 5.1.1(v)); Google Play requires a deletion
-  link too. Tailora can't do this yet; it needs a backend change, proposed separately.
+- **In-app account deletion** (Apple Guideline 5.1.1(v), Google Play): Settings → *Delete account*,
+  added in a separate PR (see [account-deletion.md](account-deletion.md)). For Google Play's
+  "delete account" link, use the website's sign-in page; deleting is in Settings once signed in.
 - **Real app icon.** The current icon is a placeholder (white serif "T" on indigo).
 
 ## Each release
@@ -124,5 +124,5 @@ tracking or advertising, nothing is sold, and all data is sent over HTTPS.
 
 - Card details are entered with the payment provider, not stored by Tailora.
 - Call audio is relayed live and not recorded or stored.
-- Google Play: data can be deleted on request (in the app once account deletion ships, and through
-  the contact page until then).
+- Google Play: people can delete their account and data in the app (Settings → Delete account);
+  records kept for legal reasons are listed in [account-deletion.md](account-deletion.md).
