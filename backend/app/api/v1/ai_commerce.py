@@ -30,9 +30,9 @@ def recommend_products(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    # VendorCatalogService.query() already restricts products to active
-    # verified vendors, active user accounts and NGN listings.
-    listings = VendorCatalogService(db).list(_FirstPage())["items"]
+    # Only orderable products: active verified vendors, active user accounts and NGN listings
+    # (vendors still being verified are shown in the marketplace but not suggested here).
+    listings = VendorCatalogService(db).list(_FirstPage(), include_unverified=False)["items"]
     records = []
     for product in listings:
         variants = [

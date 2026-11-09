@@ -30,7 +30,9 @@ def price_of(variant):
 
 def assert_purchasable(row):
     variant, product, vendor, user = row
-    if not product.is_active or not vendor.is_verified or not user.is_active or user.role != 'vendor':
+    if not vendor.is_verified:
+        raise ConflictError("This vendor is still being verified. You can order once they're verified.")
+    if not product.is_active or not user.is_active or user.role != 'vendor':
         raise ConflictError('This product is not currently available for purchase.')
     if product.currency != 'NGN':
         raise ConflictError('Material checkout currently supports NGN products only.')
@@ -59,20 +61,27 @@ class VendorCatalogService:
         if variants is None:
             variants = (self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id)
                         .filter(ProductVariant.product_id == product.id).order_by(ProductVariant.sku).all())
-        return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, name=product.name,
+        return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, vendor_verified=bool(vendor.is_verified), name=product.name,
                     description=product.description, category_id=product.category_id, primary_image_url=product.primary_image_url, image_urls=product.image_urls or [], unit_of_measure=product.unit_of_measure,
                     base_price=float(product.base_price), currency=product.currency, is_active=product.is_active,
                     variants=[dict(id=v.id, product_id=v.product_id, sku=v.sku, attributes=v.attributes,
                                    price=float(v.price), quantity_available=i.quantity_available if i else 0) for v, i in variants])
 
-    def query(self, owner_user_id=None):
+    def query(self, owner_user_id=None, *, include_unverified=False):
+        """Active NGN products of active vendors. Verified vendors only, unless include_unverified: the
+        marketplace, product pages and search show products from vendors still being verified (marked,
+        not orderable); recommendations and the budget guide suggest only orderable products."""
         query = self.db.query(VendorProduct, Vendor).join(Vendor, Vendor.id == VendorProduct.vendor_id).join(User, User.id == Vendor.user_id)
         if owner_user_id:
             return query.filter(Vendor.user_id == owner_user_id, User.role == 'vendor', User.is_active.is_(True))
-        return query.filter(VendorProduct.is_active.is_(True), Vendor.is_verified.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
+        # Owner's choice: tailors and customers see every active vendor's products straight away; products
+        # from vendors still being verified are marked (vendor_verified=False) and can't be ordered until
+        # the vendor is verified (assert_purchasable, cart_service).
+        query = query.filter(VendorProduct.is_active.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
+        return query if include_unverified else query.filter(Vendor.is_verified.is_(True))
 
-    def list(self, pagination, *, vendor_id=None, category_id=None, owner_user_id=None):
-        query = self.query(owner_user_id)
+    def list(self, pagination, *, vendor_id=None, category_id=None, owner_user_id=None, include_unverified=True):
+        query = self.query(owner_user_id, include_unverified=include_unverified)
         if vendor_id:
             query = query.filter(VendorProduct.vendor_id == vendor_id)
         if category_id:
@@ -86,7 +95,7 @@ class VendorCatalogService:
                     page_size=pagination.page_size, total_pages=(total + pagination.page_size - 1) // pagination.page_size)
 
     def get(self, product_id):
-        row = self.query().filter(VendorProduct.id == product_id).first()
+        row = self.query(include_unverified=True).filter(VendorProduct.id == product_id).first()
         if not row:
             from app.core.exceptions import NotFoundError
             raise NotFoundError('Product not found.')
