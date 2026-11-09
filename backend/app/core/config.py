@@ -338,6 +338,14 @@ class Settings(BaseSettings):
             v = [item for item in v.split(",")]
         return [item.strip().lower() for item in (v or []) if item and item.strip()]
 
+    @field_validator("FRONTEND_URL")
+    @classmethod
+    def site_root(cls, value: str) -> str:
+        """Emailed and shared links are built as FRONTEND_URL + "/reset-password", "/track/…" and so on,
+        so it must be the site's root. Accept "https://site/app/" (the signed-in area) as the same site."""
+        value = value.strip().rstrip("/")
+        return value[: -len("/app")] if value.endswith("/app") else value
+
     @field_validator("CORS_ALLOWED_ORIGINS", mode="before")
     @classmethod
     def split_origins(cls, v):
