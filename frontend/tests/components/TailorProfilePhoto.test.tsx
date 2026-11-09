@@ -4,7 +4,10 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 const { prepareImage, uploadFile, patch } = vi.hoisted(() => ({
   prepareImage: vi.fn(), uploadFile: vi.fn(), patch: vi.fn(),
 }));
-vi.mock("@/lib/media/prepare-image", () => ({ prepareImage }));
+vi.mock("@/lib/media/prepare-image", () => ({
+  prepareImage,
+  isPhoto: (file: File) => file.type.startsWith("image/") && file.type !== "image/gif",
+}));
 vi.mock("@/lib/storage/file-storage", () => ({ uploadFile }));
 vi.mock("@/lib/api/client", () => ({ apiClient: { patch } }));
 vi.mock("@/components/ui/button", () => ({
