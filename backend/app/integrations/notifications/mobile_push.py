@@ -91,8 +91,13 @@ def send_apns(device_token: str, message: PushMessage, *, client: httpx.Client |
     except ValueError:
         pass
     logger.warning("push_failed provider=apns status=%d reason=%s", response.status_code, reason)
-    if response.status_code == 410 or reason in {"BadDeviceToken", "Unregistered", "DeviceTokenNotForTopic"}:
+    # Only Apple's "this phone is gone" answers delete the token. BadDeviceToken also comes back
+    # when APNS_USE_SANDBOX doesn't match the build (e.g. sandbox for a TestFlight phone), so it
+    # must not wipe registrations because of a setting.
+    if response.status_code == 410 or reason in {"Unregistered", "DeviceTokenNotForTopic"}:
         return "invalid"
+    if reason == "BadDeviceToken":
+        logger.warning("push_apns_environment_mismatch hint=check_APNS_USE_SANDBOX")
     return "failed"
 
 

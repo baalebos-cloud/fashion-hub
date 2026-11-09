@@ -154,6 +154,8 @@ def test_apns_request_matches_apples_spec(monkeypatch):
     assert payload["aps"]["interruption-level"] == "time-sensitive" and payload["call_id"] == "c1"
     assert mobile_push.send_apns("dead", message, client=_client(410, {"reason": "Unregistered"})) == "invalid"
     assert mobile_push.send_apns("dead", message, client=_client(503, {"reason": "ServiceUnavailable"})) == "failed"
+    # A sandbox/production mismatch must not delete the phone's registration.
+    assert mobile_push.send_apns("tok", message, client=_client(400, {"reason": "BadDeviceToken"})) == "failed"
 
 
 def test_fcm_request_matches_firebase_spec(monkeypatch):

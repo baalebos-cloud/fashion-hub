@@ -255,7 +255,9 @@ class Settings(BaseSettings):
     APNS_TEAM_ID: Optional[str] = None
     APNS_PRIVATE_KEY: Optional[str] = Field(None, repr=False)  # contents of the .p8 file
     APNS_BUNDLE_ID: str = "ng.tailora.app"
-    APNS_USE_SANDBOX: bool = True  # true for Xcode/TestFlight development builds
+    # true only for builds run from Xcode (development tokens); TestFlight and App Store
+    # builds use the production service, so set false for them.
+    APNS_USE_SANDBOX: bool = True
     # Firebase Cloud Messaging (Android), HTTP v1: the project id and a service-account JSON.
     FCM_PROJECT_ID: Optional[str] = None
     FCM_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)

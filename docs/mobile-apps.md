@@ -50,7 +50,7 @@ The full phone-style call screen (CallKit on iPhone, full-screen calls on Androi
 step; it needs the call audio rebuilt natively.
 
 Backend settings (all off until set): `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`,
-`APNS_BUNDLE_ID`, `APNS_USE_SANDBOX` (true for development and TestFlight builds), `FCM_PROJECT_ID`,
+`APNS_BUNDLE_ID`, `APNS_USE_SANDBOX` (true only for builds run from Xcode; **false for TestFlight and App Store** builds, which use Apple's production service), `FCM_PROJECT_ID`,
 `FCM_SERVICE_ACCOUNT_JSON`. See `backend/.env.example`.
 
 ## One-time setup still needed
