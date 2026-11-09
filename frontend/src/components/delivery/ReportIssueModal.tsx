@@ -4,6 +4,7 @@ import { apiClient } from "@/lib/api/client";
 import { uploadFile } from "@/lib/storage/file-storage";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
+import { PHOTO_ACCEPT } from "@/lib/utils/image";
 
 const categories = [
   "CUSTOMER_UNREACHABLE", "WRONG_ADDRESS", "PACKAGE_DAMAGED",
@@ -71,7 +72,7 @@ export function ReportIssueModal({ deliveryId, onClose }: { deliveryId: string; 
               maxLength={3000} value={description} onChange={e => setDescription(e.target.value)} />
           </label>
           <label className="text-sm">Photo evidence (optional)
-            <input type="file" accept="image/jpeg,image/png,image/webp"
+            <input type="file" accept={PHOTO_ACCEPT}
               className="mt-1 block w-full text-sm" onChange={e => {
                 const file = e.target.files?.[0];
                 if (file) void uploadEvidence(file);

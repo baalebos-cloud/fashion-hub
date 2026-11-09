@@ -1,5 +1,5 @@
 import { useRef, useState, type ChangeEvent } from "react";
-import { validateImageFile } from "@/lib/utils/image";
+import { validateImageFile, PHOTO_ACCEPT } from "@/lib/utils/image";
 import { uploadFile } from "@/lib/storage/file-storage";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
@@ -47,7 +47,7 @@ export function ImageUploader({ uploadEndpoint, currentImageUrl, onUploaded, onR
     <div className="flex items-center gap-4">
       {currentImageUrl && <div className="relative"><img src={currentImageUrl} alt="Uploaded preview" className="h-16 w-16 rounded-lg object-cover" />{onRemove && <button type="button" aria-label="Remove uploaded photo" className="absolute -right-2 -top-2 rounded-full border border-line bg-paper px-2" onClick={onRemove}>×</button>}</div>}
       <div>
-        <input ref={inputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleFileChange} />
+        <input ref={inputRef} type="file" accept={PHOTO_ACCEPT} className="hidden" onChange={handleFileChange} />
         <Button type="button" variant="secondary" size="sm" isLoading={isUploading} onClick={() => inputRef.current?.click()}>
           {label}
         </Button>

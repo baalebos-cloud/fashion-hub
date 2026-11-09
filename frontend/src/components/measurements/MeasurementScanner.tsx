@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { aiService, type MeasurementFieldName, type MeasurementSuggestion, type PhotoMeasurementDraft } from "@/services/aiService";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import { prepareImage } from "@/lib/media/prepare-image";
+import { PHOTO_ACCEPT, validateImageFile } from "@/lib/utils/image";
 
 const MAX_TAPE_PHOTOS = 4;
-const MAX_BYTES = 5_000_000;
-const ACCEPT = "image/jpeg,image/png,image/webp";
+// Any phone photo (incl. iPhone HEIC); each is resized to a JPEG before it is sent.
+const ACCEPT = PHOTO_ACCEPT;
 
 const FIELD_LABELS: Record<MeasurementFieldName, string> = {
   chest: "Chest", waist: "Waist", hip: "Hip", inseam: "Inseam",
@@ -42,14 +44,15 @@ function Thumb({ file, label, onRemove }: { file: File; label: string; onRemove:
 function SourceTag({ suggestion }: { suggestion: MeasurementSuggestion }) {
   const pct = Math.round(suggestion.confidence * 100);
   return suggestion.source === "tape"
-    ? <span className="rounded-full bg-[#e5f3ea] px-2 py-0.5 text-[11px] font-medium text-[#256a3f]">Read from tape · {pct}%</span>
+    ? <span className="rounded-full bg-[#e5f3ea] px-2 py-0.5 text-[11px] font-medium text-[#256a3f]">Read from your photo · {pct}%</span>
     : <span className="rounded-full bg-[#fbf0dd] px-2 py-0.5 text-[11px] font-medium text-[#8a5f1f]">Estimate · {pct}%</span>;
 }
 
-function validPhoto(file: File): string | null {
-  if (!ACCEPT.split(",").includes(file.type)) return "Use JPEG, PNG or WebP photos.";
-  if (file.size > MAX_BYTES) return "Each photo must be under 5 MB.";
-  return null;
+/** Checks the photo, then resizes it to a JPEG for analysis. Throws a message to show on failure. */
+async function readyPhoto(file: File): Promise<File> {
+  const problem = validateImageFile(file);
+  if (problem) throw new Error(problem);
+  return prepareImage(file);
 }
 
 /**
@@ -66,32 +69,51 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
+  // How many picked photos are still being resized; Analyse waits until every one is ready.
+  const [pendingPhotos, setPendingPhotos] = useState(0);
+  const preparing = pendingPhotos > 0;
   const [error, setError] = useState<string | null>(null);
 
   const heightCm = height.trim() === "" ? null : Number(height);
   const heightInvalid = heightCm !== null && (!Number.isFinite(heightCm) || heightCm < 100 || heightCm > 230);
-  const canAnalyse = (bodyPhoto || tapePhotos.length > 0) && !heightInvalid && !busy;
+  const canAnalyse = (bodyPhoto || tapePhotos.length > 0) && !heightInvalid && !busy && !preparing;
 
   function resetResult() { setDraft(null); setChecked(false); }
 
-  function pickBody(event: ChangeEvent<HTMLInputElement>) {
+  async function pickBody(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     event.target.value = "";
     if (!file) return;
-    const problem = validPhoto(file);
-    setError(problem);
-    if (!problem) { setBodyPhoto(file); resetResult(); }
+    setError(null);
+    setPendingPhotos((n) => n + 1);
+    try {
+      setBodyPhoto(await readyPhoto(file));
+      resetResult();
+    } catch (err) {
+      setError(getDisplayErrorMessage(err, "This photo couldn't be used. Try another one."));
+    } finally {
+      setPendingPhotos((n) => n - 1);
+    }
   }
 
-  function pickTape(event: ChangeEvent<HTMLInputElement>) {
+  async function pickTape(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
-    const problem = files.map(validPhoto).find(Boolean) ?? null;
-    if (problem) { setError(problem); return; }
-    const next = [...tapePhotos, ...files].slice(0, MAX_TAPE_PHOTOS);
-    setError(tapePhotos.length + files.length > MAX_TAPE_PHOTOS ? `Up to ${MAX_TAPE_PHOTOS} tape photos; extra photos were left out.` : null);
-    setTapePhotos(next);
-    resetResult();
+    if (!files.length) return;
+    const room = MAX_TAPE_PHOTOS - tapePhotos.length;
+    setError(null);
+    setPendingPhotos((n) => n + 1);
+    try {
+      const ready: File[] = [];
+      for (const file of files.slice(0, room)) ready.push(await readyPhoto(file));
+      setTapePhotos((all) => [...all, ...ready].slice(0, MAX_TAPE_PHOTOS));
+      if (files.length > room) setError(`Up to ${MAX_TAPE_PHOTOS} photos here; extra photos were left out.`);
+      resetResult();
+    } catch (err) {
+      setError(getDisplayErrorMessage(err, "This photo couldn't be used. Try another one."));
+    } finally {
+      setPendingPhotos((n) => n - 1);
+    }
   }
 
   async function analyse() {
@@ -138,7 +160,8 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
         <span className="text-xs text-ink-soft">Optional · photos are not stored</span>
       </div>
       <p className="mt-1 text-sm text-ink-soft">
-        Tailora drafts your measurements from your photos. You check and edit every value before anything is saved.
+        Know your measurements? Add a photo of them and Tailora reads them for you. Not sure? Add a full-body
+        photo with your height and Tailora estimates them. You check and edit every value before anything is saved.
       </p>
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -153,7 +176,7 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
             : (
               <label className="flex h-24 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-sm text-ink-soft hover:border-brass">
                 Add full-body photo
-                <input type="file" accept={ACCEPT} className="sr-only" aria-label="Full-body photo" onChange={pickBody} />
+                <input type="file" accept={ACCEPT} className="sr-only" aria-label="Full-body photo" onChange={(e) => void pickBody(e)} />
               </label>
             )}
           <label className="text-sm text-ink">
@@ -169,28 +192,32 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
         </div>
 
         <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium text-ink">2. Tape-measure photos <span className="font-normal text-ink-soft">(most accurate)</span></span>
-          <p className="text-xs text-ink-soft">Close-ups where the number on the tape is readable, e.g. around your chest, waist or neck.</p>
+          <span className="text-sm font-medium text-ink">2. Your measurements in a photo <span className="font-normal text-ink-soft">(most accurate)</span></span>
+          <p className="text-xs text-ink-soft">
+            Already measured? Add a photo of them written down (a tailor's card or a note). Or close-ups of a
+            tape measure where the number is readable, e.g. around your chest, waist or neck.
+          </p>
           <div className="flex flex-wrap gap-3">
             {tapePhotos.map((file, index) => (
-              <Thumb key={`${file.name}-${index}`} file={file} label={`Tape photo ${index + 1}`}
+              <Thumb key={`${file.name}-${index}`} file={file} label={`Measurement photo ${index + 1}`}
                 onRemove={() => { setTapePhotos((all) => all.filter((_, i) => i !== index)); resetResult(); }} />
             ))}
             {tapePhotos.length < MAX_TAPE_PHOTOS && (
               <label className="flex h-24 w-20 cursor-pointer items-center justify-center rounded-lg border border-dashed border-line text-center text-xs text-ink-soft hover:border-brass">
                 + Add
-                <input type="file" accept={ACCEPT} multiple className="sr-only" aria-label="Tape-measure photos" onChange={pickTape} />
+                <input type="file" accept={ACCEPT} multiple className="sr-only" aria-label="Measurement photos" onChange={(e) => void pickTape(e)} />
               </label>
             )}
           </div>
         </div>
       </div>
 
+      {preparing && <p role="status" className="mt-3 text-xs text-ink-soft">Preparing your photo…</p>}
       <Button type="button" className="mt-4 w-full sm:w-auto" onClick={() => void analyse()} disabled={!canAnalyse} isLoading={busy}>
         {busy ? "Analysing your photos…" : "Analyse photos"}
       </Button>
       {bodyPhoto && !heightCm && !tapePhotos.length && !busy && (
-        <p className="mt-2 text-xs text-ink-soft">Add your height or a tape photo so Tailora can measure.</p>
+        <p className="mt-2 text-xs text-ink-soft">Add your height, or a photo of your measurements, so Tailora can measure.</p>
       )}
 
       {draft && draft.fields.length > 0 && (

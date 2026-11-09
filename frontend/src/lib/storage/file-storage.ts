@@ -1,4 +1,5 @@
 import { apiClient } from "@/lib/api/client";
+import { prepareImage } from "@/lib/media/prepare-image";
 
 /** Uses the established bearer-token and refresh interceptors. The browser
  * supplies the multipart boundary; never set Content-Type explicitly. */
@@ -7,8 +8,10 @@ export async function uploadFile(
   file: File,
   fieldName = "file",
 ): Promise<{ url: string; document_storage_key?: string; filename?: string; size_bytes?: number }> {
+  // Phone photos are resized and turned into JPEG first (see lib/media/prepare-image.ts).
+  const upload = await prepareImage(file);
   const formData = new FormData();
-  formData.append(fieldName, file);
+  formData.append(fieldName, upload);
   const response = await apiClient.post<{ url: string; filename?: string; size_bytes?: number }>(
     endpointPath, formData,
     { headers: { "Content-Type": undefined }, timeout: 120000 },

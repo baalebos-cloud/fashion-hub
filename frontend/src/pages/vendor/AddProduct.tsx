@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { vendorRoutes } from "@/config/routes.config";
+import { PHOTO_ACCEPT } from "@/lib/utils/image";
 
 type Unit = "yard" | "meter" | "roll" | "piece";
 const UNIT_LABEL: Record<Unit, string> = { yard: "yard", meter: "metre", roll: "roll", piece: "piece" };
@@ -192,8 +193,8 @@ export default function AddProduct() {
           <section aria-label="Photos" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
             <h2 className="font-semibold text-ink">Photos</h2>
             <Field label="Material photos (1–5)" htmlFor="material-images"
-              help="JPG, PNG or WebP. Daylight, fabric laid flat, plus one close-up.">
-              <input id="material-images" type="file" accept="image/jpeg,image/png,image/webp" multiple
+              help="Any phone photo. Daylight, fabric laid flat, plus one close-up.">
+              <input id="material-images" type="file" accept={PHOTO_ACCEPT} multiple
                 aria-describedby="material-images-hint"
                 className="text-sm text-ink file:mr-3 file:min-h-11 file:rounded-control file:border file:border-line-strong file:bg-surface file:px-4 file:font-semibold file:text-ink"
                 disabled={uploading || images.length >= 5} onChange={(event) => { void addPhotos(event); }} />

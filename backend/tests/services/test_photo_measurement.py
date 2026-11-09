@@ -133,3 +133,8 @@ def test_endpoint_is_customer_only_and_never_saves(db, make_user):
     finally:
         app.dependency_overrides.clear()
     assert db.query(MeasurementProfile).count() == profiles_before
+
+
+def test_prompt_reads_written_measurements_too():
+    prompt = build_prompt(has_body_photo=False, tape_photo_count=1, height_cm=None, garment_type=None)
+    assert "tailor's card" in prompt and "bust/chest -> chest" in prompt and "x2.54" in prompt

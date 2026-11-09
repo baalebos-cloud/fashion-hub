@@ -1,15 +1,19 @@
 /** Client-side image validation before upload (see lib/storage/file-storage.ts).
  * Mirrors backend/app/utils/file_upload.py's constraints so the person
  * gets instant feedback instead of waiting on a round trip to fail. */
-const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
-const MAX_SIZE_BYTES = 15 * 1024 * 1024;
+import { isPhoto } from "@/lib/media/prepare-image";
+
+/** Photos of any size or format (JPEG, PNG, WebP, iPhone HEIC) are accepted: they are resized and
+ * turned into JPEG before upload. Only absurdly large files are refused up front. */
+const MAX_SIZE_BYTES = 50 * 1024 * 1024;
+export const PHOTO_ACCEPT = "image/*,.heic,.heif";
 
 export function validateImageFile(file: File): string | null {
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    return "Please upload a JPEG, PNG, or WebP image.";
+  if (!isPhoto(file)) {
+    return "Please choose a photo (JPEG, PNG, WebP or iPhone HEIC).";
   }
   if (file.size > MAX_SIZE_BYTES) {
-    return "Image must be 15MB or smaller.";
+    return "This photo is too large. Choose one under 50 MB.";
   }
   return null;
 }
