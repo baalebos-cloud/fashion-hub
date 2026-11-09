@@ -29,6 +29,10 @@ MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 # The app waits up to 60 s for a submission or a re-check (frontend kyc.api / verification.api);
 # each reading attempt stays well inside that.
 READ_TIMEOUT_SECONDS = 25.0
+# PDFs: refuse pages wider or taller than this (points; A0 is about 3370) and render at most this many
+# pixels on the long side, so a small file with a huge page can't exhaust memory.
+MAX_PDF_PAGE_POINTS = 4000
+MAX_RENDER_PIXELS = 2000
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 PROMPT = """You are checking an identity document uploaded to a Nigerian marketplace.
@@ -162,8 +166,14 @@ def pdf_first_page_png(data: bytes) -> bytes | None:
         try:
             if len(pdf) == 0:
                 return None
-            image = pdf[0].render(scale=2).to_pil()
-            image.thumbnail((2000, 2000))
+            page = pdf[0]
+            width, height = page.get_size()  # PDF points (1/72 inch)
+            # A real NIN slip or ID page is at most a few hundred points across. Refuse absurd pages
+            # instead of allocating a huge bitmap, and size the render before it is drawn.
+            if not (0 < width <= MAX_PDF_PAGE_POINTS and 0 < height <= MAX_PDF_PAGE_POINTS):
+                return None
+            scale = min(2.0, MAX_RENDER_PIXELS / max(width, height))
+            image = page.render(scale=scale).to_pil()
             out = io.BytesIO()
             image.convert("RGB").save(out, format="PNG", optimize=True)
             return out.getvalue()

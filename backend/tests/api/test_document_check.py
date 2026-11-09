@@ -275,12 +275,12 @@ def test_vertex_failure_is_named_before_falling_back(monkeypatch):
     assert "Vertex AI: PermissionError" in result.note and not result.checked
 
 
-def _pdf_with_a_page() -> bytes:
+def _pdf_with_a_page(width=300, height=200) -> bytes:
     import io
 
     import pypdfium2 as pdfium
     pdf = pdfium.PdfDocument.new()
-    pdf.new_page(300, 200)
+    pdf.new_page(width, height)
     out = io.BytesIO()
     pdf.save(out)
     return out.getvalue()
@@ -305,3 +305,18 @@ def test_a_damaged_pdf_is_explained(monkeypatch):
     result = DocumentCheckService(http_post=lambda *a, **k: Reply({}, 500)).check(
         [(b"%PDF-1.4 not really", "application/pdf")], account_name="Kemi Adeyemi", reference_dob=DOB, entered_nin=NIN)
     assert "couldn't be turned into an image" in result.note and not result.checked
+
+
+def test_a_huge_pdf_page_is_refused_without_rendering_it():
+    from app.services.document_check_service import pdf_first_page_png
+    assert pdf_first_page_png(_pdf_with_a_page(10_000, 10_000)) is None
+
+
+def test_a_large_but_real_page_is_rendered_small():
+    import io
+
+    from PIL import Image
+
+    from app.services.document_check_service import pdf_first_page_png
+    png = pdf_first_page_png(_pdf_with_a_page(2400, 1200))
+    assert png is not None and max(Image.open(io.BytesIO(png)).size) <= 2000
