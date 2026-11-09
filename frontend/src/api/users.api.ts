@@ -14,6 +14,16 @@ export const usersApi = {
     return response.data;
   },
 
+  /** Whether this account can be deleted now, and if not, what has to finish first. */
+  async deletionStatus(): Promise<{ can_delete: boolean; blockers: string[] }> {
+    const response = await apiClient.get(`${endpoints.users.me}/deletion`);
+    return response.data;
+  },
+
+  async deleteAccount(password: string): Promise<void> {
+    await apiClient.delete(endpoints.users.me, { data: { password } });
+  },
+
   async adminList(params: { role?: string; page?: number; pageSize?: number } = {}): Promise<PaginatedResponse<User & { is_active: boolean; created_at: string | null }>> {
     const response = await apiClient.get(endpoints.admin.users, {
       params: { role: params.role, page: params.page ?? 1, page_size: params.pageSize ?? 50 },

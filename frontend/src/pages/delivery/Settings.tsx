@@ -1,5 +1,6 @@
 import { NotificationPreferences } from "@/components/notifications/NotificationPreferences";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { DeleteAccount } from "@/components/account/DeleteAccount";
 
 export default function Settings() {
   return (
@@ -7,6 +8,7 @@ export default function Settings() {
       <h1 className="font-display text-xl text-ink">Settings</h1>
       <NotificationPreferences />
       <LogoutButton className="self-start" />
+      <DeleteAccount />
     </div>
   );
 }
