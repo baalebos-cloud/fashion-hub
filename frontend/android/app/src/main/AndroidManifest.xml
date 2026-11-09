@@ -54,8 +54,13 @@
     <!-- Photos taken in the app (delivery proof, designs, measurements). Not required to install. -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- CAMERA also implies autofocus; mark it optional so fixed-focus devices can install. -->
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <!-- Nearby tailors, delivery spot, and riders' progress during an active delivery; only while the app is open. -->
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- The location permissions imply these too; all optional. -->
+    <uses-feature android:name="android.hardware.location" android:required="false" />
+    <uses-feature android:name="android.hardware.location.network" android:required="false" />
     <uses-feature android:name="android.hardware.location.gps" android:required="false" />
 </manifest>
