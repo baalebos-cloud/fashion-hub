@@ -8,6 +8,8 @@ other results for anything the best one lacks. The LGA is Google's administrativ
 
 OpenStreetMap / Nominatim: Nigerian LGAs are admin level 6, which Nominatim reports as "county".
 """
+import re
+
 from app.integrations.maps.base import GeocodeResult
 
 _GOOGLE_RANK = ("street_address", "premise", "subpremise", "establishment", "point_of_interest", "route",
@@ -49,12 +51,19 @@ def parse_google_reverse(results: list[dict], latitude: float, longitude: float)
 
 
 _NOT_LANDMARKS = {"highway", "place", "boundary", "landuse", "natural"}
+# OpenStreetMap often names Nigerian roads only by their reference ("F209", "A122"): not something a
+# rider can ask for.
+_ROAD_CODE = re.compile(r"^[A-Z]{1,3}[ -]?\d{1,4}[A-Z]?$")
 
 
 def parse_nominatim_reverse(data: dict, latitude: float, longitude: float) -> GeocodeResult:
     addr = data.get("address") or {}
-    street = _clean(" ".join(p for p in (addr.get("house_number"), addr.get("road")) if p))
-    area = _clean(addr.get("suburb") or addr.get("neighbourhood") or addr.get("quarter") or addr.get("city_district"))
+    road = _clean(addr.get("road"))
+    if road and _ROAD_CODE.match(road):
+        road = f"Along {road} road"  # better than nothing; the area and landmark say more
+    street = _clean(" ".join(p for p in (addr.get("house_number"), road) if p))
+    area = _clean(addr.get("suburb") or addr.get("neighbourhood") or addr.get("quarter") or addr.get("hamlet")
+                  or addr.get("city_district"))
     city = _clean(addr.get("city") or addr.get("town") or addr.get("village") or addr.get("municipality")) or area
     if area and city and area.lower() == city.lower():
         area = None

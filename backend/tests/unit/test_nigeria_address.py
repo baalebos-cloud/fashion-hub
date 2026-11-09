@@ -120,3 +120,39 @@ def test_a_far_away_bus_stop_is_not_offered():
                                                        "geometry": {"location": {"lat": 6.60, "lng": 3.35}}}]})
     with patch("app.integrations.maps.google_maps.httpx.get", side_effect=fake_get):
         assert GoogleMapsProvider(api_key="test").reverse_geocode(6.4474, 3.4728).nearest_bus_stop is None
+
+
+def test_osm_road_codes_become_something_a_rider_can_use():
+    # What the live site returned for a point near Ado-Ekiti.
+    data = {"display_name": "F209, Adó-Èkìtì, Irepodun/Ifelodun, Ekiti, Nigeria", "class": "highway", "name": "F209",
+            "address": {"road": "F209", "city": "Adó-Èkìtì", "county": "Irepodun/Ifelodun", "state": "Ekiti", "country": "Nigeria"}}
+    found = parse_nominatim_reverse(data, 7.64044, 5.22106)
+    assert found.street == "Along F209 road"
+    assert (found.city, found.lga, found.state_region) == ("Adó-Èkìtì", "Irepodun/Ifelodun", "Ekiti")
+    assert found.landmark is None
+
+
+def test_google_failure_reason_is_logged_without_the_key():
+    from app.api.v1.geocoding import reverse
+    from app.core.exceptions import ExternalProviderError
+    provider = Mock()
+    provider.reverse_geocode.side_effect = ExternalProviderError(
+        "Google reverse geocoding unavailable (REQUEST_DENIED): API keys with referer restrictions cannot be used with this API.")
+    with patch("app.api.v1.geocoding.get_map_provider", return_value=provider), \
+         patch("app.api.v1.geocoding.settings") as config, \
+         patch("app.api.v1.geocoding.reverse_geocode_fallback", return_value=Mock()), \
+         patch("app.api.v1.geocoding.logger") as log:
+        config.GEOCODING_FALLBACK_URL = "https://nominatim.openstreetmap.org"
+        reverse(latitude=7.64, longitude=5.22, current_user=Mock())
+    logged = " ".join(str(a) for a in log.warning.call_args.args)
+    assert "REQUEST_DENIED" in logged and "referer restrictions" in logged
+    assert "7.64" not in logged
+
+
+def test_google_error_message_is_kept_in_the_error():
+    import pytest
+    from app.core.exceptions import ExternalProviderError
+    with patch("app.integrations.maps.google_maps.httpx.get", return_value=_response(
+            {"status": "REQUEST_DENIED", "error_message": "This API project is not authorized to use this API.", "results": []})):
+        with pytest.raises(ExternalProviderError, match="not authorized"):
+            GoogleMapsProvider(api_key="secret-key").reverse_geocode(7.64, 5.22)

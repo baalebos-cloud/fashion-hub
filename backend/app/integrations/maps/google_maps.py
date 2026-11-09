@@ -63,7 +63,10 @@ class GoogleMapsProvider(MapProvider):
             response.raise_for_status()
             data = response.json()
             if data.get("status") != "OK" or not data.get("results"):
-                raise ExternalProviderError(f"Google reverse geocoding unavailable ({data.get('status', 'UNKNOWN')}).")
+                # Google's own reason, e.g. "This API key is not authorized to use this service" (no key in it).
+                reason = str(data.get("error_message") or "")[:200]
+                raise ExternalProviderError(f"Google reverse geocoding unavailable ({data.get('status', 'UNKNOWN')})"
+                                            + (f": {reason}" if reason else "."))
         except httpx.HTTPError as exc:
             raise ExternalProviderError(f"Google reverse_geocode failed: {exc}") from exc
 

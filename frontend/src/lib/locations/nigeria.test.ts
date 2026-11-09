@@ -34,6 +34,8 @@ describe("Nigeria states and LGAs", () => {
     expect(matchLga("FCT", "AMAC")).toBe("Municipal Area Council (AMAC)");
     expect(matchLga("Ogun", "Egbado North")).toBe("Yewa North");
     expect(matchLga("Adamawa", "Girei")).toBe("Girei");
+    expect(matchLga("Ekiti", "Irepodun/Ifelodun")).toBe("Irepodun/Ifelodun"); // as OpenStreetMap writes it
+    expect(matchLga("Ekiti", "Adó-Èkìtì")).toBe("Ado Ekiti"); // Yoruba tone marks
     expect(matchLga("Adamawa", "Grie")).toBe("Girei"); // older misspelling still recognised
     expect(NIGERIA_LGAS.Adamawa).toEqual(expect.arrayContaining(["Fufore", "Girei", "Guyuk"]));
     expect(matchLga("Kano", "Eti-Osa")).toBeUndefined();
