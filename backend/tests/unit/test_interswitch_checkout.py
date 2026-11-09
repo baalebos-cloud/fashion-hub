@@ -104,3 +104,32 @@ def test_http_errors_do_not_leak_provider_details():
         requery_transaction(merchant_code="MX", reference="order_123",
                             expected_amount="250.50", client=client)
     assert "private provider detail" not in str(error.value)
+
+
+def test_requery_identifies_tailora_to_interswitch():
+    """Interswitch drops generic clients without a response; the requery names itself and sends JSON headers."""
+    from unittest.mock import Mock
+    from app.integrations.payments.interswitch_checkout import REQUERY_HEADERS, requery_transaction
+    response = Mock()
+    response.json.return_value = {"ResponseCode": "00", "MerchantReference": "FH-FAS-abc", "Amount": 100000}
+    response.raise_for_status.return_value = None
+    client = Mock()
+    client.get.return_value = response
+    requery_transaction(merchant_code="MX6072", reference="FH-FAS-abc", expected_amount=1000, client=client)
+    headers = client.get.call_args.kwargs["headers"]
+    assert headers is REQUERY_HEADERS
+    assert headers["User-Agent"].startswith("Tailora-Payments/") and headers["Content-Type"] == "application/json"
+
+
+def test_requery_not_found_says_not_confirmed_yet_not_mismatch():
+    import pytest
+    from unittest.mock import Mock
+    from app.core.exceptions import ExternalProviderError
+    from app.integrations.payments.interswitch_checkout import requery_transaction
+    response = Mock()
+    response.json.return_value = {"ResponseCode": "Z25", "ResponseDescription": "Transaction not Found", "Amount": 0}
+    response.raise_for_status.return_value = None
+    client = Mock()
+    client.get.return_value = response
+    with pytest.raises(ExternalProviderError, match="hasn't confirmed this payment yet \\(Transaction not Found\\)"):
+        requery_transaction(merchant_code="MX6072", reference="FH-FAS-abc", expected_amount=1000, client=client)
