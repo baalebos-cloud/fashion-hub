@@ -37,6 +37,9 @@ class AppCallService:
     def __init__(self, db: Session):
         self.db = db
         self.parties = MaskedCallService(db)  # reuse who-may-call-whom and display names
+        # Calls that stopped ringing without an answer during this request (missed or
+        # cancelled): the API replaces their phone alert afterwards (services/call_push.py).
+        self.ended_unanswered: list[str] = []
 
     # ---- helpers ---------------------------------------------------------
     def _ring_window(self) -> timedelta:
@@ -61,6 +64,7 @@ class AppCallService:
         if call.status == "ringing" and now - _aware(call.created_at) > self._ring_window():
             call.status = "missed"
             call.ended_at = utcnow()
+            self.ended_unanswered.append(str(call.id))
             caller = self.db.get(User, call.caller_user_id)
             order = self.db.get(Order, call.order_id)
             self.db.add(Notification(
@@ -198,6 +202,8 @@ class AppCallService:
         self._expire_if_unanswered(call)
         if call.status in allowed_from:
             now = utcnow()
+            if to == "cancelled":
+                self.ended_unanswered.append(str(call.id))
             call.status = to
             call.ended_at = now
             if to == "ended" and call.answered_at:

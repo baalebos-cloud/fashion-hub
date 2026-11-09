@@ -19,8 +19,13 @@ vi.mock("@capacitor/push-notifications", () => ({
     checkPermissions: vi.fn(async () => ({ receive: push.receive })),
     requestPermissions: vi.fn(async () => ({ receive: "granted" })),
     register: vi.fn(async () => {}),
+    createChannel: vi.fn(async () => {}),
   },
 }));
+const calls = vi.hoisted(() => ({ status: vi.fn() }));
+vi.mock("@/api/calls.api", () => ({ callsApi: { status: calls.status } }));
+const ring = vi.hoisted(() => vi.fn());
+vi.mock("@/store/call.store", () => ({ useCallStore: { getState: () => ({ ring }) } }));
 vi.mock("@/lib/api/client", () => ({ apiClient: { post: vi.fn(async () => ({})), delete: vi.fn(async () => ({})) } }));
 const appPlugin = vi.hoisted(() => ({ launchUrl: undefined as string | undefined, listeners: {} as Record<string, (e: unknown) => void> }));
 vi.mock("@capacitor/app", () => ({ App: {
@@ -34,7 +39,7 @@ vi.mock("@capacitor/status-bar", () => ({ StatusBar: { setStyle: vi.fn(async () 
 import { initNativeShell, internalPath } from "@/lib/native/app-shell";
 import { restoreNativeSession } from "@/lib/native/session";
 import { clearTokens, getRefreshToken, setTokens } from "@/lib/auth/token";
-import { registerForPush, unregisterPush } from "@/lib/native/push";
+import { registerForPush, showCallFromPush, unregisterPush } from "@/lib/native/push";
 import { apiClient } from "@/lib/api/client";
 import { PushNotifications } from "@capacitor/push-notifications";
 
@@ -119,6 +124,44 @@ describe("opening the app from a link", () => {
     const navigate = vi.fn();
     await initNativeShell(navigate);
     expect(navigate).not.toHaveBeenCalled();
+  });
+});
+
+describe("ringing alerts", () => {
+  const CALL = { call_id: "c1", status: "ringing", order_id: "o1", order_number: "TL-1", other_party_name: "Ada",
+    you_are: "callee", started_at: null, answered_at: null };
+
+  it("Android gets a loud 'Incoming calls' channel with the ringtone", async () => {
+    native.on = true;
+    native.platform = "android";
+    await registerForPush(vi.fn());
+    expect(PushNotifications.createChannel).toHaveBeenCalledWith(expect.objectContaining({ id: "calls", importance: 5, sound: "ringtone.wav" }));
+  });
+
+  it("tapping a call alert shows the incoming call if it's still ringing", async () => {
+    calls.status.mockResolvedValueOnce(CALL);
+    await showCallFromPush({ type: "incoming_call", call_id: "c1" });
+    expect(ring).toHaveBeenCalledWith(CALL);
+  });
+
+  it("does nothing for a call that has already ended, or for other alerts", async () => {
+    calls.status.mockResolvedValueOnce({ ...CALL, status: "missed" });
+    await showCallFromPush({ type: "incoming_call", call_id: "c1" });
+    await showCallFromPush({ type: "missed_call", call_id: "c1" });
+    expect(ring).not.toHaveBeenCalled();
+  });
+
+  it("rings as soon as an alert arrives while the app is open, and opens the call when tapped", async () => {
+    native.on = true;
+    native.platform = "ios";
+    await registerForPush(vi.fn());
+    calls.status.mockResolvedValue(CALL);
+    push.listeners.pushNotificationReceived({ data: { type: "incoming_call", call_id: "c1" } });
+    await flush(); await flush();
+    expect(ring).toHaveBeenCalledTimes(1);
+    push.listeners.pushNotificationActionPerformed({ notification: { data: { type: "incoming_call", call_id: "c1" } } });
+    await flush(); await flush();
+    expect(ring).toHaveBeenCalledTimes(2);
   });
 });
 

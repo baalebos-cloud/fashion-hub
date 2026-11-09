@@ -31,6 +31,8 @@ slowapi==0.1.10
 
 # HTTP client for provider integrations (payments/maps/delivery/KYC)
 httpx==0.28.1
+# HTTP/2 for httpx: Apple's push notification service (APNs) only speaks HTTP/2
+h2==4.4.1
 
 # AI provider SDK
 anthropic==2.5.0

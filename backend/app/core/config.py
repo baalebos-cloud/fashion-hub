@@ -249,6 +249,16 @@ class Settings(BaseSettings):
     SMS_PROVIDER: Optional[str] = None
     SMS_API_KEY: Optional[str] = None
     PUSH_PROVIDER: Optional[str] = None
+    # --- Phone push for the iPhone/Android apps (incoming-call alerts) ---
+    # Apple Push Notification service, token auth: a .p8 key from the Apple Developer account.
+    APNS_KEY_ID: Optional[str] = None
+    APNS_TEAM_ID: Optional[str] = None
+    APNS_PRIVATE_KEY: Optional[str] = Field(None, repr=False)  # contents of the .p8 file
+    APNS_BUNDLE_ID: str = "ng.tailora.app"
+    APNS_USE_SANDBOX: bool = True  # true for Xcode/TestFlight development builds
+    # Firebase Cloud Messaging (Android), HTTP v1: the project id and a service-account JSON.
+    FCM_PROJECT_ID: Optional[str] = None
+    FCM_SERVICE_ACCOUNT_JSON: Optional[str] = Field(None, repr=False)
 
     # --- Object storage ---
     STORAGE_PROVIDER: str = "local"  # local | postgres | s3-compatible
