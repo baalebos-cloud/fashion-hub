@@ -70,7 +70,7 @@ function AutoChecks({ checks, kind }: { checks: Record<string, boolean>; kind: "
 
 function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: "kyc" | "kyb"; onDone: () => void }) {
   // Tailora's document note pre-fills the note to the applicant; the reviewer can edit it.
-  const [reason, setReason] = useState(item.document_note ?? "");
+  const [reason, setReason] = useState(item.document_checked ? item.document_note ?? "" : "");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +124,7 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
   const [viewing, setViewing] = useState<{ url: string; type: string; label: string } | null>(null);
   const [checking, setChecking] = useState(false);
   const [note, setNote] = useState<string | null>(item.document_note ?? null);
+  const [noteChecked, setNoteChecked] = useState(item.document_checked ?? false);
   const [checks, setChecks] = useState(item.auto_checks ?? null);
 
   async function open(documentId: string, label: string) {
@@ -144,7 +145,8 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
       const result = await verificationApi.checkDocument(item.id);
       setNote(result.document_note);
       setChecks(result.checks);
-      if (!reason.trim()) setReason(result.document_note);
+      setNoteChecked(result.checked);
+      if (result.checked && !reason.trim()) setReason(result.document_note);
     } catch (err) {
       setError(getDisplayErrorMessage(err, "Tailora couldn't check the document. Try again."));
     } finally {
@@ -168,9 +170,16 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
       <RegistryCheck item={item} kind={kind} />
       {checks && <AutoChecks checks={checks} kind={kind} />}
       {kind === "kyc" && (note ? (
-        <div className="rounded-control border border-indigo/30 bg-indigo-wash px-3 py-2 text-[13px] text-ink">
+        <div className={noteChecked
+          ? "rounded-control border border-indigo/30 bg-indigo-wash px-3 py-2 text-[13px] text-ink"
+          : "rounded-control border border-warning/30 bg-warning-wash px-3 py-2 text-[13px] text-ink"}>
           <p className="font-semibold">Tailora's document check</p>
           <p className="mt-1 text-ink-soft">{note}</p>
+          {!noteChecked && item.documents.length > 0 && (
+            <Button size="sm" variant="secondary" className="mt-2" isLoading={checking} onClick={() => void runCheck()}>
+              Try the check again
+            </Button>
+          )}
         </div>
       ) : item.documents.length > 0 && (
         <Button size="sm" variant="secondary" className="self-start" isLoading={checking} onClick={() => void runCheck()}>

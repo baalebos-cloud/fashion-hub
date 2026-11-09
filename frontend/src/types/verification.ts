@@ -32,6 +32,8 @@ export interface VerificationQueueItem {
   auto_checks?: Record<string, boolean> | null;
   /** Identity checks: what Tailora found reading the uploaded document, for the reviewer and applicant. */
   document_note?: string | null;
+  /** False when Tailora couldn't read the document; its note then only explains why. */
+  document_checked?: boolean;
   business_name?: string | null;
   registration?: string;
 }

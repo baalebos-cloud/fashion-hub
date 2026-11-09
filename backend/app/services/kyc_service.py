@@ -109,6 +109,7 @@ class KYCService:
         decision["checks"].update({k: v for k, v in document_check.checks.items() if v is not None})
         decision["passed"] = decision["passed"] and document_check.passed
         decision["document_note"] = document_check.note
+        decision["document_checked"] = document_check.checked
         auto_approve = settings.NIN_AUTO_APPROVE and nin_result is not None and decision["passed"]
 
         if (home_latitude is None) != (home_longitude is None):
@@ -203,12 +204,13 @@ class KYCService:
         checks = dict((record.auto_checks or {}).get("checks") or {})
         checks = {k: v for k, v in checks.items() if not k.startswith("document_")}
         checks.update({k: v for k, v in result.checks.items() if v is not None})
-        record.auto_checks = {**(record.auto_checks or {}), "checks": checks, "document_note": result.note}
+        record.auto_checks = {**(record.auto_checks or {}), "checks": checks, "document_note": result.note,
+                              "document_checked": result.checked}
         self.db.add(AuditLog(actor_user_id=admin.id, action="kyc.document_checked", resource_type="verification",
                              resource_id=record.id, metadata_json={"provider": result.provider,
                                                                    "passed": result.passed}))
         self.db.commit()
-        return {"checks": checks, "document_note": result.note, "passed": result.passed}
+        return {"checks": checks, "document_note": result.note, "passed": result.passed, "checked": result.checked}
 
     def _fingerprint_legacy_records(self) -> bool:
         """Records from before fingerprints existed get one now, so the duplicate check sees them.
