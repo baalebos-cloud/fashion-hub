@@ -8,7 +8,11 @@ class SignUpRequest(BaseModel):
     email: EmailStr
     phone_number: Optional[str] = Field(None, max_length=32)
     password: str = Field(..., min_length=8, max_length=128)
-    full_name: str = Field(..., min_length=2, max_length=255)
+    # New sign-ups send the three parts; older app versions send full_name only.
+    first_name: Optional[str] = Field(None, max_length=200)
+    middle_name: Optional[str] = Field(None, max_length=200)
+    last_name: Optional[str] = Field(None, max_length=200)
+    full_name: Optional[str] = Field(None, min_length=2, max_length=255)
     role: Literal["customer", "tailor", "designer", "vendor", "delivery_partner"]
     referral_code: Optional[str] = Field(None, max_length=16, description="Another user's referral code, if they were referred")
 
@@ -54,6 +58,9 @@ class UserResponse(BaseModel):
     id: uuid.UUID
     email: EmailStr
     full_name: str
+    first_name: Optional[str] = None
+    middle_name: Optional[str] = None
+    last_name: Optional[str] = None
     role: str
     is_email_verified: bool
     is_phone_verified: bool

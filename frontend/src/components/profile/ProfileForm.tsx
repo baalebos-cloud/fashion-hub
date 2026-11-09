@@ -1,36 +1,55 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useUser } from "@/hooks/use-user";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuthStore } from "@/store/auth.store";
 import { validateProfile } from "@/lib/validation/profile";
+import { nameParts, validateNameParts, type NameErrors, type NameParts } from "@/lib/names";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { NameFields } from "./NameFields";
 
 const WHATSAPP_ROLES = ["tailor", "designer", "vendor", "delivery_partner"];
 
 export function ProfileForm() {
   const { user, isSaving, updateProfile } = useUser();
-  const { user: authUser } = useAuth();
+  const refreshUser = useAuthStore((s) => s.refreshUser);
   const { showToast } = useToast();
-  const [fullName, setFullName] = useState(user?.full_name ?? "");
+  const [name, setName] = useState<NameParts>(() => nameParts(user));
   const [whatsappNumber, setWhatsappNumber] = useState(user?.whatsapp_number ?? "");
+  const [nameErrors, setNameErrors] = useState<NameErrors>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
 
-  const showWhatsappField = authUser ? WHATSAPP_ROLES.includes(authUser.role) : false;
+  // The account may still be loading when the page opens: fill the fields once it arrives,
+  // instead of leaving them empty.
+  const userId = user?.id;
+  useEffect(() => {
+    if (!userId) return;
+    setName(nameParts(user));
+    setWhatsappNumber(user?.whatsapp_number ?? "");
+    // Only when a different account loads; not while the person is typing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
+
+  const showWhatsappField = user ? WHATSAPP_ROLES.includes(user.role) : false;
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const validationErrors = validateProfile({ fullName, phoneNumber: whatsappNumber || undefined });
-    if (validationErrors.length > 0) {
-      setErrors(Object.fromEntries(validationErrors.map((err) => [err.field, err.message])));
-      return;
-    }
-    setErrors({});
+    const nErrors = validateNameParts(name);
+    const validationErrors = validateProfile({ phoneNumber: whatsappNumber || undefined });
+    setNameErrors(nErrors);
+    setErrors(Object.fromEntries(validationErrors.map((err) => [err.field, err.message])));
+    if (Object.keys(nErrors).length > 0 || validationErrors.length > 0) return;
     setFormError(null);
     try {
-      await updateProfile({ full_name: fullName, whatsapp_number: whatsappNumber || undefined });
+      await updateProfile({
+        first_name: name.first.trim(),
+        middle_name: name.middle.trim(),
+        last_name: name.last.trim(),
+        whatsapp_number: whatsappNumber || undefined,
+      });
+      await refreshUser().catch(() => {});
       showToast("Profile updated.", "success");
     } catch (err) {
       setFormError(getDisplayErrorMessage(err));
@@ -38,12 +57,8 @@ export function ProfileForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex max-w-sm flex-col gap-4">
-      <div>
-        <label htmlFor="fullName" className="mb-1.5 block text-sm font-medium text-ink">Full name</label>
-        <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} error={errors.fullName} />
-        {errors.fullName && <p className="mt-1 text-xs text-thread">{errors.fullName}</p>}
-      </div>
+    <form onSubmit={handleSubmit} className="flex max-w-sm flex-col gap-4" noValidate>
+      <NameFields value={name} onChange={setName} errors={nameErrors} idPrefix="profile-name" />
       <div>
         <label className="mb-1.5 block text-sm font-medium text-ink">Email</label>
         <Input value={user?.email ?? ""} disabled />
@@ -64,7 +79,7 @@ export function ProfileForm() {
           {errors.phoneNumber && <p className="mt-1 text-xs text-thread">{errors.phoneNumber}</p>}
         </div>
       )}
-      {formError && <p className="text-sm text-thread">{formError}</p>}
+      {formError && <p role="alert" className="text-sm text-thread">{formError}</p>}
       <Button type="submit" isLoading={isSaving} className="self-start">Save changes</Button>
     </form>
   );

@@ -11,7 +11,6 @@ export interface FieldError {
 export function validateSignUp(values: {
   email: string;
   password: string;
-  fullName: string;
 }): FieldError[] {
   const errors: FieldError[] = [];
 
@@ -22,9 +21,6 @@ export function validateSignUp(values: {
     errors.push({ field: "password", message: "Password must be at least 8 characters." });
   } else if (!/\d/.test(values.password) || !/[a-zA-Z]/.test(values.password)) {
     errors.push({ field: "password", message: "Password must contain a letter and a number." });
-  }
-  if (values.fullName.trim().length < 2) {
-    errors.push({ field: "fullName", message: "Enter your full name." });
   }
 
   return errors;

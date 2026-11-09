@@ -16,7 +16,9 @@ export interface LogInPayload {
 export interface SignUpPayload {
   email: string;
   password: string;
-  full_name: string;
+  first_name: string;
+  middle_name?: string;
+  last_name: string;
   role: string;
   referral_code?: string;
   phone_number?: string; // Made optional to seamlessly handle variations without breaking compilation

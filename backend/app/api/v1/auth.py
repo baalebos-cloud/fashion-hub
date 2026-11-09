@@ -40,6 +40,9 @@ def sign_up(payload: SignUpRequest, request: Request, background: BackgroundTask
         phone_number=payload.phone_number,
         password=payload.password,
         full_name=payload.full_name,
+        first_name=payload.first_name,
+        middle_name=payload.middle_name,
+        last_name=payload.last_name,
         role=payload.role,
         referral_code=payload.referral_code,
     )
