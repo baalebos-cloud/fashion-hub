@@ -31,11 +31,14 @@ export const verificationApi = {
     return (await apiClient.post<{ id: string; status: string }>(`/admin/${kind}/${id}/review`,
       { approve, reason: reason?.trim() || null }, { headers })).data;
   },
-  /** Private document: fetched with the admin's session, opened as a short-lived blob URL. */
-  async openDocument(documentId: string): Promise<void> {
+  /** Private document fetched with the admin's session, as a blob URL the caller shows in-page
+   * (opening a new window doesn't work inside the phone apps) and revokes when closed. */
+  async loadDocument(documentId: string): Promise<{ url: string; type: string }> {
     const response = await apiClient.get<Blob>(`/admin/verification-documents/${documentId}/content`, { responseType: "blob" });
-    const url = URL.createObjectURL(response.data);
-    window.open(url, "_blank", "noopener,noreferrer");
-    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return { url: URL.createObjectURL(response.data), type: response.data.type || "application/octet-stream" };
+  },
+  /** Run Tailora's document check on a waiting identity submission (adds a note; never decides). */
+  async checkDocument(id: string): Promise<{ checks: Record<string, boolean>; document_note: string; passed: boolean }> {
+    return (await apiClient.post(`/admin/kyc/${id}/document-check`)).data;
   },
 };

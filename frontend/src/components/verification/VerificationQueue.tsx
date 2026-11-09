@@ -4,6 +4,7 @@ import { isApiError } from "@/lib/api/errors";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
 import { EmptyState } from "@/components/ui/empty-state";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -35,6 +36,12 @@ const RULE_LABEL: Record<"kyc" | "kyb", Record<string, string>> = {
     date_of_birth_matches: "Date of birth matches the NIN record",
     profile_photo: "Has a profile photo",
     nin_not_used_elsewhere: "NIN not used on another account",
+    document_readable: "Document is a clear identity document",
+    document_name_matches: "Name on the document matches the account",
+    document_date_of_birth_matches: "Date of birth on the document matches",
+    document_nin_matches: "NIN on the document matches",
+    document_not_expired: "Document hasn't expired",
+    document_not_edited: "Document shows no signs of editing",
   },
   kyb: {
     record_found: "CAC record found",
@@ -62,7 +69,8 @@ function AutoChecks({ checks, kind }: { checks: Record<string, boolean>; kind: "
 }
 
 function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: "kyc" | "kyb"; onDone: () => void }) {
-  const [reason, setReason] = useState("");
+  // Tailora's document note pre-fills the note to the applicant; the reviewer can edit it.
+  const [reason, setReason] = useState(item.document_note ?? "");
   const [busy, setBusy] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -113,9 +121,35 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
     await submit(approve);
   }
 
-  async function open(documentId: string) {
-    try { await verificationApi.openDocument(documentId); }
-    catch { setError("The document couldn't be opened."); }
+  const [viewing, setViewing] = useState<{ url: string; type: string; label: string } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [note, setNote] = useState<string | null>(item.document_note ?? null);
+  const [checks, setChecks] = useState(item.auto_checks ?? null);
+
+  async function open(documentId: string, label: string) {
+    setError(null);
+    try { setViewing({ ...(await verificationApi.loadDocument(documentId)), label }); }
+    catch (err) { setError(getDisplayErrorMessage(err, "The document couldn't be opened.")); }
+  }
+
+  function closeViewer() {
+    if (viewing) URL.revokeObjectURL(viewing.url);
+    setViewing(null);
+  }
+
+  async function runCheck() {
+    setChecking(true);
+    setError(null);
+    try {
+      const result = await verificationApi.checkDocument(item.id);
+      setNote(result.document_note);
+      setChecks(result.checks);
+      if (!reason.trim()) setReason(result.document_note);
+    } catch (err) {
+      setError(getDisplayErrorMessage(err, "Tailora couldn't check the document. Try again."));
+    } finally {
+      setChecking(false);
+    }
   }
 
   return (
@@ -132,11 +166,21 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
         <span className="text-[13px] text-ink-soft">Submitted <DateTimeDisplay value={item.submitted_at} format="relative" /></span>
       </div>
       <RegistryCheck item={item} kind={kind} />
-      {item.auto_checks && <AutoChecks checks={item.auto_checks} kind={kind} />}
+      {checks && <AutoChecks checks={checks} kind={kind} />}
+      {kind === "kyc" && (note ? (
+        <div className="rounded-control border border-indigo/30 bg-indigo-wash px-3 py-2 text-[13px] text-ink">
+          <p className="font-semibold">Tailora's document check</p>
+          <p className="mt-1 text-ink-soft">{note}</p>
+        </div>
+      ) : item.documents.length > 0 && (
+        <Button size="sm" variant="secondary" className="self-start" isLoading={checking} onClick={() => void runCheck()}>
+          Check document with Tailora
+        </Button>
+      ))}
       <div className="flex flex-wrap gap-2">
         {item.documents.length === 0 && <span className="text-xs text-thread">No documents attached.</span>}
         {item.documents.map((doc, i) => (
-          <Button key={doc.id} size="sm" variant="secondary" onClick={() => void open(doc.id)}>View document {i + 1}</Button>
+          <Button key={doc.id} size="sm" variant="secondary" onClick={() => void open(doc.id, `Document ${i + 1}`)}>View document {i + 1}</Button>
         ))}
       </div>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">
@@ -164,10 +208,25 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
         </div>
       )}
       {error && <p role="alert" className="text-sm text-thread">{error}</p>}
+      {asking === null && (
+        <p className="text-[13px] text-ink-soft">
+          Approving or rejecting asks for the 6-digit code from your authenticator app (the one you use to sign in as admin).
+        </p>
+      )}
       <div className="flex gap-2">
         <Button size="sm" onClick={() => void decide(true)} isLoading={busy === "approve" && asking === null} disabled={busy !== null || asking !== null}>Approve</Button>
         <Button size="sm" variant="danger" onClick={() => void decide(false)} isLoading={busy === "reject" && asking === null} disabled={busy !== null || asking !== null}>Reject</Button>
       </div>
+      <Modal isOpen={viewing !== null} onClose={closeViewer} title={viewing?.label} className="max-w-3xl">
+        {viewing && (viewing.type.startsWith("image/")
+          ? <img src={viewing.url} alt={`${item.applicant_name}'s ${viewing.label.toLowerCase()}`} className="max-h-[70vh] w-full rounded-control object-contain" />
+          : viewing.type === "application/pdf"
+            ? <iframe src={viewing.url} title={viewing.label} className="h-[70vh] w-full rounded-control border border-line" />
+            : <p className="text-sm text-ink-soft">This file type can't be shown here.</p>)}
+        <div className="mt-3 flex justify-end">
+          <Button size="sm" variant="secondary" onClick={closeViewer}>Close</Button>
+        </div>
+      </Modal>
     </Card>
   );
 }

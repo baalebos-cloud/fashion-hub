@@ -18,3 +18,9 @@ class StorageProvider(ABC):
     @abstractmethod
     def delete(self, key: str) -> None:
         raise NotImplementedError
+
+    def read(self, key: str) -> tuple[bytes, str]:
+        """The object's bytes and content type, for private files served through an authenticated
+        API (KYC/KYB documents). Providers that can't read back raise ExternalProviderError."""
+        from app.core.exceptions import ExternalProviderError
+        raise ExternalProviderError("This storage can't read files back.")

@@ -286,6 +286,10 @@ class Settings(BaseSettings):
     # Approve identity checks without an admin when every rule passes (see nin_matching.py).
     # Off by default: turn on only after the provider is configured and tested.
     NIN_AUTO_APPROVE: bool = False
+    # Tailora reads each uploaded ID document with the configured vision AI (Vertex AI or Groq) and
+    # compares it with the account (services/document_check_service.py). Needs an AI provider; the
+    # document image is sent to it. Automatic approval also needs the NIN record (NIN_AUTO_APPROVE).
+    DOCUMENT_AI_CHECK: bool = True
     # Business (CAC) lookups for KYB. "manual" sends every submission to admin review.
     KYB_PROVIDER: str = "manual"  # manual | prembly
     # Approve a business without an admin when every rule in services/kyb_matching.py passes

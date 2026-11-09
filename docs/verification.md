@@ -19,6 +19,15 @@ silently un-verified, and admins still unverify explicitly if needed.
 1. The user opens **Verification** and sees a checklist with progress and the next step.
 2. **Identity:** NIN plus an ID photo. Prembly checks the NIN (`NIN_PROVIDER=prembly`).
    If Prembly is unreachable, the submission is held as `under_review` for manual review.
+   **Tailora's document check:** the uploaded ID is read by the configured vision AI (Vertex AI,
+   or Groq as fallback; `DOCUMENT_AI_CHECK=true`). Tailora compares, in code, the document type,
+   name, date of birth, NIN (NIN slips and ID cards only), expiry and signs of editing with the
+   account and the NIN record, and writes a short note. Automatic approval (`NIN_AUTO_APPROVE`)
+   needs **both** the NIN record and the document to match. Anything else goes to an admin with
+   the note shown and pre-filled as the note to the applicant. Admins can run the check on older
+   submissions with **Check document with Tailora**; the check never approves or rejects by itself.
+   The document image is sent to the AI provider for reading; nothing it returns is logged, and the
+   stored note never contains the ID number.
 3. **Business:** business type (RC, BN or IT), CAC number and certificate.
    With `KYB_PROVIDER=prembly` the CAC register is checked first:
    - Number not found: the user is told immediately to check the number and type.
@@ -42,7 +51,8 @@ silently un-verified, and admins still unverify explicitly if needed.
      stored (`kyb_verifications.auto_checks`) and written to the audit log.
 4. Admins review under **Admin → KYC** and **Admin → KYB**, oldest first. Each card
    shows what the registry confirmed, whether the name matches, and the documents
-   (opened privately with the admin's session). Rejecting needs a reason. Approving
+   (opened privately with the admin's session, shown in-page so it works in the phone apps, from
+   any storage provider). Rejecting needs a reason. Approving
    a name mismatch needs an override note. Every decision is audit-logged.
 5. The applicant gets an in-app notification. On rejection, the reviewer's note
    appears on their checklist and they can resubmit. Duplicate submissions are

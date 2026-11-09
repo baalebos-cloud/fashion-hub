@@ -43,6 +43,12 @@ def ctx(db, make_user, monkeypatch):
     monkeypatch.setattr(settings, "NIN_PROVIDER", "dojah")
     provider = FakeProvider()
     monkeypatch.setattr(kyc_factory, "get_nin_provider", lambda: provider)
+    # These tests cover the NIN rules; the document reading has its own tests (test_document_check.py).
+    from app.services.document_check_service import DocumentCheck
+    from app.services.kyc_service import KYCService
+    monkeypatch.setattr(KYCService, "_check_documents", lambda self, *a, **k: DocumentCheck(
+        checks={"document_readable": True, "document_name_matches": True}, passed=True,
+        note="Tailora checked your NIN slip.", provider="test"))
     tailor = make_user(role="tailor", full_name="Kemi Adeyemi", profile_photo_url=PHOTO)
     db.add(Professional(user_id=tailor.id, professional_type="tailor", is_verified=False))
     db.commit()
@@ -230,6 +236,9 @@ def test_same_nin_sent_by_two_accounts_at_once_verifies_only_one(engine, monkeyp
     monkeypatch.setattr(settings, "IDENTITY_ENCRYPTION_KEY", Fernet.generate_key().decode())
     monkeypatch.setattr(settings, "NIN_AUTO_APPROVE", True)
     monkeypatch.setattr(kyc_factory, "get_nin_provider", lambda: FakeProvider())
+    from app.services.document_check_service import DocumentCheck
+    monkeypatch.setattr(KYCService, "_check_documents", lambda self, *a, **k: DocumentCheck(
+        checks={"document_readable": True}, passed=True, note="ok", provider="test"))
     nin = "7" + _uuid.uuid4().int.__str__()[:10]
     with Session(engine) as s:
         users = [User(email=f"{_uuid.uuid4()}@example.com", hashed_password="x", full_name="Kemi Adeyemi",

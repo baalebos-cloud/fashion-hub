@@ -390,6 +390,21 @@ def review_kyc(verification_id: UUID, payload: ReviewDecision, request: Request,
     return _decide("kyc", verification_id, payload, request, db, admin)
 
 
+@router.post("/kyc/{verification_id}/document-check")
+def check_kyc_document(verification_id: UUID, db: Session = Depends(get_db),
+                       admin: User = Depends(require_roles(Role.ADMIN))):
+    """Run Tailora's document check on a waiting identity submission. Adds a note for the reviewer;
+    never approves or rejects (that still needs an authenticator code)."""
+    from app.core.exceptions import ConflictError
+    from app.services.kyc_service import KYCService
+    try:
+        return KYCService(db).recheck_document(verification_id, admin=admin)
+    except NotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 @router.post("/kyb/{verification_id}/review")
 def review_kyb(verification_id: UUID, payload: ReviewDecision, request: Request,
                db: Session = Depends(get_db), admin: User = Depends(require_roles(Role.ADMIN))):
@@ -423,18 +438,20 @@ def interswitch_sandbox_readiness(current_user: User = Depends(require_roles(Rol
 def fetch_verification_document_content(document_id: UUID, request: Request,
                                         db: Session = Depends(get_db),
                                         admin: User = Depends(require_roles(Role.ADMIN))):
-    """Authenticated PostgreSQL private document stream, not a public URL."""
+    """Private document streamed to a signed-in admin, never a public URL. Works with every storage
+    provider (database, object storage), so documents open in the website and the apps alike."""
     from app.models.verification_document import VerificationDocument
-    from app.models.stored_media import StoredMedia
+    from app.services.verification_documents import read_private_document
     document = db.get(VerificationDocument, document_id)
     if document is None or (document.kyc_verification_id is None and document.kyb_verification_id is None):
         raise HTTPException(404, "Verification document not found.")
-    media = db.query(StoredMedia).filter(StoredMedia.storage_key == document.storage_key).first()
-    if media is None or media.is_public or not media.storage_key.startswith(("kyc/", "kyb/")):
-        raise HTTPException(404, "Private document not found.")
+    found = read_private_document(db, document.storage_key)
+    if found is None:
+        raise HTTPException(404, "This document's file is missing from storage. Ask the applicant to upload it again.")
+    content, content_type = found
     _audit(db, admin, request, "verification.document_previewed", document.id)
     db.commit()
-    return Response(content=media.content, media_type=media.content_type,
+    return Response(content=content, media_type=content_type,
                     headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
 
