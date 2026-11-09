@@ -215,3 +215,15 @@ def test_both_face_checks_run_at_the_same_time(ctx, monkeypatch):
     started = time.monotonic()
     assert _submit(ctx).json()["status"] == "verified"
     assert time.monotonic() - started < 0.95  # two half-second checks overlapped
+
+
+def test_the_applicant_sees_what_was_checked(ctx):
+    ctx["results"][SELFIE] = FaceMatch(False, 30.0)
+    _submit(ctx)
+    status = ctx["http"].get("/api/v1/kyc/status").json()
+    assert status["status"] == "under_review"
+    by_key = {c["key"]: c for c in status["result_checks"]}
+    assert by_key["selfie_matches_nin"] == {"key": "selfie_matches_nin", "passed": False,
+                                            "label": "Your selfie matches the photo on your NIN record"}
+    assert by_key["name_matches"]["passed"] is True
+    assert NIN not in str(status)  # never the NIN itself

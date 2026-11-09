@@ -28,5 +28,8 @@ class KYCStatusResponse(BaseModel):
     rejection_reason: Optional[str] = None
     # True when approved by the automatic rules rather than an admin.
     auto_approved: bool = False
+    # What Tailora checked, in plain words, with each result; and its note on the uploaded ID.
+    result_checks: list[dict] = []
+    document_note: Optional[str] = None
 
     model_config = {"from_attributes": True}

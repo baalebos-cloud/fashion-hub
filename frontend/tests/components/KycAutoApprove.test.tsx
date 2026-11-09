@@ -48,6 +48,20 @@ describe("NIN form", () => {
   });
 });
 
+describe("result for the applicant", () => {
+  it("lists what was checked and why it's under review", () => {
+    kyc.status = { status: "under_review", result_checks: [
+      { key: "name_matches", label: "Your name matches your NIN record", passed: true },
+      { key: "selfie_matches_nin", label: "Your selfie matches the photo on your NIN record", passed: false },
+    ], document_note: "Tailora checked your NIN slip: the name matches your account." };
+    render(<KYCForm />);
+    expect(screen.getByText("Tailora's verification result")).toBeTruthy();
+    expect(screen.getByText(/Your selfie matches the photo on your NIN record/).textContent).toMatch(/didn't pass/);
+    expect(screen.getByText(/Tailora checked your NIN slip/)).toBeTruthy();
+    expect(screen.getByText(/why a person is reviewing/)).toBeTruthy();
+  });
+});
+
 describe("admin identity queue", () => {
   it("lists the rules that stopped automatic approval", async () => {
     vi.mocked(verificationApi.queue).mockResolvedValue([{ id: "k1", status: "under_review", submitted_at: new Date().toISOString(),

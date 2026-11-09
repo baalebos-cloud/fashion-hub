@@ -14,6 +14,10 @@ export interface KYCStatus {
   rejection_reason?: string | null;
   /** Approved by the automatic NIN rules rather than an admin. */
   auto_approved?: boolean;
+  /** What Tailora checked, in plain words, with each result. */
+  result_checks?: { key: string; label: string; passed: boolean }[];
+  /** Tailora's note on the uploaded ID, when it could read it. */
+  document_note?: string | null;
 }
 
 export interface SubmitKYCPayload {
