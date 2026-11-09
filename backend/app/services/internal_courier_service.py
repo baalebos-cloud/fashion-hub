@@ -222,8 +222,10 @@ class InternalCourierService:
             raise ForbiddenError("Only delivery partners may accept deliveries.")
         partner = (self.db.query(DeliveryPartner).filter_by(user_id=actor.id)
                    .with_for_update().populate_existing().first())
-        if not partner or not partner.is_verified or not partner.is_available:
-            raise ForbiddenError("A verified and available courier profile is required.")
+        if not partner or not partner.is_verified:
+            raise ForbiddenError("Finish your verification to see and accept delivery jobs.")
+        if not partner.is_available:
+            raise ForbiddenError("You're offline. Go online on your dashboard to see and accept delivery jobs.")
         return partner
 
     def accept(self, *, request_id, actor):

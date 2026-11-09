@@ -110,14 +110,17 @@ class InterswitchSandboxService(PaymentService):
             raise
         return checkout_form
 
-    def verify_and_confirm(self, provider_reference: str, *, buyer_user_id=None) -> Payment:
+    def verify_and_confirm(self, provider_reference: str, *, buyer_user_id=None, system: bool = False) -> Payment:
+        """Ask Interswitch about this payment and settle the order if it's approved. The buyer checks
+        from the payment page; the background reconciliation job (system=True) checks payments the
+        buyer never came back for, so a paid order still reaches the tailor."""
         self._require_sandbox()
         payment = self._get_payment_by_reference(provider_reference)
         self._assert_provider(payment)
         order = self.orders.get_by_id(payment.order_id)
         if not order:
             raise NotFoundError("Order not found.")
-        if buyer_user_id is None or str(order.buyer_user_id) != str(buyer_user_id):
+        if not system and (buyer_user_id is None or str(order.buyer_user_id) != str(buyer_user_id)):
             raise ForbiddenError("Only the order buyer may verify this payment.")
         result = requery_transaction(
             merchant_code=self._merchant_code(),
@@ -135,5 +138,5 @@ class InterswitchSandboxService(PaymentService):
             f"interswitch:{provider_reference}:{verification.status}".encode()
         ).hexdigest()
         settled = self._settle(provider_reference, verification, event_id,
-                               "payment.verified", buyer_user_id)
+                               "payment.verified", None if system else buyer_user_id)
         return settled if settled is not None else self._get_payment_by_reference(provider_reference)

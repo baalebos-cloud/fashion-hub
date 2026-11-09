@@ -22,6 +22,16 @@ LIVE_CHECKOUT = "https://newwebpay.interswitchng.com/collections/w/pay"
 LIVE_REQUERY = "https://webpay.interswitchng.com/collections/api/v1/gettransaction.json"
 
 
+# Interswitch's firewall drops requests from generic HTTP clients (e.g. the default "python-httpx"
+# user agent: the connection is closed with no response, which looked like "unreachable"). Identify
+# Tailora by name, and send the Content-Type their requery docs require.
+REQUERY_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "User-Agent": "Tailora-Payments/1.0",
+}
+
+
 @dataclass(frozen=True)
 class CheckoutForm:
     action_url: str
@@ -83,7 +93,7 @@ def requery_transaction(*, merchant_code: str, reference: str, expected_amount,
             "merchantcode": merchant_code,
             "transactionreference": reference,
             "amount": expected_minor,
-        }, timeout=15.0)
+        }, headers=REQUERY_HEADERS, timeout=15.0)
         response.raise_for_status()
     except httpx.TimeoutException as exc:
         logger.warning("interswitch_requery_timeout environment=%s", "live" if live else "sandbox")
@@ -106,6 +116,16 @@ def requery_transaction(*, merchant_code: str, reference: str, expected_amount,
         raise ExternalProviderError("Interswitch verification returned an invalid response.")
     received_reference = data.get("MerchantReference")
     amount = data.get("Amount")
+    code = str(data.get("ResponseCode") or "")
+    if code != "00" and (received_reference != reference or not amount):
+        # Interswitch has no completed payment under this reference yet (e.g. Z25 "Transaction not
+        # Found", or still processing). Nothing is confirmed; say so plainly rather than "mismatch".
+        logger.info("interswitch_requery_not_completed environment=%s code=%s",
+                    "live" if live else "sandbox", code[:8])
+        description = str(data.get("ResponseDescription") or "not completed")[:120]
+        raise ExternalProviderError(
+            f"Interswitch hasn't confirmed this payment yet ({description}). "
+            "If you were charged, wait a minute and check again.")
     if (received_reference != reference or isinstance(amount, bool)
             or not isinstance(amount, int) or amount != expected_minor):
         logger.warning("interswitch_requery_mismatch environment=%s reference_matches=%s amount_matches=%s",

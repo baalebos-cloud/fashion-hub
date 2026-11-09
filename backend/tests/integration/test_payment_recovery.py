@@ -335,3 +335,61 @@ def test_lost_commit_acknowledgement_is_safe_to_retry(db, provider):
     assert count(db, Payout, order_id=order_id) == 1
     assert count(db, PaymentOutbox, payment_id=payment_id) == 1
     assert count(db, OrderTimelineEntry, order_id=order_id, to_status="paid") == 1
+
+
+def test_reconciler_confirms_an_interswitch_payment_the_buyer_never_came_back_for(engine, provider, monkeypatch):
+    """The customer paid on Interswitch and closed the page: the background job asks Interswitch and the
+    order becomes paid, so it reaches the tailor."""
+    from app.core.config import settings
+    from app.integrations.payments.interswitch_checkout import RequeryResult
+    from app.workers.payment_tasks import reconcile_pending_payments_task
+    with Session(engine) as db:
+        payment_id, order_id, _ = seed(db)
+        payment = db.get(Payment, payment_id)
+        payment.provider = "interswitch"
+        reference = payment.provider_reference
+        minor = int(payment.amount * 100)
+        db.commit()
+    for name, value in (("APP_ENV", "test"), ("INTERSWITCH_SANDBOX_ENABLED", True),
+                        ("INTERSWITCH_MERCHANT_CODE", "MX6072"), ("INTERSWITCH_PAY_ITEM_ID", "9405967")):
+        monkeypatch.setattr(settings, name, value)
+    asked = []
+
+    def requery(*, merchant_code, reference, expected_amount, live=False, client=None):
+        asked.append(reference)
+        return RequeryResult(reference=reference, amount_minor=minor, currency="NGN", successful=True)
+
+    monkeypatch.setattr("app.services.interswitch_sandbox_service.requery_transaction", requery)
+    monkeypatch.setattr("app.core.database.SessionLocal", lambda: Session(engine))
+    reconcile_pending_payments_task.run()
+    assert reference in asked
+    # never sent to the default provider (other tests' payments may be)
+    assert all(call.args[0] != reference for call in provider.verify_payment.call_args_list)
+    with Session(engine) as db:
+        assert db.get(Payment, payment_id).status == "successful"
+        assert db.get(Order, order_id).status == "paid"
+        assert count(db, Payout, order_id=order_id) == 1
+
+
+def test_reconciler_leaves_an_unpaid_interswitch_order_unpaid(engine, provider, monkeypatch):
+    from app.core.config import settings
+    from app.core.exceptions import ExternalProviderError
+    from app.workers.payment_tasks import reconcile_pending_payments_task
+    with Session(engine) as db:
+        payment_id, order_id, _ = seed(db)
+        db.get(Payment, payment_id).provider = "interswitch"
+        db.commit()
+    for name, value in (("APP_ENV", "test"), ("INTERSWITCH_SANDBOX_ENABLED", True),
+                        ("INTERSWITCH_MERCHANT_CODE", "MX6072"), ("INTERSWITCH_PAY_ITEM_ID", "9405967")):
+        monkeypatch.setattr(settings, name, value)
+
+    def requery(**kwargs):
+        raise ExternalProviderError("Interswitch hasn't confirmed this payment yet (Transaction not Found).")
+
+    monkeypatch.setattr("app.services.interswitch_sandbox_service.requery_transaction", requery)
+    monkeypatch.setattr("app.core.database.SessionLocal", lambda: Session(engine))
+    reconcile_pending_payments_task.run()
+    with Session(engine) as db:
+        assert db.get(Payment, payment_id).status == "initialized"
+        assert db.get(Payment, payment_id).last_reconciled_at is not None
+        assert db.get(Order, order_id).status == "pending"
