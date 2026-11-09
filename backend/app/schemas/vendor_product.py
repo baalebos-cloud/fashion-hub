@@ -55,6 +55,8 @@ class VendorProductResponse(BaseModel):
     id: uuid.UUID
     vendor_id: uuid.UUID
     vendor_name: str
+    # False while the vendor's identity and business checks are in progress: shown, but not orderable yet.
+    vendor_verified: bool = True
     name: str
     description: str | None
     category_id: uuid.UUID | None

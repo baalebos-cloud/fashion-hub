@@ -220,13 +220,22 @@ def test_http_catalog_cart_checkout_payment_and_invoice(db, make_user):
             vendor_id = profile.json()['id']
             product = client.post('/api/v1/vendor-products', json={'name': 'Cotton', 'base_price': 25.03, 'initial_stock': 3})
             assert product.status_code == 201, product.text
-            assert client.get('/api/v1/vendor-products').json()['total'] == 0
+            # Visible straight away, marked as still being verified, and not orderable yet.
+            listed = client.get('/api/v1/vendor-products').json()
+            assert listed['total'] == 1 and listed['items'][0]['vendor_verified'] is False
+            early_buyer = make_user(role='designer')
+            vendor_user = current[0]
+            current[0] = early_buyer
+            early = client.post('/api/v1/carts/items', json={'product_variant_id': product.json()['variants'][0]['id'], 'quantity': 1})
+            assert early.status_code == 409 and 'still being verified' in early.text
+            current[0] = vendor_user
             assert client.post(f'/api/v1/vendors/{vendor_id}/verify').status_code == 403
             current[0] = make_user(role='admin')
             assert client.post(f'/api/v1/vendors/{vendor_id}/verify').status_code == 200
             current[0] = make_user(role='designer')
             buyer = current[0]
-            assert client.get('/api/v1/vendor-products').json()['total'] == 1
+            listed = client.get('/api/v1/vendor-products').json()
+            assert listed['total'] == 1 and listed['items'][0]['vendor_verified'] is True
             variant_id = product.json()['variants'][0]['id']
             cart = client.post('/api/v1/carts/items', json={'product_variant_id': variant_id, 'quantity': 2})
             assert cart.status_code == 201, cart.text

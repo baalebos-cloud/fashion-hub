@@ -34,13 +34,19 @@ export default function Products() {
         <Link to={vendorRoutes.addProduct}><Button>Add product</Button></Link>
       </div>
 
+      {!isLoading && products.some((p) => p.vendor_verified === false) && (
+        <p role="status" className="rounded-control bg-warning-wash px-3 py-2 text-sm text-warning">
+          Your products are visible in the marketplace, marked "Vendor verification in progress". Tailors and customers
+          can order them as soon as your identity and business checks are approved, under Verification.
+        </p>
+      )}
       {isLoading && <SkeletonRows rows={4} label="Loading products" onRetry={() => setAttempt((n) => n + 1)} />}
       {!isLoading && error && <ErrorState title="Couldn't load your products" description={error} onRetry={() => setAttempt((n) => n + 1)} />}
 
       {!isLoading && !error && products.length === 0 && (
         <div className="flex flex-col items-center gap-3 rounded-card border border-dashed border-line-strong bg-surface p-8 text-center">
           <p className="font-semibold text-ink">No products yet</p>
-          <p className="max-w-sm text-sm text-ink-soft">Add your first fabric or trim. Tailors and designers can order it as soon as it's listed.</p>
+          <p className="max-w-sm text-sm text-ink-soft">Add your first fabric or trim. Tailors, designers and customers see it in the marketplace as soon as it's listed.</p>
           <Link to={vendorRoutes.addProduct}><Button>Add your first product</Button></Link>
         </div>
       )}
@@ -55,6 +61,7 @@ export default function Products() {
               <div className="flex min-w-0 flex-1 flex-col gap-1">
                 <span className="truncate font-semibold text-ink">{p.name}</span>
                 <span className="font-mono text-sm text-ink">{formatCurrency(p.base_price, p.currency)}</span>
+                {(p.image_urls?.length ?? 0) > 1 && <span className="text-xs text-ink-soft">{p.image_urls!.length} photos</span>}
                 <div className="mt-auto flex items-center justify-between gap-2">
                   {p.is_active ? <Badge tone="success">Listed</Badge> : <Badge tone="neutral">Hidden</Badge>}
                   <Link to={vendorRoutes.editProduct(p.id)} className="text-sm font-semibold text-indigo">Edit</Link>

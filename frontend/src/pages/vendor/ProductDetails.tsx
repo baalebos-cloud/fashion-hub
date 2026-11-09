@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { productsApi } from "@/api/products.api";
 import { InventoryBadge } from "@/components/marketplace/InventoryBadge";
+import { ProductGallery } from "@/components/marketplace/ProductGallery";
+import { productImages } from "@/lib/products/images";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { VendorProduct } from "@/types/product";
@@ -17,7 +19,8 @@ export default function ProductDetails() {
   if (!product) return <LoadingScreen label="Loading product…" />;
 
   return (
-    <div className="max-w-md">
+    <div className="flex max-w-md flex-col gap-3">
+      <ProductGallery images={productImages(product)} alt={product.name} />
       <h1 className="font-display text-xl text-ink">{product.name}</h1>
       <p className="mt-1 text-sm text-ink-soft">{product.description}</p>
       <div className="mt-3 text-lg font-medium text-ink">{formatCurrency(product.base_price, product.currency)}</div>

@@ -9,6 +9,10 @@ export interface VendorProduct {
   base_price: number;
   currency: string;
   primary_image_url?: string | null;
+  /** Every photo the vendor added, first one first. */
+  image_urls?: string[];
+  /** False while the vendor's identity and business checks are in progress: shown, but not orderable yet. */
+  vendor_verified?: boolean;
   is_active: boolean;
 }
 

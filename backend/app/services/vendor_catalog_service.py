@@ -30,7 +30,9 @@ def price_of(variant):
 
 def assert_purchasable(row):
     variant, product, vendor, user = row
-    if not product.is_active or not vendor.is_verified or not user.is_active or user.role != 'vendor':
+    if not vendor.is_verified:
+        raise ConflictError("This vendor is still being verified. You can order once they're verified.")
+    if not product.is_active or not user.is_active or user.role != 'vendor':
         raise ConflictError('This product is not currently available for purchase.')
     if product.currency != 'NGN':
         raise ConflictError('Material checkout currently supports NGN products only.')
@@ -59,7 +61,7 @@ class VendorCatalogService:
         if variants is None:
             variants = (self.db.query(ProductVariant, Inventory).outerjoin(Inventory, Inventory.product_variant_id == ProductVariant.id)
                         .filter(ProductVariant.product_id == product.id).order_by(ProductVariant.sku).all())
-        return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, name=product.name,
+        return dict(id=product.id, vendor_id=vendor.id, vendor_name=vendor.business_name, vendor_verified=bool(vendor.is_verified), name=product.name,
                     description=product.description, category_id=product.category_id, primary_image_url=product.primary_image_url, image_urls=product.image_urls or [], unit_of_measure=product.unit_of_measure,
                     base_price=float(product.base_price), currency=product.currency, is_active=product.is_active,
                     variants=[dict(id=v.id, product_id=v.product_id, sku=v.sku, attributes=v.attributes,
@@ -69,7 +71,10 @@ class VendorCatalogService:
         query = self.db.query(VendorProduct, Vendor).join(Vendor, Vendor.id == VendorProduct.vendor_id).join(User, User.id == Vendor.user_id)
         if owner_user_id:
             return query.filter(Vendor.user_id == owner_user_id, User.role == 'vendor', User.is_active.is_(True))
-        return query.filter(VendorProduct.is_active.is_(True), Vendor.is_verified.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
+        # Owner's choice: tailors and customers see every active vendor's products straight away; products
+        # from vendors still being verified are marked (vendor_verified=False) and can't be ordered until
+        # the vendor is verified (assert_purchasable, cart_service).
+        return query.filter(VendorProduct.is_active.is_(True), User.is_active.is_(True), User.role == 'vendor', VendorProduct.currency == 'NGN')
 
     def list(self, pagination, *, vendor_id=None, category_id=None, owner_user_id=None):
         query = self.query(owner_user_id)
