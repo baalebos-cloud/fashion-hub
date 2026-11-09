@@ -10,10 +10,21 @@ import unicodedata
 from app.core.exceptions import ValidationAppError
 
 MAX_PART = 80
-# Letters in any alphabet (with accents and tone marks, e.g. Yoruba "Adébáyọ̀"), plus the marks names
-# really use: spaces, hyphens, apostrophes and full stops.
-_LETTERS = r"(?:[^\W\d_]|[\u0300-\u036f])+"
-_ALLOWED = re.compile(rf"^{_LETTERS}(?:[ .'’-]+{_LETTERS})*\.?$")
+# Names are words of letters in any alphabet, with their accents, tone marks and vowel signs
+# (Unicode categories L* and M*, e.g. "Adébáyọ̀", "राम"), joined by spaces, hyphens, apostrophes or
+# full stops. Same rule as the app (lib/names.ts: [\p{L}\p{M}]).
+_SEPARATORS = re.compile(r"[ .'’-]+")
+
+
+def _is_word(word: str) -> bool:
+    return bool(word) and all(unicodedata.category(ch)[0] in "LM" for ch in word)
+
+
+def _is_name(text: str) -> bool:
+    body = text[:-1] if text.endswith(".") else text  # "Jr."
+    if not body or _SEPARATORS.fullmatch(body[0]) or _SEPARATORS.fullmatch(body[-1]):
+        return False
+    return all(_is_word(word) for word in _SEPARATORS.split(body))
 
 
 def clean_part(value: str | None, *, label: str, required: bool) -> str | None:
@@ -25,7 +36,7 @@ def clean_part(value: str | None, *, label: str, required: bool) -> str | None:
         return None
     if len(text) > MAX_PART:
         raise ValidationAppError(f"Your {label} is too long ({MAX_PART} characters at most).")
-    if not _ALLOWED.match(text):
+    if not _is_name(text):
         raise ValidationAppError(f"Your {label} can only contain letters, spaces, hyphens and apostrophes.")
     return text
 
@@ -35,11 +46,11 @@ def compose_full_name(first: str, middle: str | None, last: str) -> str:
 
 
 def split_full_name(full_name: str | None) -> tuple[str | None, str | None, str | None]:
-    """Best guess for an older account: first word, last word, and everything between."""
+    """Best guess for an older account: first word, last word, and everything between. Parts are
+    returned whole; clean_part rejects any that are too long rather than cutting them."""
     words = (full_name or "").split()
     if not words:
         return None, None, None
     if len(words) == 1:
-        return words[0][:MAX_PART], None, None
-    middle = " ".join(words[1:-1]) or None
-    return words[0][:MAX_PART], (middle[:MAX_PART] if middle else None), words[-1][:MAX_PART]
+        return words[0], None, None
+    return words[0], " ".join(words[1:-1]) or None, words[-1]

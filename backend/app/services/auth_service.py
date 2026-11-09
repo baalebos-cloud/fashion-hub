@@ -53,6 +53,10 @@ class AuthService:
             if not full_name:
                 raise ValidationAppError("Enter your first name and surname.")
             first, middle, last = split_full_name(full_name)
+            # Each part must fit its column: an over-long part is refused, never cut short.
+            first = clean_part(first, label="first name", required=True)
+            middle = clean_part(middle, label="middle name", required=False)
+            last = clean_part(last, label="surname", required=False)
 
         email = email.lower().strip()
         if self.users.get_by_email(email):

@@ -83,10 +83,34 @@ def test_anyone_can_correct_their_name(client, db, make_user):
         assert removed.json()["full_name"] == "Amaka Okafor-Eze" and removed.json()["middle_name"] is None
 
 
-def test_name_parts_accept_real_world_names(client, make_user):
+@pytest.mark.parametrize("first, middle, last", [
+    ("Oluwaseun", "D'Angelo", "Adébáyọ̀ Jr."),
+    ("राम", None, "शर्मा"),          # Devanagari vowel signs are marks outside U+0300–U+036F
+    ("อนันต์", None, "สมบูรณ์"),     # Thai
+    ("Zoë", "Mary-Kate", "O’Neil"),
+])
+def test_name_parts_accept_real_world_names(client, make_user, first, middle, last):
     user = make_user(full_name="Test User")
-    response = patch_me(client, user, first_name="Oluwaseun", middle_name="D'Angelo", last_name="Adébáyọ̀ Jr.")
+    response = patch_me(client, user, first_name=first, middle_name=middle or "", last_name=last)
     assert response.status_code == 200, response.text
+
+
+@pytest.mark.parametrize("bad", ["-Amaka", "Amaka-", "Am4ka", "Amaka!", "Amaka  .  ", "'"])
+def test_name_parts_refuse_symbols_and_stray_separators(client, make_user, bad):
+    user = make_user(full_name="Test User")
+    assert patch_me(client, user, first_name=bad, last_name="Okafor").status_code == 422
+
+
+def test_overlong_parts_from_an_older_app_are_refused_not_cut(client, db, make_user):
+    user = make_user(full_name="Amaka Okafor")
+    long_word = "A" * 90
+    response = patch_me(client, user, full_name=f"{long_word} Okafor")
+    assert response.status_code == 422, response.text
+    db.refresh(user)
+    assert user.full_name == "Amaka Okafor"
+    signup = client.post("/api/v1/auth/signup", json={"email": "long@example.com", "password": "Password123",
+                                                     "role": "customer", "full_name": f"Okafor {long_word}"})
+    assert signup.status_code == 422, signup.text
 
 
 def test_older_app_can_still_send_full_name(client, db, make_user):
