@@ -27,6 +27,8 @@ function cameraProblem(err: unknown): string {
 export function SelfieCapture({ onUploaded }: { onUploaded: (storageKey: string | null) => void }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  // False once the component is gone, so a camera that turns on afterwards is switched straight off.
+  const mounted = useRef(true);
   const [cameraOn, setCameraOn] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -38,8 +40,13 @@ export function SelfieCapture({ onUploaded }: { onUploaded: (storageKey: string 
     setCameraOn(false);
   }
 
-  useEffect(() => () => {
-    streamRef.current?.getTracks().forEach((track) => track.stop());
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      streamRef.current = null;
+    };
   }, []);
   useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
 
@@ -52,6 +59,11 @@ export function SelfieCapture({ onUploaded }: { onUploaded: (storageKey: string 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 960 } }, audio: false });
+      if (!mounted.current) {
+        // They left while the permission prompt was open: don't leave the camera running.
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
       setCameraOn(true);
       // The <video> is rendered once cameraOn is true; attach on the next frame.
@@ -62,7 +74,7 @@ export function SelfieCapture({ onUploaded }: { onUploaded: (storageKey: string 
         }
       });
     } catch (err) {
-      setError(cameraProblem(err));
+      if (mounted.current) setError(cameraProblem(err));
     }
   }
 

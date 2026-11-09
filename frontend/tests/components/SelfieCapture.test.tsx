@@ -55,4 +55,14 @@ describe("live selfie", () => {
     fireEvent.click(screen.getByRole("button", { name: "Take selfie" }));
     expect((await screen.findByRole("alert")).textContent).toMatch(/No camera was found/);
   });
+
+  it("turns the camera off if the person left while the permission prompt was open", async () => {
+    let grant: (stream: unknown) => void = () => {};
+    camera(() => new Promise((resolve) => { grant = resolve; }));
+    const { unmount } = render(<SelfieCapture onUploaded={vi.fn()} />);
+    fireEvent.click(screen.getByRole("button", { name: "Take selfie" }));
+    unmount();
+    grant({ getTracks: () => [{ stop }] });
+    await waitFor(() => expect(stop).toHaveBeenCalled());
+  });
 });
