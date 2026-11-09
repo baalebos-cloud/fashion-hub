@@ -20,6 +20,24 @@ from app.core.database import Base
 from app.models.mixins import TimestampMixin, UUIDPrimaryKeyMixin
 
 
+# The automatic checks, in plain words for the person who submitted (admins see their own labels).
+APPLICANT_CHECK_LABELS = {
+    "record_found": "Your NIN was found on the national register",
+    "name_matches": "Your name matches your NIN record",
+    "date_of_birth_matches": "Your date of birth matches your NIN record",
+    "nin_not_used_elsewhere": "Your NIN isn't used on another account",
+    "profile_photo": "You have a profile photo",
+    "selfie_matches_nin": "Your selfie matches the photo on your NIN record",
+    "profile_photo_matches_nin": "Your profile photo matches the photo on your NIN record",
+    "document_readable": "Your ID photo is clear",
+    "document_name_matches": "The name on your ID matches your account",
+    "document_date_of_birth_matches": "The date of birth on your ID matches",
+    "document_nin_matches": "The NIN on your ID matches the one you entered",
+    "document_not_expired": "Your ID hasn't expired",
+    "document_not_edited": "Your ID shows no signs of editing",
+}
+
+
 class KYCVerification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "kyc_verifications"
 
@@ -57,6 +75,19 @@ class KYCVerification(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     reviewed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     reviewed_at: Mapped[datetime | None] = mapped_column(nullable=True)
     expires_at: Mapped[datetime | None] = mapped_column(nullable=True)
+
+    @property
+    def result_checks(self) -> list[dict]:
+        """What Tailora checked, in words for the applicant, with each result (no personal data)."""
+        checks = (self.auto_checks or {}).get("checks") or {}
+        return [{"key": key, "label": label, "passed": bool(checks[key])}
+                for key, label in APPLICANT_CHECK_LABELS.items() if key in checks]
+
+    @property
+    def document_note(self) -> str | None:
+        """Tailora's note on the uploaded ID, when it could read it."""
+        data = self.auto_checks or {}
+        return data.get("document_note") if data.get("document_checked") else None
 
     @property
     def auto_approved(self) -> bool:

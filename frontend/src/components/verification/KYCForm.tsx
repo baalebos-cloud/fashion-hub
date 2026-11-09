@@ -79,11 +79,28 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         <VerificationStatus status={status.status} />
         {status.auto_approved && (
           <p role="status" className="rounded-control bg-success-wash px-3 py-2 text-sm text-success">
-            Your NIN details, ID and face matched, so you were verified straight away.
+            Your NIN details, ID and face all matched, so you were verified straight away.
           </p>
         )}
         {status.status === "under_review" && (
           <p className="text-sm text-ink-soft">Our team is checking your details by hand. You'll get a notification when it's done.</p>
+        )}
+        {(status.result_checks?.length ?? 0) > 0 && (
+          <div className="rounded-card border border-line p-3">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-soft">Tailora's verification result</div>
+            <ul className="flex flex-col gap-1.5 text-sm">
+              {status.result_checks!.map((check) => (
+                <li key={check.key} className={check.passed ? "text-success" : "text-thread"}>
+                  <span aria-hidden="true">{check.passed ? "✓" : "✗"}</span> {check.label}
+                  <span className="sr-only">{check.passed ? " (passed)" : " (didn't pass)"}</span>
+                </li>
+              ))}
+            </ul>
+            {status.document_note && <p className="mt-2 text-xs text-ink-soft">{status.document_note}</p>}
+            {status.status === "under_review" && status.result_checks!.some((c) => !c.passed) && (
+              <p className="mt-2 text-xs text-ink-soft">Items marked ✗ are why a person is reviewing your submission.</p>
+            )}
+          </div>
         )}
         {status.nin_verified_full_name && (
           <div className="rounded-card border border-line p-3 text-sm">
