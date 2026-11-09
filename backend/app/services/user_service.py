@@ -21,6 +21,10 @@ class UserService:
                 raise ValidationAppError("A profile photo is required for your account. Upload a new one to replace it.")
             user.profile_photo_url = None  # customers may remove their photo
             fields.pop("profile_photo_url")
+        new_photo = (fields.get("profile_photo_url") or "").strip()
+        if new_photo and new_photo != (user.profile_photo_url or ""):
+            from app.services.kyc_service import KYCService
+            KYCService(self.db).check_new_profile_photo(user, new_photo)
         for key, value in fields.items():
             if hasattr(user, key) and value is not None:
                 setattr(user, key, value)

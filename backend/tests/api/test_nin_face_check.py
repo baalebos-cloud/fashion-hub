@@ -68,6 +68,7 @@ def ctx(db, make_user, monkeypatch):
     monkeypatch.setattr(settings, "NIN_AUTO_APPROVE", True)
     monkeypatch.setattr(settings, "NIN_FACE_CHECK", True)
     monkeypatch.setattr(settings, "NIN_PROVIDER", "dojah")
+    monkeypatch.setattr(settings, "APP_URL", "https://api.example")
 
     class Provider:
         def verify(self, nin_number):
@@ -98,7 +99,7 @@ def ctx(db, make_user, monkeypatch):
     app.dependency_overrides[get_db] = lambda: db
     app.dependency_overrides[get_current_user] = lambda: tailor
     with TestClient(app) as http:
-        yield dict(http=http, db=db, tailor=tailor, selfie_key=selfie_key, results=results)
+        yield dict(http=http, db=db, tailor=tailor, selfie_key=selfie_key, results=results, make_user=make_user)
     app.dependency_overrides.clear()
 
 
@@ -153,3 +154,64 @@ def test_off_by_default_changes_nothing(ctx, monkeypatch):
     monkeypatch.setattr(settings, "NIN_FACE_CHECK", False)
     assert _submit(ctx, selfie=False).json()["status"] == "verified"
     assert "selfie_matches_nin" not in _record(ctx).auto_checks["checks"]
+
+
+# ---- review fixes ----------------------------------------------------------------------------------
+def test_only_genuine_own_uploads_count_as_the_profile_photo(ctx, monkeypatch):
+    from app.services.verification_documents import profile_photo_source, read_profile_photo
+    tailor = ctx["tailor"]
+    real = tailor.profile_photo_url
+    media_id = real.rsplit("/", 1)[1]
+    monkeypatch.setattr(settings, "APP_URL", "https://api.example")
+    assert profile_photo_source(tailor, real) == ("media", media_id)
+    assert read_profile_photo(ctx["db"], tailor, real) == PROFILE
+    for trick in (f"https://attacker.example/other-face.jpg#/api/v1/media/files/{media_id}",
+                  f"https://attacker.example/api/v1/media/files/{media_id}",
+                  f"{real}?x=1", f"https://cdn.example/avatar/{tailor.id}/x.jpg"):
+        assert read_profile_photo(ctx["db"], tailor, trick) is None, trick
+    # Someone else's real avatar can't be borrowed either.
+    other = ctx["db"].query(StoredMedia).filter(StoredMedia.storage_key.like(f"avatar/{tailor.id}/%")).one()
+    stranger = ctx["make_user"](role="tailor")
+    other.owner_user_id = stranger.id
+    other.storage_key = f"avatar/{stranger.id}/p.jpg"
+    ctx["db"].commit()
+    assert read_profile_photo(ctx["db"], tailor, real) is None
+
+
+def test_a_tricked_profile_link_fails_the_face_check(ctx, monkeypatch):
+    monkeypatch.setattr(settings, "APP_URL", "https://api.example")
+    media_id = ctx["tailor"].profile_photo_url.rsplit("/", 1)[1]
+    ctx["tailor"].profile_photo_url = f"https://attacker.example/x.jpg#/api/v1/media/files/{media_id}"
+    ctx["db"].commit()
+    assert _submit(ctx).json()["status"] == "under_review"
+    record = _record(ctx)
+    assert record.auto_checks["checks"]["profile_photo_matches_nin"] is False
+    assert "Tailora upload" in record.auto_checks["face"]["profile_photo_problem"]
+
+
+def test_verified_people_cant_swap_in_someone_elses_photo(ctx, monkeypatch):
+    monkeypatch.setattr(settings, "APP_URL", "https://api.example")
+    assert _submit(ctx).json()["status"] == "verified"
+    new_id = uuid.uuid4()
+    ctx["db"].add(StoredMedia(id=new_id, owner_user_id=ctx["tailor"].id, storage_key=f"avatar/{ctx['tailor'].id}/n.jpg",
+                              content_type="image/jpeg", is_public=True, content=b"\xff\xd8other-face"))
+    ctx["db"].commit()
+    ctx["results"][b"\xff\xd8other-face"] = FaceMatch(False, 22.0)
+    new_url = f"https://api.example/api/v1/media/files/{new_id}"
+    res = ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": new_url})
+    assert res.status_code == 422 and "doesn't match your verified identity" in res.text
+    ctx["results"][b"\xff\xd8other-face"] = FaceMatch(True, 93.0)
+    assert ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": new_url}).status_code == 200
+    outside = ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": "https://elsewhere.example/p.jpg"})
+    assert outside.status_code == 422
+
+
+def test_both_face_checks_run_at_the_same_time(ctx, monkeypatch):
+    import time
+    def slow(nin, image):
+        time.sleep(0.5)
+        return FaceMatch(True, 90.0)
+    monkeypatch.setattr(prembly_face, "compare_face_with_nin", slow)
+    started = time.monotonic()
+    assert _submit(ctx).json()["status"] == "verified"
+    assert time.monotonic() - started < 0.95  # two half-second checks overlapped

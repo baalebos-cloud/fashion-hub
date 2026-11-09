@@ -41,7 +41,7 @@ def compare_face_with_nin(nin_number: str, image: bytes, *, http_post=None) -> F
                         headers={"x-api-key": api_key, "accept": "application/json"},
                         json={"number": nin_number, "image": base64.b64encode(image).decode(),
                               "face_confidence_threshold": settings.NIN_FACE_THRESHOLD},
-                        timeout=25.0)
+                        timeout=20.0)  # KYCService.FACE_CHECK_SECONDS
     except httpx.HTTPError:
         logger.warning("nin_face_request_failed provider=prembly")
         raise ExternalProviderError("Face matching is temporarily unavailable.") from None

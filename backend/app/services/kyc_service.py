@@ -18,6 +18,10 @@ from app.core.exceptions import ExternalProviderError, ForbiddenError, NotFoundE
 NAME_MATCH_THRESHOLD = 0.7
 
 
+# Each face comparison's limit (see integrations/kyc/prembly_face.py); both run at once.
+FACE_CHECK_SECONDS = 20
+
+
 class KYCService:
     def __init__(self, db: Session):
         self.db = db
@@ -184,6 +188,32 @@ class KYCService:
         self.db.refresh(verification)
         return verification
 
+    def check_new_profile_photo(self, user, new_url: str) -> None:
+        """A verified person changing their profile photo: the new photo must also match the NIN record
+        photo, so nobody can pass the face check and then show someone else's face. Raises
+        ValidationAppError to refuse the change; does nothing when face checking is off or the person
+        has no verified identity yet (the check then happens at submission)."""
+        if not settings.NIN_FACE_CHECK:
+            return
+        from app.core.identity_encryption import decrypt_identity
+        from app.integrations.kyc.prembly_face import compare_face_with_nin
+        from app.models.kyc_verification import KYCVerification
+        from app.services.verification_documents import read_profile_photo
+        kyc = (self.db.query(KYCVerification).filter(KYCVerification.user_id == user.id,
+                                                     KYCVerification.status == "verified")
+               .order_by(KYCVerification.created_at.desc()).first())
+        if kyc is None or not kyc.id_number_encrypted:
+            return
+        image = read_profile_photo(self.db, user, new_url)
+        if image is None:
+            raise ValidationAppError("Upload your new photo through Tailora so it can be checked against your verified identity.")
+        try:
+            match = compare_face_with_nin(decrypt_identity(kyc.id_number_encrypted), image)
+        except ExternalProviderError:
+            raise ValidationAppError("We couldn't check your new photo right now. Try again in a few minutes.") from None
+        if not match.matched:
+            raise ValidationAppError("This photo doesn't match your verified identity. Use a clear, recent photo of yourself.")
+
     def _check_faces(self, user, nin_number, selfie_storage_key, *, nin_found: bool):
         """None when face checking is off; otherwise each check's result plus a short summary
         (confidences and any reason it couldn't run). No images or NINs are kept."""
@@ -195,24 +225,38 @@ class KYCService:
         selfie = read_private_document(self.db, selfie_storage_key) if selfie_storage_key else None
         photos = {"selfie_matches_nin": selfie[0] if selfie else None,
                   "profile_photo_matches_nin": read_profile_photo(self.db, user)}
-        for check, image in photos.items():
-            label = check.split("_matches")[0]
-            if not nin_found:
-                checks[check] = False
-                summary[f"{label}_problem"] = "no NIN record to compare with"
-                continue
-            if image is None:
-                checks[check] = False
-                summary[f"{label}_problem"] = "photo missing"
-                continue
-            try:
-                match = compare_face_with_nin(nin_number, image)
-            except ExternalProviderError as exc:
-                checks[check] = False
-                summary[f"{label}_problem"] = str(exc)[:120]
-                continue
-            checks[check] = match.matched
-            summary[f"{label}_confidence"] = match.confidence
+        # Both comparisons run at the same time (they're independent network calls), so together they
+        # take no longer than one, keeping the whole submission inside the app's wait.
+        from concurrent.futures import ThreadPoolExecutor
+        pool = ThreadPoolExecutor(max_workers=2)
+        futures = {check: pool.submit(compare_face_with_nin, nin_number, image)
+                   for check, image in photos.items() if nin_found and image is not None}
+        try:
+            for check, image in photos.items():
+                label = check.split("_matches")[0]
+                if not nin_found:
+                    checks[check] = False
+                    summary[f"{label}_problem"] = "no NIN record to compare with"
+                    continue
+                if image is None:
+                    checks[check] = False
+                    summary[f"{label}_problem"] = ("photo missing" if check == "selfie_matches_nin"
+                                                   else "profile photo isn't a Tailora upload of their own")
+                    continue
+                try:
+                    match = futures[check].result(timeout=FACE_CHECK_SECONDS + 2)
+                except ExternalProviderError as exc:
+                    checks[check] = False
+                    summary[f"{label}_problem"] = str(exc)[:120]
+                    continue
+                except Exception:  # noqa: BLE001 - a timeout or crash is "couldn't compare", never a match
+                    checks[check] = False
+                    summary[f"{label}_problem"] = "Face matching took too long."
+                    continue
+                checks[check] = match.matched
+                summary[f"{label}_confidence"] = match.confidence
+        finally:
+            pool.shutdown(wait=False)
         return {"checks": checks, "summary": summary}
 
     def _check_documents(self, storage_keys, *, account_name, reference_dob, entered_nin):
