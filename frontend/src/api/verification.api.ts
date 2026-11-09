@@ -13,6 +13,11 @@ export function endReviewWindow(): void {
   reviewPass = null;
 }
 
+/** The header that proves a fresh authenticator code, for admin actions that need one (decisions, payouts). */
+export function stepUpHeaders(): Record<string, string> | undefined {
+  return reviewPass ? { "X-Admin-Step-Up": reviewPass.token } : undefined;
+}
+
 export const verificationApi = {
   async me(): Promise<VerificationSummary> {
     return (await apiClient.get<VerificationSummary>("/verification/me")).data;

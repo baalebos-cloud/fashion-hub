@@ -10,6 +10,7 @@ import Vendors from "@/pages/admin/Vendors";
 import DeliveryPartners from "@/pages/admin/DeliveryPartners";
 import Orders from "@/pages/admin/Orders";
 import Payments from "@/pages/admin/Payments";
+import Payouts from "@/pages/admin/Payouts";
 import Invoices from "@/pages/admin/Invoices";
 import Deliveries from "@/pages/admin/Deliveries";
 import KYC from "@/pages/admin/KYC";
@@ -37,6 +38,7 @@ export const adminRouteObjects: RouteObject[] = [
   { path: "delivery-partners", element: withLayout(DeliveryPartners) },
   { path: "orders", element: withLayout(Orders) },
   { path: "payments", element: withLayout(Payments) },
+  { path: "payouts", element: withLayout(Payouts) },
   { path: "invoices", element: withLayout(Invoices) },
   { path: "deliveries", element: withLayout(Deliveries) },
   { path: "kyc", element: withLayout(KYC) },

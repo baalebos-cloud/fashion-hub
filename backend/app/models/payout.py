@@ -13,7 +13,7 @@ the commission is invisible to the customer by construction, not by a
 permission check that could be bypassed.
 """
 import uuid
-from sqlalchemy import Numeric, String
+from sqlalchemy import Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -33,5 +33,13 @@ class Payout(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     net_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     currency: Mapped[str] = mapped_column(String(8), nullable=False, default="NGN")
 
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")  # pending | released
-    released_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    # pending: waiting for the customer to confirm receipt (then sent automatically)
+    # processing: transfer sent to Paystack | paid | failed (admin can retry) | held (admin hold)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    released_at: Mapped[datetime | None] = mapped_column(nullable=True)  # when the money arrived (paid)
+    transfer_reference: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    transfer_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    hold_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    failure_reason: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    processing_at: Mapped[datetime | None] = mapped_column(nullable=True)

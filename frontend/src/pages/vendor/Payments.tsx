@@ -1,16 +1,17 @@
 import { useEffect, useState } from "react";
 import { ordersApi } from "@/api/orders.api";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { ErrorState } from "@/components/ui/error-state";
 import { SkeletonRows } from "@/components/ui/skeleton";
 import { OrderStatusBadge } from "@/components/orders/OrderStatusBadge";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { Order, VendorOrderStatus } from "@/types/order";
+import { PayoutAccountForm } from "@/components/payouts/PayoutAccountForm";
+import { SellerPayoutList } from "@/components/payouts/SellerPayoutList";
 
 const NOT_SOLD: VendorOrderStatus[] = ["cart", "checkout", "payment_pending", "cancelled", "refunded"];
 
-/** Order values only. Payouts aren't switched on, so nothing here claims money was paid out. */
+/** The vendor's payout account, their payouts, and the values of orders they've sold. */
 export default function Payments() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -32,11 +33,13 @@ export default function Payments() {
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center gap-3">
         <h1 className="font-display text-3xl text-ink">Payments</h1>
-        <Badge tone="neutral">Payouts not switched on</Badge>
       </div>
       <p className="max-w-prose text-sm text-ink-soft">
-        These are the values of your paid material orders. Platform charges and payouts to your bank appear here once payouts are switched on.
+        Once a buyer confirms they've received an order, Tailora sends your share (after its fee) to your bank account
+        automatically. Add your account below to get paid.
       </p>
+      <PayoutAccountForm />
+      <SellerPayoutList />
       {isLoading && <SkeletonRows rows={3} label="Loading your orders" onRetry={() => setAttempt((n) => n + 1)} />}
       {!isLoading && error && <ErrorState title="Couldn't load your orders" description="Check your connection, then try again." onRetry={() => setAttempt((n) => n + 1)} />}
       {!isLoading && !error && sold.length === 0 && (

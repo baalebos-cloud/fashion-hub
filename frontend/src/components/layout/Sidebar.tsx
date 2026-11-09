@@ -183,6 +183,7 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
         { label: "Orders", path: adminRoutes.orders, icon: <Icon d={ICONS.orders} /> },
         { label: "Dispatch", path: adminRoutes.deliveries, icon: <Icon d={ICONS.delivery} /> },
         { label: "Payments", path: adminRoutes.payments, icon: <Icon d={ICONS.payment} /> },
+        { label: "Payouts", path: adminRoutes.payouts, icon: <Icon d={ICONS.earnings} /> },
       ],
     },
     {

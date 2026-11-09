@@ -11,10 +11,13 @@ professional/vendor/admin roles. A customer calling this endpoint gets a
 list would look like "no commission," while a 403 correctly signals "this
 isn't for you." Never relax this to `get_current_user` alone.
 """
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
+from app.core.rate_limit import limiter
 from app.core.dependencies import get_current_user, PaginationParams
 from app.core.permissions import Role, require_roles
 from app.models.user import User
@@ -72,7 +75,45 @@ def list_my_payouts(
             "net_amount": float(p.net_amount),
             "currency": p.currency,
             "status": p.status,
+            "hold_reason": p.hold_reason,
+            "paid_at": p.released_at,
             "created_at": p.created_at,
         }
         for p in payouts
     ]
+
+
+# ---- Payout bank account (sellers) -------------------------------------------------------------
+
+
+class PayoutAccountRequest(BaseModel):
+    bank_code: str = Field(min_length=2, max_length=16)
+    account_number: str = Field(min_length=10, max_length=14)
+    password: str = Field(min_length=1, max_length=256)
+
+
+@router.get("/payout-account/banks")
+def payout_banks(current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR))):
+    from app.services.seller_bank_account_service import SellerBankAccountService
+    return SellerBankAccountService.banks()
+
+
+@router.get("/payout-account")
+def get_payout_account(current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR)),
+                       db: Session = Depends(get_db)):
+    from app.services.payout_release_service import payouts_on
+    from app.services.seller_bank_account_service import SellerBankAccountService
+    service = SellerBankAccountService(db)
+    return {"account": service.describe(service.get(current_user)), "payouts_enabled": payouts_on()}
+
+
+@router.put("/payout-account")
+@limiter.limit(settings.RATE_LIMIT_AUTH)
+def set_payout_account(payload: PayoutAccountRequest, request: Request,
+                       current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER, Role.VENDOR)),
+                       db: Session = Depends(get_db)):
+    """Needs the seller's password: a stolen session must not be able to redirect payouts."""
+    from app.services.seller_bank_account_service import SellerBankAccountService
+    service = SellerBankAccountService(db)
+    return service.describe(service.set(current_user, bank_code=payload.bank_code,
+                                        account_number=payload.account_number, password=payload.password))

@@ -17,6 +17,7 @@ celery_app = Celery(
     include=[
         "app.workers.payment_tasks",
         "app.workers.payment_outbox_tasks",
+        "app.workers.payout_tasks",
         "app.workers.invoice_tasks",
         "app.workers.delivery_tasks",
         "app.workers.tracking_tasks",
@@ -45,6 +46,7 @@ celery_app.conf.update(
         "app.workers.payment_tasks.*": {"queue": "payments"},
         "app.workers.order_tasks.*": {"queue": "delivery"},
         "app.workers.payment_outbox_tasks.*": {"queue": "payments"},
+        "app.workers.payout_tasks.*": {"queue": "payments"},
         "app.workers.delivery_tasks.*": {"queue": "delivery"},
         "app.workers.tracking_tasks.*": {"queue": "delivery"},
         "app.workers.notification_tasks.*": {"queue": "notifications"},
@@ -73,6 +75,10 @@ celery_app.conf.update(
         "drain-payment-outbox": {
             "task": "app.workers.payment_outbox_tasks.drain_payment_outbox",
             "schedule": 10.0,
+        },
+        "release-seller-payouts": {
+            "task": "app.workers.payout_tasks.release_payouts_task",
+            "schedule": 300.0,  # every 5 minutes; does nothing while PAYOUTS_ENABLED is off
         },
         "reconcile-pending-payments": {
             "task": "app.workers.payment_tasks.reconcile_pending_payments_task",

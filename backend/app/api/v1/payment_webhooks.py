@@ -40,6 +40,13 @@ async def _receive(request: Request, signature: str, provider: str, db: Session)
             matched = await run_in_threadpool(RefundService(db).record_paystack_event,
                                              event_type=event, payload=body["data"])
             return {"received": True, "reconciled": bool(matched)}
+        if provider == "paystack" and event in {"transfer.success", "transfer.failed", "transfer.reversed"}:
+            if not isinstance(body.get("data"), dict):
+                raise ValueError
+            from app.services.payout_release_service import PayoutReleaseService
+            matched = await run_in_threadpool(PayoutReleaseService(db).record_transfer_event,
+                                             event=event, data=body["data"])
+            return {"received": True, "reconciled": bool(matched)}
         if event not in {"charge.success", "charge.failed", "payment.successful", "payment.failed"}:
             return {"received": True, "ignored": True}
         data = body["data"]

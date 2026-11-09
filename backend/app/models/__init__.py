@@ -57,6 +57,7 @@ from app.models.favorite import Favorite
 from app.models.audit_log import AuditLog
 from app.models.referral import Referral
 from app.models.payout import Payout
+from app.models.seller_bank_account import SellerBankAccount
 from app.models.storefront_handle import StorefrontHandle
 from app.models.call_session import CallSession
 from app.models.delivery_offer import DeliveryOffer

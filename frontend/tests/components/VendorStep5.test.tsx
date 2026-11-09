@@ -32,6 +32,8 @@ const { vo, ORDERS, STOCK, orderState } = vi.hoisted(() => {
   return { vo, ORDERS, STOCK, orderState };
 });
 
+vi.mock("@/api/payouts.api", () => ({ payoutsApi: { account: vi.fn(async () => ({ account: null, payouts_enabled: false })),
+  banks: vi.fn(async () => []), mine: vi.fn(async () => []), setAccount: vi.fn() } }));
 vi.mock("@/api/orders.api", () => ({ ordersApi: { listAll: vi.fn(() => Promise.resolve(ORDERS)) } }));
 vi.mock("@/api/inventory.api", () => ({ inventoryApi: { listAll: vi.fn(() => Promise.resolve(STOCK)), restock: vi.fn() } }));
 vi.mock("@/api/products.api", () => ({ productsApi: { create: vi.fn() } }));
@@ -184,8 +186,8 @@ describe("vendor payments", () => {
     inRouter(<Payments />);
     expect(await screen.findByText(/6 orders · total value/)).toBeTruthy();
     expect(screen.getByText("₦133,500")).toBeTruthy();
-    expect(screen.getByText("Payouts not switched on")).toBeTruthy();
-    expect(screen.queryByText(/received|paid out|successful/i)).toBeNull();
+    expect(await screen.findByRole("heading", { name: "Payout bank account" })).toBeTruthy();
+    expect(screen.queryByText(/paid out|successful/i)).toBeNull();
   });
 });
 
