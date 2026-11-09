@@ -114,9 +114,14 @@ def build_prompt(*, has_body_photo: bool, tape_photo_count: int, height_cm: floa
     ]
     if tape_photo_count:
         lines.append(
-            f"There are {tape_photo_count} tape-measure photo(s). For each, read the number shown on the "
-            "tape or ruler where it closes around the body part, convert inches to cm (x2.54), and use "
-            "source \"tape\". If the reading is not clearly legible, omit it.")
+            f"There are {tape_photo_count} measurement photo(s). Each is either (a) a tape measure or ruler "
+            "around a body part: read the number where the tape closes; or (b) measurements written or "
+            "printed on paper, a tailor's card, a screenshot or a note: read each labelled value and map "
+            "the label to a field (bust/chest -> chest, hips/seat -> hip, inside leg/inseam -> inseam, "
+            "shoulder/across back -> shoulder_width, sleeve/arm length -> sleeve_length, collar/neck -> neck, "
+            "waist -> waist; skip labels that don't map). Units: use the unit shown (in, \", inches, cm); "
+            "if none is shown, values under 70 for chest, waist or hip are inches. Convert inches to cm "
+            "(x2.54). Use source \"tape\" for both kinds. If a value is not clearly legible, omit it.")
     if has_body_photo and height_cm:
         lines.append(
             f"There is a full-body photo. The person's stated height is {height_cm:.0f} cm. Use that height "

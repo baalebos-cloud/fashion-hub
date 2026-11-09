@@ -32,10 +32,10 @@ for (const viewport of [{ width: 390, height: 844 }, { width: 1280, height: 900 
     await page.getByRole("button", { name: "Add measurements" }).click();
     await expect(page.getByRole("heading", { name: "Measure with photos" })).toBeVisible();
     await page.getByLabel("Full-body photo").setInputFiles({ name: "me.jpg", mimeType: "image/jpeg", buffer: jpeg });
-    await page.getByLabel("Tape-measure photos").setInputFiles({ name: "tape.jpg", mimeType: "image/jpeg", buffer: jpeg });
+    await page.getByLabel("Measurement photos").setInputFiles({ name: "tape.jpg", mimeType: "image/jpeg", buffer: jpeg });
     await page.getByLabel("Your height (cm)").fill("172");
     await page.getByRole("button", { name: "Analyse photos" }).click();
-    await expect(page.getByText("Read from tape · 92%")).toBeVisible();
+    await expect(page.getByText("Read from your photo · 92%")).toBeVisible();
     expect(analyzeCalls).toBe(1);
     await page.getByRole("region", { name: "Measure with photos" })
       .screenshot({ path: info.outputPath(`draft-${viewport.width}.png`) });
