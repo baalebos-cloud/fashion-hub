@@ -411,6 +411,49 @@ def review_kyb(verification_id: UUID, payload: ReviewDecision, request: Request,
     return _decide("kyb", verification_id, payload, request, db, admin)
 
 
+# ---- Seller payouts ---------------------------------------------------------------------------------
+class PayoutHoldRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=255)
+
+
+@router.get("/payouts")
+def admin_payouts(status: str | None = None, db: Session = Depends(get_db),
+                  admin: User = Depends(require_roles(Role.ADMIN))):
+    from app.services.payout_release_service import PayoutReleaseService, payouts_on
+    return {"payouts_enabled": payouts_on(), "items": PayoutReleaseService(db).list(status=status)}
+
+
+@router.post("/payouts/{payout_id}/hold")
+def admin_hold_payout(payout_id: UUID, payload: PayoutHoldRequest, request: Request, db: Session = Depends(get_db),
+                      admin: User = Depends(require_roles(Role.ADMIN))):
+    from app.core.exceptions import ConflictError
+    from app.services.payout_release_service import PayoutReleaseService
+    try:
+        payout = PayoutReleaseService(db).hold(payout_id, admin=admin, reason=payload.reason)
+    except NotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"id": str(payout.id), "status": payout.status}
+
+
+@router.post("/payouts/{payout_id}/release")
+def admin_release_payout(payout_id: UUID, request: Request, db: Session = Depends(get_db),
+                         admin: User = Depends(require_roles(Role.ADMIN))):
+    """Releasing money needs a fresh authenticator code, like verification decisions."""
+    from app.core.exceptions import ConflictError
+    from app.services.admin_auth_service import AdminStepUpService
+    from app.services.payout_release_service import PayoutReleaseService
+    AdminStepUpService(db).require(user=admin, token=request.headers.get("X-Admin-Step-Up"))
+    try:
+        payout = PayoutReleaseService(db).release(payout_id, admin=admin)
+    except NotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ConflictError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    return {"id": str(payout.id), "status": payout.status}
+
+
 @router.get("/verification-documents/{document_id}/preview")
 def preview_verification_document(document_id: UUID, request: Request,
                                   db: Session = Depends(get_db),

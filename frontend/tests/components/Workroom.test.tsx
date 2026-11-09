@@ -17,6 +17,8 @@ const { o, ORDERS } = vi.hoisted(() => {
   return { o, ORDERS };
 });
 
+vi.mock("@/api/payouts.api", () => ({ payoutsApi: { account: vi.fn(async () => ({ account: null, payouts_enabled: false })),
+  banks: vi.fn(async () => []), mine: vi.fn(async () => []), setAccount: vi.fn() } }));
 vi.mock("@/hooks/use-orders", () => ({ useOrders: () => ({ orders: ORDERS, isLoading: false, error: null, refetch: vi.fn() }) }));
 vi.mock("@/hooks/use-auth", () => ({ useAuth: () => ({ user: { id: "t1", role: "tailor", full_name: "Kemi Adeyemi" } }) }));
 vi.mock("@/components/storefront/ShareShopCard", () => ({ ShareShopCard: () => null }));
@@ -61,9 +63,10 @@ describe("workroom dashboard", () => {
 });
 
 describe("payments page", () => {
-  it("lists order values without claiming payments succeeded", () => {
+  it("lists order values without claiming payments succeeded", async () => {
     render(<MemoryRouter><Payments /></MemoryRouter>);
-    expect(screen.getByText("Payments and payouts not switched on")).toBeTruthy();
+    expect(screen.getByText(/sends your share \(after its fee\) to your/)).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Payout bank account" })).toBeTruthy();
     expect(screen.queryByText(/successful/i)).toBeNull();
     expect(screen.queryByText("Garment 5")).toBeNull();
   });

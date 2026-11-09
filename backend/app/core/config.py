@@ -112,6 +112,11 @@ class Settings(BaseSettings):
     INTERSWITCH_LIVE_PAY_ITEM_ID: Optional[str] = None
     # Financial operations require explicit provider onboarding and sandbox verification.
     REFUND_EXECUTION_ENABLED: bool = False
+    # Send sellers their money through Paystack Transfers once the customer confirms receipt
+    # (services/payout_release_service.py). Off until the owner switches it on; needs Paystack live
+    # keys, a funded balance and OTP for transfers turned off in the Paystack dashboard.
+    PAYOUTS_ENABLED: bool = False
+    PAYOUT_CHECK_AFTER_MINUTES: int = Field(30, ge=5, le=1440)
 
     # --- Maps / Geocoding ---
     MAP_PROVIDER: str = "google_maps"  # google_maps | mapbox

@@ -146,6 +146,7 @@ export const adminRoutes = {
   reports: "/app/admin/reports",
   auditLogs: "/app/admin/audit-logs",
   security: "/app/admin/security",
+  payouts: "/app/admin/payouts",
   notifications: "/app/admin/notifications",
   settings: "/app/admin/settings",
 } as const;

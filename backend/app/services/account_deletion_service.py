@@ -89,7 +89,8 @@ class AccountDeletionService:
                         .filter(Delivery.delivery_partner_id == partner.id,
                                 Delivery.status.in_(ACTIVE_DELIVERY_STATUSES)).count()):
             reasons.append("You have a delivery in progress. Complete it first.")
-        if self.db.query(Payout).filter(Payout.seller_user_id == user.id, Payout.status == "pending").count():
+        if self.db.query(Payout).filter(Payout.seller_user_id == user.id,
+                                        Payout.status.in_(("pending", "processing", "held", "failed"))).count():
             reasons.append("You have money waiting to be paid out to you. Wait until it has been paid.")
         order_ids = self.db.query(Order.id).filter(
             or_(Order.buyer_user_id == user.id, Order.seller_user_id == user.id))
@@ -179,6 +180,8 @@ class AccountDeletionService:
         q(DeliveryPartner).filter(DeliveryPartner.user_id == uid).update(
             {"is_available": False}, synchronize_session=False)
         q(StorefrontHandle).filter(StorefrontHandle.owner_user_id == uid).delete(synchronize_session=False)
+        from app.models.seller_bank_account import SellerBankAccount
+        q(SellerBankAccount).filter(SellerBankAccount.user_id == uid).delete(synchronize_session=False)
 
         # The account itself: switched off, and nothing left that identifies the person.
         user.is_active = False
