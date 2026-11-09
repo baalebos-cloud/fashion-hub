@@ -4,7 +4,8 @@ import type { KYCStatus, SubmitKYCPayload } from "@/types/kyc";
 
 export const kycApi = {
   async submit(payload: SubmitKYCPayload): Promise<KYCStatus> {
-    const response = await apiClient.post<KYCStatus>(endpoints.kyc.submit, payload);
+    // Tailora reads the uploaded document during submission, which can take a while.
+    const response = await apiClient.post<KYCStatus>(endpoints.kyc.submit, payload, { timeout: 60_000 });
     return response.data;
   },
 

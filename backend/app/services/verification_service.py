@@ -268,7 +268,8 @@ class VerificationService:
                 item.update(official_name=record.nin_verified_full_name, name_match=record.identity_match,
                             registry_checked=record.nin_verified_full_name is not None,
                             # Which automatic-approval rules failed (no personal data).
-                            auto_checks=(record.auto_checks or {}).get("checks"))
+                            auto_checks=(record.auto_checks or {}).get("checks"),
+                            document_note=(record.auto_checks or {}).get("document_note"))
             else:
                 item.update(official_name=record.verified_company_name, name_match=record.name_match,
                             registry_checked=record.verified_company_name is not None,

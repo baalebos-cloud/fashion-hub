@@ -32,6 +32,13 @@ class LocalStorageProvider(StorageProvider):
         if os.path.exists(path):
             os.remove(path)
 
+    def read(self, key: str) -> tuple[bytes, str]:
+        path = os.path.join(LOCAL_STORAGE_DIR, key.replace("/", "_"))
+        if not os.path.exists(path):
+            raise ExternalProviderError("File not found in local storage.")
+        with open(path, "rb") as f:
+            return f.read(), guess_content_type(key)
+
 
 
 class PostgresStorageProvider(StorageProvider):
@@ -67,6 +74,17 @@ class PostgresStorageProvider(StorageProvider):
         from app.models.stored_media import StoredMedia
         with engine.begin() as conn:
             conn.execute(delete(StoredMedia).where(StoredMedia.storage_key == key))
+
+    def read(self, key: str) -> tuple[bytes, str]:
+        from sqlalchemy import select
+        from app.core.database import engine
+        from app.models.stored_media import StoredMedia
+        with engine.connect() as conn:
+            row = conn.execute(select(StoredMedia.content, StoredMedia.content_type)
+                               .where(StoredMedia.storage_key == key)).first()
+        if row is None:
+            raise ExternalProviderError("File not found in database storage.")
+        return bytes(row.content), row.content_type
 
 
 class S3CompatibleStorageProvider(StorageProvider):
@@ -120,6 +138,19 @@ class S3CompatibleStorageProvider(StorageProvider):
             self._client.delete_object(Bucket=self._bucket, Key=key)
         except Exception as exc:  # noqa: BLE001
             raise ExternalProviderError(f"Object storage delete failed: {exc}") from exc
+
+    def read(self, key: str) -> tuple[bytes, str]:
+        try:
+            obj = self._client.get_object(Bucket=self._bucket, Key=key)
+            return obj["Body"].read(), obj.get("ContentType") or guess_content_type(key)
+        except Exception as exc:  # noqa: BLE001
+            raise ExternalProviderError("Object storage read failed.") from exc
+
+
+def guess_content_type(key: str) -> str:
+    ext = key.rsplit(".", 1)[-1].lower() if "." in key else ""
+    return {"jpg": "image/jpeg", "jpeg": "image/jpeg", "png": "image/png", "webp": "image/webp",
+            "pdf": "application/pdf"}.get(ext, "application/octet-stream")
 
 
 def build_object_key(*, folder: str, filename: str) -> str:

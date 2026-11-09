@@ -30,6 +30,8 @@ export interface VerificationQueueItem {
   registry_checked: boolean;
   /** Which automatic-approval rules passed (true) or failed (false). */
   auto_checks?: Record<string, boolean> | null;
+  /** Identity checks: what Tailora found reading the uploaded document, for the reviewer and applicant. */
+  document_note?: string | null;
   business_name?: string | null;
   registration?: string;
 }

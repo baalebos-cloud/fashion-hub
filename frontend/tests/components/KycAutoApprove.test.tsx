@@ -12,7 +12,7 @@ vi.mock("@/components/verification/DocumentUpload", () => ({
 }));
 vi.mock("@/components/common/AddressMapPicker", () => ({ AddressMapPicker: () => null }));
 vi.mock("@/api/verification.api", () => ({
-  verificationApi: { queue: vi.fn(), review: vi.fn(), openDocument: vi.fn(), openReviewWindow: vi.fn() },
+  verificationApi: { queue: vi.fn(), review: vi.fn(), loadDocument: vi.fn(), checkDocument: vi.fn(), openReviewWindow: vi.fn() },
   hasReviewWindow: () => false, endReviewWindow: () => {},
 }));
 afterEach(() => { cleanup(); vi.clearAllMocks(); kyc.status = null; });
@@ -66,5 +66,31 @@ describe("admin business queue", () => {
     expect(await screen.findByText("Not approved automatically because:")).toBeTruthy();
     expect(screen.getByText("Owner is listed as a director, proprietor or shareholder: no")).toBeTruthy();
     expect(screen.queryByText(/Company is active/)).toBeNull();
+  });
+});
+
+describe("Tailora's document check in the identity queue", () => {
+  const base = { id: "k2", status: "under_review" as const, submitted_at: new Date().toISOString(),
+    applicant_name: "Oluwapelumi Oluwapemi", applicant_role: "designer", documents: [{ id: "d1", type: "nin" }],
+    official_name: null, name_match: null, registry_checked: false };
+
+  it("shows the note, pre-fills it for the applicant, and explains the authenticator code", async () => {
+    vi.mocked(verificationApi.queue).mockResolvedValue([{ ...base, document_note: "Tailora checked your NIN slip: the name matches your account." }]);
+    render(<VerificationQueue kind="kyc" />);
+    expect(await screen.findByText("Tailora's document check")).toBeTruthy();
+    expect((screen.getByLabelText(/Note to applicant/) as HTMLTextAreaElement).value).toMatch(/the name matches your account/);
+    expect(screen.getByText(/asks for the 6-digit code from your authenticator app/)).toBeTruthy();
+  });
+
+  it("runs the check on an older submission", async () => {
+    vi.mocked(verificationApi.queue).mockResolvedValue([base]);
+    vi.mocked(verificationApi.checkDocument).mockResolvedValue({ passed: false,
+      checks: { document_readable: true, document_name_matches: false },
+      document_note: "Tailora checked your document: the name on the NIN slip (ADA OBI) doesn't match." });
+    render(<VerificationQueue kind="kyc" />);
+    fireEvent.click(await screen.findByRole("button", { name: "Check document with Tailora" }));
+    expect((await screen.findAllByText(/the name on the NIN slip \(ADA OBI\)/)).length).toBeGreaterThan(0);
+    expect(screen.getByText("Name on the document matches the account: no")).toBeTruthy();
+    expect(verificationApi.checkDocument).toHaveBeenCalledWith("k2");
   });
 });

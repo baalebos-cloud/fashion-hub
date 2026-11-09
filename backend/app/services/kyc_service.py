@@ -80,6 +80,14 @@ class KYCService:
             similarity = SequenceMatcher(None, user.full_name.lower().strip(), nin_result.full_name.lower().strip()).ratio()
             identity_match = similarity >= NAME_MATCH_THRESHOLD or name_matches(user.full_name, nin_result.full_name)
 
+        # Tailora reads the uploaded document and compares it with the account (before taking the lock:
+        # the reading can take a few seconds). Its note goes to the admin and, on rejection, the applicant.
+        document_check = self._check_documents(
+            document_storage_keys, account_name=user.full_name,
+            reference_dob=(nin_result.date_of_birth if nin_result is not None and nin_result.date_of_birth
+                           else date_of_birth),
+            entered_nin=nin_number)
+
         # One submission per NIN at a time: two accounts sending the same NIN together are
         # handled one after the other (lock held until this transaction commits), so the
         # second always sees the first and goes to manual review.
@@ -97,6 +105,10 @@ class KYCService:
                             entered_dob=date_of_birth,
                             official_dob=nin_result.date_of_birth if nin_result is not None else None,
                             has_photo=has_profile_photo(user), duplicate=duplicate)
+        # Automatic approval needs both: the NIN record matches AND the document matches.
+        decision["checks"].update({k: v for k, v in document_check.checks.items() if v is not None})
+        decision["passed"] = decision["passed"] and document_check.passed
+        decision["document_note"] = document_check.note
         auto_approve = settings.NIN_AUTO_APPROVE and nin_result is not None and decision["passed"]
 
         if (home_latitude is None) != (home_longitude is None):
@@ -155,6 +167,48 @@ class KYCService:
         self.db.commit()
         self.db.refresh(verification)
         return verification
+
+    def _check_documents(self, storage_keys, *, account_name, reference_dob, entered_nin):
+        from app.services.document_check_service import DocumentCheckService, unavailable_check
+        from app.services.verification_documents import read_private_document
+        if not DocumentCheckService.available():
+            return unavailable_check("document checking isn't switched on")
+        documents = [found for key in storage_keys[:2] if (found := read_private_document(self.db, key))]
+        return DocumentCheckService().check(documents, account_name=account_name, reference_dob=reference_dob,
+                                            entered_nin=entered_nin)
+
+    def recheck_document(self, verification_id, *, admin):
+        """Run Tailora's document check again on a waiting submission (e.g. one sent before the check
+        existed). Stores the result and note for the admin; never approves by itself."""
+        from app.core.exceptions import ConflictError
+        from app.core.identity_encryption import decrypt_identity
+        from app.models.audit_log import AuditLog
+        from app.models.kyc_verification import KYCVerification
+        from app.models.user import User
+        from app.models.verification_document import VerificationDocument
+        record = self.db.get(KYCVerification, verification_id)
+        if record is None:
+            raise NotFoundError("Submission not found.")
+        if record.status not in {"pending", "under_review"}:
+            raise ConflictError("Only waiting submissions can be checked again.")
+        owner = self.db.get(User, record.user_id)
+        keys = [d.storage_key for d in self.db.query(VerificationDocument)
+                .filter(VerificationDocument.kyc_verification_id == record.id)]
+        try:
+            entered_nin = decrypt_identity(record.id_number_encrypted) if record.id_number_encrypted else None
+        except ExternalProviderError:
+            entered_nin = None
+        result = self._check_documents(keys, account_name=owner.full_name if owner else "",
+                                       reference_dob=record.nin_verified_date_of_birth, entered_nin=entered_nin)
+        checks = dict((record.auto_checks or {}).get("checks") or {})
+        checks = {k: v for k, v in checks.items() if not k.startswith("document_")}
+        checks.update({k: v for k, v in result.checks.items() if v is not None})
+        record.auto_checks = {**(record.auto_checks or {}), "checks": checks, "document_note": result.note}
+        self.db.add(AuditLog(actor_user_id=admin.id, action="kyc.document_checked", resource_type="verification",
+                             resource_id=record.id, metadata_json={"provider": result.provider,
+                                                                   "passed": result.passed}))
+        self.db.commit()
+        return {"checks": checks, "document_note": result.note, "passed": result.passed}
 
     def _fingerprint_legacy_records(self) -> bool:
         """Records from before fingerprints existed get one now, so the duplicate check sees them.

@@ -9,7 +9,7 @@ import { kybApi } from "@/api/kyb.api";
 
 const reviewWindow = vi.hoisted(() => ({ open: false }));
 vi.mock("@/api/verification.api", () => ({
-  verificationApi: { me: vi.fn(), queue: vi.fn(), review: vi.fn(), openDocument: vi.fn(),
+  verificationApi: { me: vi.fn(), queue: vi.fn(), review: vi.fn(), loadDocument: vi.fn(), checkDocument: vi.fn(),
     openReviewWindow: vi.fn(async () => { reviewWindow.open = true; }) },
   hasReviewWindow: () => reviewWindow.open,
   endReviewWindow: () => { reviewWindow.open = false; },
@@ -90,8 +90,12 @@ describe("admin review queue", () => {
     expect(screen.getByRole("alert").textContent).toMatch(/Add a reason/);
     expect(verificationApi.review).not.toHaveBeenCalled();
 
+    vi.mocked(verificationApi.loadDocument).mockResolvedValue({ url: "blob:doc1", type: "image/jpeg" });
     fireEvent.click(screen.getByRole("button", { name: "View document 1" }));
-    expect(verificationApi.openDocument).toHaveBeenCalledWith("doc1");
+    expect(verificationApi.loadDocument).toHaveBeenCalledWith("doc1");
+    // Shown inside the page (a new window doesn't open inside the phone apps).
+    expect((await screen.findByRole("img", { name: /document 1/ })).getAttribute("src")).toBe("blob:doc1");
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
 
     fireEvent.change(screen.getByLabelText(/Note to applicant/), { target: { value: "Trading name; certificate checked." } });
     reviewWindow.open = false;
