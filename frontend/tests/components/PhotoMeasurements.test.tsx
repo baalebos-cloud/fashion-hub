@@ -100,4 +100,20 @@ describe("Measure with photos", () => {
     fireEvent.click(screen.getByRole("button", { name: "Analyse photos" }));
     await waitFor(() => expect(screen.getByRole("alert").textContent).toMatch(/Enter measurements manually/));
   });
+
+  it("keeps Analyse off until every picked photo is ready", async () => {
+    const { prepareImage } = await import("@/lib/media/prepare-image");
+    let finishBody: (f: File) => void = () => {};
+    vi.mocked(prepareImage)
+      .mockImplementationOnce(() => new Promise<File>((resolve) => { finishBody = resolve; }))
+      .mockImplementationOnce(async (f: File) => f);
+    render(<MeasurementScanner onApply={vi.fn()} />);
+    fireEvent.change(screen.getByLabelText("Full-body photo"), { target: { files: [photo("slow.jpg")] } });
+    fireEvent.change(screen.getByLabelText("Measurement photos"), { target: { files: [photo("fast.jpg")] } });
+    await screen.findByAltText("Measurement photo 1");
+    const analyse = screen.getByRole("button", { name: "Analyse photos" }) as HTMLButtonElement;
+    expect(analyse.disabled).toBe(true); // the full-body photo is still being prepared
+    finishBody(photo("slow.jpg"));
+    await waitFor(() => expect(analyse.disabled).toBe(false));
+  });
 });

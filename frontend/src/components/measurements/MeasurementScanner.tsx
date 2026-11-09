@@ -69,7 +69,9 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
   const [edited, setEdited] = useState<Record<string, string>>({});
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [preparing, setPreparing] = useState(false);
+  // How many picked photos are still being resized; Analyse waits until every one is ready.
+  const [pendingPhotos, setPendingPhotos] = useState(0);
+  const preparing = pendingPhotos > 0;
   const [error, setError] = useState<string | null>(null);
 
   const heightCm = height.trim() === "" ? null : Number(height);
@@ -83,14 +85,14 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
     event.target.value = "";
     if (!file) return;
     setError(null);
-    setPreparing(true);
+    setPendingPhotos((n) => n + 1);
     try {
       setBodyPhoto(await readyPhoto(file));
       resetResult();
     } catch (err) {
       setError(getDisplayErrorMessage(err, "This photo couldn't be used. Try another one."));
     } finally {
-      setPreparing(false);
+      setPendingPhotos((n) => n - 1);
     }
   }
 
@@ -100,7 +102,7 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
     if (!files.length) return;
     const room = MAX_TAPE_PHOTOS - tapePhotos.length;
     setError(null);
-    setPreparing(true);
+    setPendingPhotos((n) => n + 1);
     try {
       const ready: File[] = [];
       for (const file of files.slice(0, room)) ready.push(await readyPhoto(file));
@@ -110,7 +112,7 @@ export function MeasurementScanner({ onApply, garmentType }: Props) {
     } catch (err) {
       setError(getDisplayErrorMessage(err, "This photo couldn't be used. Try another one."));
     } finally {
-      setPreparing(false);
+      setPendingPhotos((n) => n - 1);
     }
   }
 
