@@ -14,12 +14,14 @@ left half-done. Otherwise, in one transaction:
 """
 from __future__ import annotations
 
+import logging
 import secrets
 
 from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.exceptions import ConflictError, ForbiddenError
 from app.core.security import hash_password, verify_password
 from app.models.ai_conversation import AIConversation
@@ -44,15 +46,22 @@ from app.models.payout import Payout
 from app.models.professional import Professional
 from app.models.recommendation_impression import RecommendationImpression
 from app.models.refund import Refund
+from app.integrations.storage.object_storage import get_storage_provider
 from app.models.storefront_handle import StorefrontHandle
+from app.models.stored_media import StoredMedia
 from app.models.user import RefreshSession, User
 from app.models.vendor import Vendor
 from app.models.vendor_product import VendorProduct
 from app.services.masked_call_service import ACTIVE_DELIVERY_STATUSES, CLOSED_ORDER_STATUSES
 
+logger = logging.getLogger(__name__)
+
 DELETED_NAME = "Deleted user"
 # A material order still being put together in the cart: nothing bought, nobody waiting on it.
-NOT_YET_ORDERED = {"cart", "checkout"}
+# ("checkout" is not here: its payment page may still be paid, so it blocks like any open order.)
+NOT_YET_ORDERED = {"cart"}
+# Kept from a past order's delivery address: enough for tax and statistics, not enough to find anyone.
+KEPT_ADDRESS_FIELDS = ("city", "state_region", "country")
 
 
 def deleted_email(user_id) -> str:
@@ -140,6 +149,22 @@ class AccountDeletionService:
         q(InteractionEvent).filter(InteractionEvent.user_id == uid).delete(synchronize_session=False)
         q(RecommendationImpression).filter(RecommendationImpression.user_id == uid).delete(synchronize_session=False)
 
+        # Copies saved on their past orders: keep only the area of the delivery address, drop the
+        # recipient's name, phone, street and map point, and the body measurements.
+        for order in q(Order).filter(Order.buyer_user_id == uid):
+            snapshot = order.delivery_address_snapshot
+            if snapshot:
+                order.delivery_address_snapshot = {k: snapshot.get(k) for k in KEPT_ADDRESS_FIELDS if snapshot.get(k)}
+            order.measurement_snapshot = None
+
+        # Uploaded profile photos stop being reachable at their old links.
+        avatar_prefix = f"avatar/{uid}/"
+        q(StoredMedia).filter(StoredMedia.owner_user_id == uid, StoredMedia.storage_key.like("avatar/%")).delete(
+            synchronize_session=False)
+        photo_url = user.profile_photo_url or ""
+        external_avatar = (photo_url[photo_url.index(avatar_prefix):].split("?")[0]
+                           if avatar_prefix in photo_url else None)
+
         # Take down anything they were offering to others.
         professional = q(Professional).filter(Professional.user_id == uid).first()
         if professional:
@@ -171,3 +196,10 @@ class AccountDeletionService:
 
         self.db.add(AuditLog(actor_user_id=uid, action="account.deleted", resource_type="user", resource_id=uid))
         self.db.commit()
+
+        if external_avatar and settings.STORAGE_PROVIDER not in {"postgres"}:
+            # Photos kept outside the database (object storage): removed once the account is gone.
+            try:
+                get_storage_provider().delete(external_avatar)
+            except Exception:  # noqa: BLE001 - the account is deleted either way; the key is logged, not the URL
+                logger.warning("account_deleted_avatar_not_removed user=%s", uid)

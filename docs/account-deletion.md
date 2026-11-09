@@ -11,7 +11,7 @@ plain-language reason, while the account has any of these:
 
 | Blocker | Message |
 |---|---|
-| An order as buyer or seller that isn't finished (anything except completed, cancelled, rejected, refunded; a material cart that hasn't been checked out doesn't count) | "You have 1 open order. Finish or cancel it first." |
+| An order as buyer or seller that isn't finished (anything except completed, cancelled, rejected, refunded; a material cart that hasn't reached checkout doesn't count, but a checkout awaiting payment does, since its payment page can still be paid) | "You have 1 open order. Finish or cancel it first." |
 | A delivery in progress (riders) | "You have a delivery in progress. Complete it first." |
 | A payout not yet released (sellers) | "You have money waiting to be paid out to you. Wait until it has been paid." |
 | A refund still being decided | "A refund on one of your orders is still being decided. Wait for the outcome." |
@@ -27,6 +27,10 @@ The person confirms with their password. Then, in one transaction (`services/acc
   and the password is replaced with a random one nobody knows. The account is switched off.
 - **Erased:** saved addresses (and their map points unless a past delivery uses them), measurements,
   favourites, cart contents, assistant chats, notifications and recorded browsing activity.
+- **Copies on past orders:** the delivery address saved on each of their orders is cut down to
+  city, state and country (recipient name, phone, street and map point removed), and the
+  measurements saved on the order are removed.
+- **Profile photo:** an uploaded photo is deleted from storage, so its old link stops working.
 - **Taken down:** a professional stops taking orders, their bio is cleared and designs are
   unpublished; a vendor's products are deactivated; a rider is marked unavailable; the storefront
   link is released.

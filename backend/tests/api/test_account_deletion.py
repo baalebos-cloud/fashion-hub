@@ -24,6 +24,7 @@ from app.models.notification import Notification
 from app.models.order import Order
 from app.models.payout import Payout
 from app.models.professional import Professional
+from app.models.stored_media import StoredMedia
 from app.models.user import RefreshSession, User
 from app.services.account_deletion_service import DELETED_NAME
 
@@ -133,6 +134,40 @@ def test_a_material_cart_does_not_block(ctx):
     db.add(order)
     db.commit()
     assert http.get("/api/v1/users/me/deletion").json()["can_delete"] is True
+
+
+def test_a_material_checkout_awaiting_payment_blocks(ctx):
+    http, db = ctx["http"], ctx["db"]
+    vendor = ctx["make_user"](role="vendor")
+    ctx["current"][0] = vendor  # the seller is blocked too: the payment page may still be paid
+    order = Order(order_number="TL-" + uuid.uuid4().hex[:8].upper(), order_type="vendor_order",
+                  buyer_user_id=ctx["make_user"](role="tailor").id, seller_user_id=vendor.id, status="checkout",
+                  subtotal=Decimal(10), total_amount=Decimal(10), currency="NGN")
+    db.add(order)
+    db.commit()
+    assert http.get("/api/v1/users/me/deletion").json()["can_delete"] is False
+    assert _delete(http).status_code == 409
+
+
+def test_copies_on_past_orders_and_the_uploaded_photo_are_erased(ctx):
+    http, db, user = ctx["http"], ctx["db"], ctx["current"][0]
+    order = _order(db, user, ctx["make_user"](role="tailor"), "completed")
+    order.delivery_address_snapshot = {"recipient_name": "Ada Obi", "recipient_phone": "+2348000000001",
+                                       "formatted_address": "12 Allen Avenue", "city": "Ikeja", "state_region": "Lagos",
+                                       "country": "Nigeria", "latitude": 6.6, "longitude": 3.35}
+    order.measurement_snapshot = {"label": "Me", "fields": [{"field_name": "chest", "value": "96", "unit": "cm"}]}
+    avatar_id = uuid.uuid4()
+    db.add(StoredMedia(id=avatar_id, owner_user_id=user.id, storage_key=f"avatar/{user.id}/photo.jpg", content_type="image/jpeg",
+                       is_public=True, content=b"\xff\xd8"))
+    db.commit()
+    order_id = order.id
+    assert _delete(http).status_code == 204
+    db.expire_all()
+    kept = db.get(Order, order_id)
+    assert kept.delivery_address_snapshot == {"city": "Ikeja", "state_region": "Lagos", "country": "Nigeria"}
+    assert kept.measurement_snapshot is None
+    assert db.get(StoredMedia, avatar_id) is None
+    assert http.get(f"/api/v1/media/files/{avatar_id}").status_code == 404
 
 
 def test_pending_payout_blocks_deletion(ctx):
