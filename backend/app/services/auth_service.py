@@ -36,9 +36,23 @@ class AuthService:
         self.db = db
         self.users = UserRepository(db)
 
-    def sign_up(self, *, email: str, phone_number: Optional[str], password: str, full_name: str, role: str, referral_code: Optional[str] = None) -> User:
+    def sign_up(self, *, email: str, phone_number: Optional[str], password: str, full_name: Optional[str] = None, role: str,
+                referral_code: Optional[str] = None, first_name: Optional[str] = None, middle_name: Optional[str] = None,
+                last_name: Optional[str] = None) -> User:
         if role not in PUBLIC_SIGNUP_ROLES:
             raise ValidationAppError(f"Invalid role '{role}'.")
+        from app.core.names import clean_part, compose_full_name, split_full_name
+        if first_name is not None or last_name is not None:
+            first = clean_part(first_name, label="first name", required=True)
+            middle = clean_part(middle_name, label="middle name", required=False)
+            last = clean_part(last_name, label="surname", required=True)
+            full_name = compose_full_name(first, middle, last)
+        else:  # older app versions send one full_name
+            # Same rule as before the parts existed (the request schema needs 2+ characters).
+            full_name = " ".join((full_name or "").split())
+            if not full_name:
+                raise ValidationAppError("Enter your first name and surname.")
+            first, middle, last = split_full_name(full_name)
 
         email = email.lower().strip()
         if self.users.get_by_email(email):
@@ -51,6 +65,9 @@ class AuthService:
             phone_number=phone_number,
             hashed_password=hash_password(password),
             full_name=full_name,
+            first_name=first,
+            middle_name=middle,
+            last_name=last,
             role=role,
         )
         self.users.add(user)

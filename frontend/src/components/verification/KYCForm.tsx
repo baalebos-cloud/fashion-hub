@@ -11,6 +11,14 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { isApiError } from "@/lib/api/errors";
 import { formatDate } from "@/lib/formatters/date";
 import { useTimezone } from "@/hooks/use-timezone";
+import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/use-auth";
+import { customerRoutes, deliveryRoutes, professionalRoutes, vendorRoutes } from "@/config/routes.config";
+
+const PROFILE_FOR_ROLE: Record<string, string> = {
+  customer: customerRoutes.profile, tailor: professionalRoutes.profile, designer: professionalRoutes.profile,
+  vendor: vendorRoutes.profile, delivery_partner: deliveryRoutes.profile,
+};
 
 /**
  * NIN is compulsory -- there is no "skip" or alternate ID type option.
@@ -22,6 +30,8 @@ import { useTimezone } from "@/hooks/use-timezone";
 export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const { status, isLoading, submit } = useKYC();
   const timeZone = useTimezone();
+  const { user } = useAuth();
+  const profilePath = user ? PROFILE_FOR_ROLE[user.role] : undefined;
 
   const [ninNumber, setNinNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
@@ -121,6 +131,13 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
       {status?.status === "rejected" && (
         <p className="text-sm text-thread">
           Your previous submission was rejected{status.rejection_reason ? `: ${status.rejection_reason}` : "."} Please resubmit.
+        </p>
+      )}
+      {status?.status === "rejected" && profilePath && (
+        <p className="rounded-control bg-brass/10 px-3 py-2 text-sm text-ink">
+          Name doesn't match your NIN?{" "}
+          <Link to={profilePath} className="font-semibold text-indigo underline">Correct your name</Link>{" "}
+          (first name, middle name and surname exactly as on your NIN slip), then come back and submit again.
         </p>
       )}
 

@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { authRoutes } from "@/config/routes.config";
 import { ROLE_LABELS } from "@/constants/roles";
 import { cn } from "@/lib/utils/cn";
+import { NameFields } from "@/components/profile/NameFields";
+import { validateNameParts, type NameErrors, type NameParts } from "@/lib/names";
 import type { UserRole } from "@/types/auth";
 
 const SIGNUP_ROLES: { role: UserRole; emoji: string }[] = [
@@ -36,7 +38,8 @@ export function SignupForm() {
   const [searchParams] = useSearchParams();
   const referralCode = searchParams.get("ref") ?? undefined;
 
-  const [fullName, setFullName] = useState("");
+  const [name, setName] = useState<NameParts>({ first: "", middle: "", last: "" });
+  const [nameErrors, setNameErrors] = useState<NameErrors>({});
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -47,16 +50,16 @@ export function SignupForm() {
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    const errors = validateSignUp({ email, password, fullName });
-    if (errors.length > 0) {
-      setFieldErrors(Object.fromEntries(errors.map((err) => [err.field, err.message])));
-      return;
-    }
-    setFieldErrors({});
+    const errors = validateSignUp({ email, password });
+    const nErrors = validateNameParts(name);
+    setNameErrors(nErrors);
+    setFieldErrors(Object.fromEntries(errors.map((err) => [err.field, err.message])));
+    if (errors.length > 0 || Object.keys(nErrors).length > 0) return;
     setFormError(null);
     setIsSubmitting(true);
     try {
-      await signUp({ email, password, full_name: fullName, role, referral_code: referralCode });
+      await signUp({ email, password, first_name: name.first.trim(), middle_name: name.middle.trim() || undefined,
+        last_name: name.last.trim(), role, referral_code: referralCode });
       navigate(authRoutes.login, { state: { justSignedUp: true } });
     } catch (err) {
       setFormError(getDisplayErrorMessage(err, "Could not create your account."));
@@ -110,21 +113,7 @@ export function SignupForm() {
         </div>
       </fieldset>
 
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="fullName" className="text-sm font-medium text-ink">Full name</label>
-        <Input
-          id="fullName"
-          autoComplete="name"
-          value={fullName}
-          onChange={(e) => setFullName(e.target.value)}
-          error={fieldErrors.fullName}
-          placeholder="Ada Okonkwo"
-          required
-        />
-        {fieldErrors.fullName && (
-          <p className="text-xs text-thread" role="alert">{fieldErrors.fullName}</p>
-        )}
-      </div>
+      <NameFields value={name} onChange={setName} errors={nameErrors} idPrefix="signup-name" />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium text-ink">Email address</label>

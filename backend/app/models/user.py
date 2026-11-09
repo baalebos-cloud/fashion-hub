@@ -27,7 +27,11 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     phone_number: Mapped[str | None] = mapped_column(String(32), unique=True, index=True, nullable=True)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
 
+    # Always built from the three parts below (app/core/names.py); kept for everything that reads it.
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    first_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    middle_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    last_name: Mapped[str | None] = mapped_column(String(80), nullable=True)
     role: Mapped[str] = mapped_column(String(32), nullable=False, default=UserRole.CUSTOMER.value)
 
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

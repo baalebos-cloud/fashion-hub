@@ -129,7 +129,9 @@ describe("LoginForm", () => {
 describe("SignupForm", () => {
   it("renders all required fields", () => {
     wrap(<SignupForm />);
-    expect(screen.getByLabelText("Full name")).toBeTruthy();
+    expect(screen.getByLabelText("First name")).toBeTruthy();
+    expect(screen.getByLabelText(/Middle name/)).toBeTruthy();
+    expect(screen.getByLabelText("Surname")).toBeTruthy();
     expect(screen.getByLabelText("Email address")).toBeTruthy();
     expect(screen.getByLabelText("Password")).toBeTruthy();
   });

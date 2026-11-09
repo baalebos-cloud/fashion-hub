@@ -186,6 +186,7 @@ class AccountDeletionService:
         # The account itself: switched off, and nothing left that identifies the person.
         user.is_active = False
         user.full_name = DELETED_NAME
+        user.first_name = user.middle_name = user.last_name = None
         user.email = deleted_email(uid)
         user.phone_number = None
         user.whatsapp_number = None

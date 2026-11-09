@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import type { Vendor } from "@/types/vendor";
 import { ProfilePhoto } from "@/components/profile/ProfilePhoto";
+import { ProfileForm } from "@/components/profile/ProfileForm";
 import { useAuthStore } from "@/store/auth.store";
 
 export default function Profile() {
@@ -40,5 +41,9 @@ export default function Profile() {
       <Button onClick={() => { void save(); }} disabled={!name.trim()} isLoading={saving}>Create business profile</Button>
     </>}
     {error && <p role="alert">{error}</p>}
+    <section aria-labelledby="vendor-your-name" className="flex flex-col gap-3 border-t border-line pt-4">
+      <h2 id="vendor-your-name" className="font-display text-lg">Your name and contact</h2>
+      <ProfileForm />
+    </section>
   </div>;
 }

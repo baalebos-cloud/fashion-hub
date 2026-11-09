@@ -188,6 +188,26 @@ class KYCService:
         self.db.refresh(verification)
         return verification
 
+    def check_new_name(self, user, new_full_name: str) -> None:
+        """A verified person changing their name: the new name must still match the name on their NIN
+        record (spelling fixes, order and adding a middle name are fine), so a verified account can't
+        take on someone else's name. Does nothing before verification, or after a rejection: then the
+        name is checked again when they submit."""
+        from app.models.kyc_verification import KYCVerification
+        from app.services.nin_matching import name_matches
+        kyc = (self.db.query(KYCVerification).filter(KYCVerification.user_id == user.id,
+                                                     KYCVerification.status == "verified")
+               .order_by(KYCVerification.created_at.desc()).first())
+        if kyc is None:
+            return
+        official = (kyc.nin_verified_full_name or "").strip()
+        if not official:
+            raise ValidationAppError("Your identity was confirmed by the Tailora team, so your name can't be changed here. "
+                                     "Contact Tailora support to correct it.")
+        if not name_matches(new_full_name, official):
+            raise ValidationAppError("Your identity is verified, so your name must match the name on your NIN record. "
+                                     "Check the spelling of each part.")
+
     def check_new_profile_photo(self, user, new_url: str) -> None:
         """A verified person changing their profile photo: the new photo must also match the NIN record
         photo, so nobody can pass the face check and then show someone else's face. Raises
