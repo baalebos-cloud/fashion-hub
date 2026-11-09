@@ -21,6 +21,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
 from app.core.config import settings
+from app.integrations.ai.llm_client import groq_length_settings, strip_reasoning
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -222,7 +223,7 @@ class PhotoMeasurementService:
         response = self._post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-            json={"model": settings.GROQ_VISION_MODEL, "temperature": 0.1, "max_tokens": 900,
+            json={"model": settings.GROQ_VISION_MODEL, "temperature": 0.1, **groq_length_settings(settings.GROQ_VISION_MODEL, 900),
                   "response_format": {"type": "json_object"},
                   "messages": [{"role": "user", "content": content}]},
             timeout=45.0,
@@ -230,7 +231,7 @@ class PhotoMeasurementService:
         if response.status_code != 200:
             raise PhotoMeasurementUnavailable(f"Groq vision HTTP {response.status_code}")
         try:
-            text = response.json()["choices"][0]["message"]["content"]
+            text = strip_reasoning(response.json()["choices"][0]["message"]["content"])
             return ModelDraft.model_validate(json.loads(text))
         except (KeyError, IndexError, TypeError, ValueError, ValidationError) as exc:
             raise PhotoMeasurementUnavailable("Groq vision returned an invalid draft.") from exc

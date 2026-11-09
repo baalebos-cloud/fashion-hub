@@ -21,6 +21,7 @@ import httpx
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 from app.core.config import settings
+from app.integrations.ai.llm_client import groq_length_settings, strip_reasoning
 from app.services.nin_matching import name_matches
 
 logger = logging.getLogger(__name__)
@@ -273,7 +274,7 @@ class DocumentCheckService:
             response = self._post(
                 "https://api.groq.com/openai/v1/chat/completions",
                 headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-                json={"model": settings.GROQ_VISION_MODEL, "temperature": 0, "max_tokens": 600,
+                json={"model": settings.GROQ_VISION_MODEL, "temperature": 0, **groq_length_settings(settings.GROQ_VISION_MODEL, 600),
                       "response_format": {"type": "json_object"},
                       "messages": [{"role": "user", "content": content}]},
                 timeout=READ_TIMEOUT_SECONDS)
@@ -298,7 +299,7 @@ class DocumentCheckService:
                             + (f" [{code}]" if code else ""))
             return None
         try:
-            text = response.json()["choices"][0]["message"]["content"]
+            text = strip_reasoning(response.json()["choices"][0]["message"]["content"])
             return DocumentReading.model_validate(json.loads(text))
         except (KeyError, IndexError, TypeError, ValueError, ValidationError):
             problems.append("Groq: the reply couldn't be understood")
