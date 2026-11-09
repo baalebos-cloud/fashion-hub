@@ -51,7 +51,7 @@ export function AIInput({ onSend, isSending, autoFocus }: AIInputProps) {
         </button>
       </div>
       <p className="mt-2 text-center text-[10.5px] text-ink-soft">
-        Tailora can point you to the right page — it can’t see other people’s orders.
+        Tailora AI may occasionally provide inaccurate information. It does not book jobs or process payments on your behalf.
       </p>
     </form>
   );
