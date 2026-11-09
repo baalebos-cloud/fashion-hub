@@ -31,6 +31,8 @@ export function LoginForm() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  // The backend refuses admins here and points them to the two-step admin sign-in.
+  const isAdminAccount = !!formError && /admin\/login/i.test(formError);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -121,11 +123,18 @@ export function LoginForm() {
         )}
       </div>
 
-      {formError && (
+      {formError && (isAdminAccount ? (
+        <div className="flex flex-col gap-2 rounded-lg bg-indigo-wash px-3 py-3 text-sm text-ink" role="alert">
+          <p>This is an admin account. Admins sign in with their password and a code from their authenticator app.</p>
+          <Link to={authRoutes.adminLogin} state={{ email }} className="self-start font-medium text-indigo underline">
+            Go to admin sign-in
+          </Link>
+        </div>
+      ) : (
         <p className="rounded-lg bg-thread/10 px-3 py-2 text-sm text-thread" role="alert">
           {formError}
         </p>
-      )}
+      ))}
 
       <Button type="submit" isLoading={isSubmitting} className="w-full" size="lg">
         Sign in

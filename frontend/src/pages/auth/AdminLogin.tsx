@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import qrcode from "qrcode-generator";
 import { authApi, type AdminSignInStep } from "@/api/auth.api";
 import { useAuthStore } from "@/store/auth.store";
@@ -26,8 +26,10 @@ function QrCode({ value }: { value: string }) {
  */
 export default function AdminLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const completeSignIn = useAuthStore((s) => s.completeSignIn);
-  const [email, setEmail] = useState("");
+  // Coming from the regular sign-in page keeps the email typed there.
+  const [email, setEmail] = useState(() => (location.state as { email?: string } | null)?.email ?? "");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [step, setStep] = useState<AdminSignInStep | null>(null);
