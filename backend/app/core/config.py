@@ -291,6 +291,11 @@ class Settings(BaseSettings):
     # compares it with the account (services/document_check_service.py). Needs an AI provider; the
     # document image is sent to it. Automatic approval also needs the NIN record (NIN_AUTO_APPROVE).
     DOCUMENT_AI_CHECK: bool = True
+    # Live selfie and profile photo must both match the NIN record photo (Prembly "NIN with face").
+    # Off until the product is enabled on the Prembly account; each submission makes two face checks.
+    NIN_FACE_CHECK: bool = False
+    NIN_FACE_THRESHOLD: int = Field(80, ge=70, le=100)
+    PREMBLY_NIN_FACE_URL: str = "https://api.prembly.com/verification/nin_w_face"
     # Business (CAC) lookups for KYB. "manual" sends every submission to admin review.
     KYB_PROVIDER: str = "manual"  # manual | prembly
     # Approve a business without an admin when every rule in services/kyb_matching.py passes

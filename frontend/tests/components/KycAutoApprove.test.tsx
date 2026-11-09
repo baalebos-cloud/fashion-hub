@@ -11,6 +11,9 @@ vi.mock("@/components/verification/DocumentUpload", () => ({
   DocumentUpload: ({ onUploaded }: { onUploaded: (key: string) => void }) => <button type="button" onClick={() => onUploaded("kyc/id.jpg")}>Upload ID</button>,
 }));
 vi.mock("@/components/common/AddressMapPicker", () => ({ AddressMapPicker: () => null }));
+vi.mock("@/components/verification/SelfieCapture", () => ({
+  SelfieCapture: ({ onUploaded }: { onUploaded: (key: string) => void }) => <button type="button" onClick={() => onUploaded("kyc/u1/selfie.jpg")}>Take selfie</button>,
+}));
 vi.mock("@/api/verification.api", () => ({
   verificationApi: { queue: vi.fn(), review: vi.fn(), loadDocument: vi.fn(), checkDocument: vi.fn(), openReviewWindow: vi.fn() },
   hasReviewWindow: () => false, endReviewWindow: () => {},
@@ -29,9 +32,12 @@ describe("NIN form", () => {
     const submit = screen.getAllByRole("button").find((b) => /submit|verify/i.test(b.textContent ?? "")) as HTMLButtonElement;
     expect(submit.disabled).toBe(true); // no date of birth yet
     fireEvent.change(screen.getByLabelText("Date of birth (as on your NIN)"), { target: { value: "1990-04-12" } });
+    expect(submit.disabled).toBe(true); // no selfie yet
+    fireEvent.click(screen.getByRole("button", { name: "Take selfie" }));
     expect(submit.disabled).toBe(false);
     fireEvent.click(submit);
-    await waitFor(() => expect(kyc.submit).toHaveBeenCalledWith(expect.objectContaining({ nin_number: "70123456789", date_of_birth: "1990-04-12" })));
+    await waitFor(() => expect(kyc.submit).toHaveBeenCalledWith(expect.objectContaining({
+      nin_number: "70123456789", date_of_birth: "1990-04-12", selfie_storage_key: "kyc/u1/selfie.jpg" })));
   });
 
   it("says when the person was verified straight away", () => {
@@ -104,4 +110,18 @@ it("doesn't put a 'couldn't check' note into the message to the applicant, and o
   expect(await screen.findByText(/Groq: HTTP 404/)).toBeTruthy();
   expect((screen.getByLabelText(/Note to applicant/) as HTMLTextAreaElement).value).toBe("");
   expect(screen.getByRole("button", { name: "Try the check again" })).toBeTruthy();
+});
+
+describe("face match in the identity queue", () => {
+  it("shows the selfie and each face match result", async () => {
+    vi.mocked(verificationApi.queue).mockResolvedValue([{ id: "k9", status: "under_review", submitted_at: new Date().toISOString(),
+      applicant_name: "Tunde Bakare", applicant_role: "tailor", documents: [{ id: "d1", type: "nin" }, { id: "d2", type: "selfie" }],
+      official_name: "TUNDE BAKARE", name_match: true, registry_checked: true,
+      auto_checks: { record_found: true, selfie_matches_nin: true, profile_photo_matches_nin: false },
+      face: { selfie_confidence: 95.5, profile_photo_confidence: 32.0 } }]);
+    render(<VerificationQueue kind="kyc" />);
+    expect(await screen.findByRole("button", { name: "View selfie" })).toBeTruthy();
+    expect(screen.getByText("Profile photo matches the NIN record photo: no")).toBeTruthy();
+    expect(screen.getByText(/Selfie 95.5%/)).toBeTruthy();
+  });
 });

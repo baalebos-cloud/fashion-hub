@@ -25,3 +25,30 @@ def read_private_document(db: Session, storage_key: str) -> tuple[bytes, str] | 
     except ExternalProviderError:
         logger.warning("verification_document_unreadable")  # no key: it contains the owner's id
         return None
+
+
+def read_profile_photo(db: Session, user) -> bytes | None:
+    """The bytes of the user's uploaded profile photo, wherever it is stored, or None."""
+    import re
+    import uuid as _uuid
+
+    from app.models.stored_media import StoredMedia
+    url = (getattr(user, "profile_photo_url", None) or "").strip()
+    if not url:
+        return None
+    found = re.search(r"/media/files/([0-9a-fA-F-]{36})", url)
+    if found:
+        try:
+            media = db.get(StoredMedia, _uuid.UUID(found.group(1)))
+        except ValueError:
+            media = None
+        if media is not None and media.storage_key.startswith("avatar/"):
+            return bytes(media.content)
+    prefix = f"avatar/{user.id}/"
+    if prefix in url:
+        from app.integrations.storage.object_storage import get_storage_provider
+        try:
+            return get_storage_provider().read(url[url.index(prefix):].split("?")[0])[0]
+        except ExternalProviderError:
+            return None
+    return None

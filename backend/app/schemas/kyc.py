@@ -11,6 +11,8 @@ class SubmitKYCRequest(BaseModel):
     home_formatted_address: Optional[str] = Field(None, max_length=512)
     # Compared with the NIN record's date of birth; never stored from here.
     date_of_birth: Optional[date] = None
+    # A selfie taken during submission (private upload, purpose=kyc), matched to the NIN record photo.
+    selfie_storage_key: Optional[str] = Field(None, max_length=512)
 
 
 class KYCStatusResponse(BaseModel):

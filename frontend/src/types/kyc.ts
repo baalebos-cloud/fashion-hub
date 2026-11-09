@@ -24,4 +24,6 @@ export interface SubmitKYCPayload {
   home_formatted_address?: string;
   /** YYYY-MM-DD, compared with the NIN record; not stored from here. */
   date_of_birth?: string;
+  /** Private upload of a selfie taken during submission, matched to the NIN record photo. */
+  selfie_storage_key?: string;
 }

@@ -32,6 +32,7 @@ class KYCService:
         home_longitude: float | None,
         home_formatted_address: str | None = None,
         date_of_birth=None,
+        selfie_storage_key: str | None = None,
     ):
         """
         NIN verification is compulsory for every professional, vendor
@@ -69,6 +70,10 @@ class KYCService:
             raise ValidationAppError("Enter a valid 11-digit NIN.")
         if not document_storage_keys:
             raise ValidationAppError("Upload a supporting identity document.")
+        if settings.NIN_FACE_CHECK and not selfie_storage_key:
+            raise ValidationAppError("Take a selfie so Tailora can check it's really you.")
+        if selfie_storage_key and not selfie_storage_key.startswith(f"kyc/{user_id}/"):
+            raise ValidationAppError("Take the selfie again and resubmit.")
         try:
             nin_result = nin_provider.verify(nin_number)
         except ExternalProviderError:
@@ -87,6 +92,9 @@ class KYCService:
             reference_dob=(nin_result.date_of_birth if nin_result is not None and nin_result.date_of_birth
                            else date_of_birth),
             entered_nin=nin_number)
+
+        # Face check: the live selfie and the profile photo must both match the NIN record photo.
+        face = self._check_faces(user, nin_number, selfie_storage_key, nin_found=nin_result is not None)
 
         # One submission per NIN at a time: two accounts sending the same NIN together are
         # handled one after the other (lock held until this transaction commits), so the
@@ -110,6 +118,10 @@ class KYCService:
         decision["passed"] = decision["passed"] and document_check.passed
         decision["document_note"] = document_check.note
         decision["document_checked"] = document_check.checked
+        if face is not None:
+            decision["checks"].update(face["checks"])
+            decision["passed"] = decision["passed"] and all(face["checks"].values())
+            decision["face"] = face["summary"]
         auto_approve = settings.NIN_AUTO_APPROVE and nin_result is not None and decision["passed"]
 
         if (home_latitude is None) != (home_longitude is None):
@@ -161,6 +173,9 @@ class KYCService:
 
         for key in document_storage_keys:
             self.db.add(VerificationDocument(kyc_verification_id=verification.id, document_type="nin", storage_key=key))
+        if selfie_storage_key:
+            self.db.add(VerificationDocument(kyc_verification_id=verification.id, document_type="selfie",
+                                             storage_key=selfie_storage_key))
 
         if auto_approve:
             self._record_auto_approval(user, verification)
@@ -168,6 +183,37 @@ class KYCService:
         self.db.commit()
         self.db.refresh(verification)
         return verification
+
+    def _check_faces(self, user, nin_number, selfie_storage_key, *, nin_found: bool):
+        """None when face checking is off; otherwise each check's result plus a short summary
+        (confidences and any reason it couldn't run). No images or NINs are kept."""
+        if not settings.NIN_FACE_CHECK:
+            return None
+        from app.integrations.kyc.prembly_face import compare_face_with_nin
+        from app.services.verification_documents import read_private_document, read_profile_photo
+        checks, summary = {}, {}
+        selfie = read_private_document(self.db, selfie_storage_key) if selfie_storage_key else None
+        photos = {"selfie_matches_nin": selfie[0] if selfie else None,
+                  "profile_photo_matches_nin": read_profile_photo(self.db, user)}
+        for check, image in photos.items():
+            label = check.split("_matches")[0]
+            if not nin_found:
+                checks[check] = False
+                summary[f"{label}_problem"] = "no NIN record to compare with"
+                continue
+            if image is None:
+                checks[check] = False
+                summary[f"{label}_problem"] = "photo missing"
+                continue
+            try:
+                match = compare_face_with_nin(nin_number, image)
+            except ExternalProviderError as exc:
+                checks[check] = False
+                summary[f"{label}_problem"] = str(exc)[:120]
+                continue
+            checks[check] = match.matched
+            summary[f"{label}_confidence"] = match.confidence
+        return {"checks": checks, "summary": summary}
 
     def _check_documents(self, storage_keys, *, account_name, reference_dob, entered_nin):
         from app.services.document_check_service import DocumentCheckService, unavailable_check

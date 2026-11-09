@@ -270,7 +270,8 @@ class VerificationService:
                             # Which automatic-approval rules failed (no personal data).
                             auto_checks=(record.auto_checks or {}).get("checks"),
                             document_note=(record.auto_checks or {}).get("document_note"),
-                            document_checked=bool((record.auto_checks or {}).get("document_checked", False)))
+                            document_checked=bool((record.auto_checks or {}).get("document_checked", False)),
+                            face=(record.auto_checks or {}).get("face"))
             else:
                 item.update(official_name=record.verified_company_name, name_match=record.name_match,
                             registry_checked=record.verified_company_name is not None,
