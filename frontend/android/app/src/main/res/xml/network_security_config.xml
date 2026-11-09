@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MASVS-NETWORK / OWASP MASTG: encrypted connections only, and only certificates from the phone's
+     built-in trust store (a certificate a user or another app installs can't intercept Tailora).
+     Debug builds also trust user-installed certificates, for testing with a proxy. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+</network-security-config>

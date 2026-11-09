@@ -112,6 +112,9 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
           onChange={(e) => setNinNumber(e.target.value.replace(/\D/g, "").slice(0, 11))}
           placeholder="11-digit NIN"
           inputMode="numeric"
+          autoComplete="off"
+          autoCorrect="off"
+          spellCheck={false}
           maxLength={11}
         />
         <p className="mt-1 text-xs text-ink-soft">

@@ -21,6 +21,34 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, continue userActivity: NSUserActivity) {
         SceneDelegateProxy.shared.scene(scene, continue: userActivity)
     }
+
+    // MASVS-STORAGE / OWASP MASTG: iOS saves a picture of the screen for the app switcher. Cover the
+    // app before that happens so a NIN, address, order or chat is never kept in that picture.
+    private var privacyCover: UIView?
+
+    func sceneWillResignActive(_ scene: UIScene) {
+        guard let window = window, privacyCover == nil else { return }
+        let cover = UIView(frame: window.bounds)
+        cover.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        cover.backgroundColor = UIColor(red: 0xF6 / 255.0, green: 0xF5 / 255.0, blue: 0xF2 / 255.0, alpha: 1)
+        let name = UILabel()
+        name.text = "Tailora"
+        name.font = UIFont(name: "Georgia", size: 34) ?? .systemFont(ofSize: 34, weight: .semibold)
+        name.textColor = UIColor(red: 0x1C / 255.0, green: 0x22 / 255.0, blue: 0x33 / 255.0, alpha: 1)
+        name.translatesAutoresizingMaskIntoConstraints = false
+        cover.addSubview(name)
+        NSLayoutConstraint.activate([
+            name.centerXAnchor.constraint(equalTo: cover.centerXAnchor),
+            name.centerYAnchor.constraint(equalTo: cover.centerYAnchor),
+        ])
+        window.addSubview(cover)
+        privacyCover = cover
+    }
+
+    func sceneDidBecomeActive(_ scene: UIScene) {
+        privacyCover?.removeFromSuperview()
+        privacyCover = nil
+    }
 }
 
 /// The web page scrolls under the status bar (the strip with the clock), so a scrolled page showed
