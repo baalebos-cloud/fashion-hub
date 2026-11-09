@@ -13,7 +13,8 @@ native features. Everything lives in `frontend/`: `capacitor.config.ts`, `ios/` 
 | Android back button, status bar colours, launch screen | `src/lib/native/app-shell.ts`, `capacitor.config.ts` |
 | Push notification registration (phones saved via `POST /api/v1/devices`) | `src/lib/native/push.ts`, `backend/app/api/v1/devices.py` |
 | Incoming-call alerts that ring when the app is closed, replaced by "Missed call" if unanswered | `backend/app/services/call_push.py`, `backend/app/integrations/notifications/mobile_push.py`, `src/lib/native/push.ts` |
-| Microphone permission for in-app calls | `NSMicrophoneUsageDescription` (iOS), `RECORD_AUDIO` (Android) |
+| Permission texts: microphone for calls, camera for photos you take, location while the app is open | `Info.plist` (iOS), `AndroidManifest.xml` (Android) |
+| Store readiness: version numbers, privacy manifest, release signing, listing and privacy answers | [app-store-release.md](app-store-release.md) |
 
 The website itself is unchanged: none of this runs outside the apps.
 
