@@ -4,6 +4,12 @@
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Tailora uses the microphone only during calls you make or answer with your tailor, vendor, customer or rider about an order.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Tailora uses the camera when you choose to take a photo, such as a delivery photo, a design or a measurement picture.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Tailora uses your location while the app is open to find tailors near you, set a delivery spot and, for riders, share progress during an active delivery.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -62,7 +68,7 @@
 	<string>Main</string>
 	<key>UIRequiredDeviceCapabilities</key>
 	<array>
-		<string>armv7</string>
+		<string>arm64</string>
 	</array>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>

@@ -14,7 +14,8 @@
     "test:browser": "playwright test",
     "app:sync": "node scripts/check-app-build.mjs && vite build && cap sync",
     "app:ios": "cap open ios",
-    "app:android": "cap open android"
+    "app:android": "cap open android",
+    "app:version": "node scripts/app-version.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.1",
