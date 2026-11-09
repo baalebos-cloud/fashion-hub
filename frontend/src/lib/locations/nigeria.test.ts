@@ -33,6 +33,9 @@ describe("Nigeria states and LGAs", () => {
     expect(matchLga("Lagos", "Somolu")).toBe("Shomolu");
     expect(matchLga("FCT", "AMAC")).toBe("Municipal Area Council (AMAC)");
     expect(matchLga("Ogun", "Egbado North")).toBe("Yewa North");
+    expect(matchLga("Adamawa", "Girei")).toBe("Girei");
+    expect(matchLga("Adamawa", "Grie")).toBe("Girei"); // older misspelling still recognised
+    expect(NIGERIA_LGAS.Adamawa).toEqual(expect.arrayContaining(["Fufore", "Girei", "Guyuk"]));
     expect(matchLga("Kano", "Eti-Osa")).toBeUndefined();
     expect(matchLga("Lagos", "Surulere")).toBe("Surulere");
     expect(matchLga("Oyo", "Surulere")).toBe("Surulere"); // both states have a Surulere
