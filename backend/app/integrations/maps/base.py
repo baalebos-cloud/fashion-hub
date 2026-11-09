@@ -16,6 +16,12 @@ class GeocodeResult:
     state_region: str | None
     country: str | None
     postal_code: str | None
+    # The parts a Nigerian address form needs, when the provider knows them (all optional):
+    street: str | None = None            # "12 Admiralty Way"
+    area: str | None = None              # neighbourhood / district, e.g. "Lekki Phase 1"
+    lga: str | None = None               # local government area, e.g. "Eti-Osa"
+    landmark: str | None = None          # a named place at or near the point
+    nearest_bus_stop: str | None = None
 
 
 @dataclass

@@ -1,7 +1,7 @@
 import { MapLocationPicker } from "@/components/checkout/MapLocationPicker";
-import type { GeoLocation } from "@/types/location";
+import type { PickedLocation } from "@/types/location";
 
-export type AddressSelection = Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">;
+export type AddressSelection = PickedLocation;
 
 export function AddressMapPicker({ label, onAddressSelect }: {
   label: string;

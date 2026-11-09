@@ -4,13 +4,13 @@ import { useGeolocation } from "@/hooks/use-geolocation";
 import { reverseGeocode } from "@/lib/maps/geocoding";
 import { mapConfig } from "@/config/map.config";
 import { Button } from "@/components/ui/button";
-import type { GeoLocation } from "@/types/location";
+import type { PickedLocation } from "@/types/location";
 
 export interface MapLocationPickerProps {
   mode?: "shop" | "delivery";
-  onChange?: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
+  onChange?: (location: PickedLocation) => void;
   onResolvingChange?: (resolving: boolean) => void;
-  onSelect: (location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) => void;
+  onSelect: (location: PickedLocation) => void;
 }
 
 type Point = { lat: number; lng: number };
@@ -34,7 +34,9 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
   const markerRef = useRef<MarkerInstance | null>(null);
   const [resolvedAddress, setResolvedAddress] = useState<string>("");
   const [selectedPoint, setSelectedPoint] = useState<Point | null>(null);
-  const [addressDetails, setAddressDetails] = useState<{ city: string | null; state_region: string | null; country: string | null }>({ city: null, state_region: null, country: null });
+  type Details = Omit<PickedLocation, "latitude" | "longitude" | "formatted_address">;
+  const NO_DETAILS: Details = { city: null, state_region: null, country: null };
+  const [addressDetails, setAddressDetails] = useState<Details>(NO_DETAILS);
   const requestVersion = useRef(0);
   const [selectionError, setSelectionError] = useState<string | null>(null);
   const [addressNotFound, setAddressNotFound] = useState(false);
@@ -54,7 +56,7 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
     }
     const version = ++requestVersion.current;
     setSelectedPoint({ lat: latitude, lng: longitude });
-    setAddressDetails({ city: null, state_region: null, country: null });
+    setAddressDetails(NO_DETAILS);
     // Coordinates are shown beside the field, never put into it as if they were an address.
     setResolvedAddress("");
     setAddressNotFound(false);
@@ -67,8 +69,11 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
       if (requestVersion.current !== version) return;
       if (address.formatted_address?.trim()) {
         setResolvedAddress(address.formatted_address);
-        setAddressDetails({ city: address.city, state_region: address.state_region, country: address.country });
-        onChangeRef.current?.({ latitude, longitude, formatted_address: address.formatted_address, city: address.city, state_region: address.state_region, country: address.country });
+        const details: Details = { city: address.city, state_region: address.state_region, country: address.country,
+          street: address.street, area: address.area, lga: address.lga, landmark: address.landmark,
+          nearest_bus_stop: address.nearest_bus_stop };
+        setAddressDetails(details);
+        onChangeRef.current?.({ latitude, longitude, formatted_address: address.formatted_address, ...details });
       }
       else if (requestVersion.current === version) setAddressNotFound(true);
     } catch {
@@ -176,7 +181,7 @@ export function MapLocationPicker({ onSelect, onChange, onResolvingChange, mode 
           <input aria-label="Shop address" value={resolvedAddress} disabled={isResolving}
             placeholder="Street address, e.g. 14 Iworoko Road, Ado-Ekiti"
             className="mt-1 w-full rounded-lg border border-line bg-paper px-3 py-2.5 text-sm text-ink placeholder:text-ink-soft/60 focus:border-brass focus:outline-none"
-            onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails({ city: null, state_region: null, country: null }); }} />
+            onChange={(event) => { setResolvedAddress(event.target.value); setAddressDetails(NO_DETAILS); }} />
           <span className="mt-1 block text-xs text-ink-soft">Customers and riders see this address, so make it easy to find.</span>
         </label>
       )}

@@ -1,6 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { MapLocationPicker } from "./MapLocationPicker";
-import type { GeoLocation } from "@/types/location";
+import type { PickedLocation } from "@/types/location";
 import { addressesApi } from "@/api/addresses.api";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -36,19 +36,36 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
     setValues((old) => ({ ...old, state_region: state, lga: matchLga(state, old.lga) ?? "" }));
   }
   const hasPin = Number.isFinite(values.latitude) && Number.isFinite(values.longitude);
-  function applyLocation(location: Pick<GeoLocation, "latitude" | "longitude" | "formatted_address" | "city" | "state_region" | "country">) {
-    setValues((old) => ({ ...old, latitude: location.latitude, longitude: location.longitude,
-      formatted_address: location.formatted_address ?? "",
-      city: location.city || "",
-      // The map says e.g. "Lagos State" or "Federal Capital Territory": use the listed state, and the
-      // LGA when the map's area name is one of that state's LGAs; otherwise keep what was chosen.
-      ...(() => {
-        const state = matchState(location.state_region);
-        if (!state) return { state_region: location.state_region || old.state_region };
-        return { state_region: state, lga: matchLga(state, location.city) ?? matchLga(state, old.lga) ?? "" };
-      })(),
-      country: ["NIGERIA", "NG"].includes((location.country ?? "").toUpperCase()) ? "NG" : old.country,
-    }));
+  function applyLocation(location: PickedLocation) {
+    setValues((old) => {
+      const next: AddressInput = { ...old, latitude: location.latitude, longitude: location.longitude,
+        country: ["NIGERIA", "NG"].includes((location.country ?? "").toUpperCase()) ? "NG" : old.country };
+      // A new pin with nothing found yet (the lookup is still running, or failed): only move the pin.
+      // The old street and town belong to the old pin, so they're cleared; the person types them if the
+      // lookup finds nothing.
+      if (!location.formatted_address && !location.street && !location.city && !location.state_region) {
+        const moved = old.latitude !== location.latitude || old.longitude !== location.longitude;
+        return moved ? { ...next, formatted_address: "", city: "" } : next;
+      }
+      // Street box: "14 Admiralty Way, Lekki Phase 1" rather than the whole one-line address.
+      const street = [location.street, location.area].filter(Boolean).join(", ");
+      next.formatted_address = street || location.formatted_address || "";
+      next.city = location.city || location.area || "";
+      // The map says e.g. "Lagos State" or "Federal Capital Territory": use the listed state, and the LGA
+      // when the map's district or area is one of that state's LGAs.
+      const state = matchState(location.state_region);
+      if (state) {
+        next.state_region = state;
+        next.lga = matchLga(state, location.lga) ?? matchLga(state, location.city) ?? matchLga(state, location.area)
+          ?? matchLga(state, old.lga) ?? "";
+      } else if (location.state_region) {
+        next.state_region = location.state_region;
+      }
+      // Landmark and bus stop are suggestions: never overwrite what the person typed.
+      if (location.landmark && !old.landmark?.trim()) next.landmark = location.landmark;
+      if (location.nearest_bus_stop && !old.nearest_bus_stop?.trim()) next.nearest_bus_stop = location.nearest_bus_stop;
+      return next;
+    });
   }
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

@@ -6,11 +6,20 @@ import { addressesApi } from "@/api/addresses.api";
 vi.mock("@/api/addresses.api", () => ({ addressesApi: { create: vi.fn() } }));
 vi.mock("./MapLocationPicker", () => ({
   MapLocationPicker: ({ onChange }: { onChange: (location: object) => void }) => (
-    <button type="button" onClick={() => onChange({
-      latitude: 7.64037, longitude: 5.22104,
-      formatted_address: "Ado-Iworoko Road, Ado Ekiti, Ekiti, Nigeria",
-      city: "Ado Ekiti", state_region: "Ekiti", country: "Nigeria",
-    })}>Select test pin</button>
+    <>
+      <button type="button" onClick={() => onChange({
+        latitude: 7.64037, longitude: 5.22104,
+        formatted_address: "Ado-Iworoko Road, Ado Ekiti, Ekiti, Nigeria",
+        city: "Ado Ekiti", state_region: "Ekiti", country: "Nigeria",
+      })}>Select test pin</button>
+      {/* What "Use my current location" brings back for a point in Lekki. */}
+      <button type="button" onClick={() => onChange({
+        latitude: 6.4474, longitude: 3.4728,
+        formatted_address: "14 Admiralty Way, Lekki Phase 1, Lekki 106104, Lagos, Nigeria",
+        street: "14 Admiralty Way", area: "Lekki Phase 1", city: "Lekki", lga: "Eti-Osa",
+        state_region: "Lagos State", country: "Nigeria", landmark: "Lekki Central Mosque", nearest_bus_stop: "Jakande Bus Stop",
+      })}>Use my current location (test)</button>
+    </>
   ),
 }));
 beforeEach(() => vi.clearAllMocks());
@@ -104,4 +113,25 @@ it("shows a saved address's state and LGA even when written differently", () => 
   }} />);
   expect((screen.getByLabelText("State") as HTMLSelectElement).value).toBe("Lagos");
   expect((screen.getByLabelText("Local government area (LGA)") as HTMLSelectElement).value).toBe("Eti-Osa");
+});
+
+it("fills street, city, state, LGA, landmark and bus stop from the current location", () => {
+  render(<DeliveryAddressForm onSaved={vi.fn()} />);
+  fireEvent.click(screen.getByText("Use my current location (test)"));
+  const value = (label: string) => (screen.getByLabelText(label) as HTMLInputElement | HTMLSelectElement).value;
+  expect(value("Street address")).toBe("14 Admiralty Way, Lekki Phase 1");
+  expect(value("City or town")).toBe("Lekki");
+  expect(value("State")).toBe("Lagos");
+  expect(value("Local government area (LGA)")).toBe("Eti-Osa");
+  expect(value("Landmark")).toBe("Lekki Central Mosque");
+  expect(value("Nearest bus stop")).toBe("Jakande Bus Stop");
+  expect(value("Recipient name")).toBe(""); // the person's own details are never guessed
+});
+
+it("never overwrites a landmark or bus stop the person typed", () => {
+  render(<DeliveryAddressForm onSaved={vi.fn()} />);
+  fireEvent.change(screen.getByLabelText("Landmark"), { target: { value: "Blue gate opposite the pharmacy" } });
+  fireEvent.click(screen.getByText("Use my current location (test)"));
+  expect((screen.getByLabelText("Landmark") as HTMLInputElement).value).toBe("Blue gate opposite the pharmacy");
+  expect((screen.getByLabelText("Nearest bus stop") as HTMLInputElement).value).toBe("Jakande Bus Stop");
 });

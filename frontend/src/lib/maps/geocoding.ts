@@ -16,6 +16,12 @@ export interface GeocodeResult {
   state_region: string | null;
   country: string | null;
   postal_code: string | null;
+  /** Parts of a Nigerian address, when the map service knows them (see backend nigeria_address.py). */
+  street?: string | null;
+  area?: string | null;
+  lga?: string | null;
+  landmark?: string | null;
+  nearest_bus_stop?: string | null;
 }
 
 export async function geocodeAddress(address: string): Promise<GeocodeResult> {
