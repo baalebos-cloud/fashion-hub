@@ -24,6 +24,22 @@ silently un-verified, and admins still unverify explicitly if needed.
    - Number not found: the user is told immediately to check the number and type.
    - Found: the registered company name is stored and compared with the shop name.
    - Registry unavailable: held as `under_review` for manual review.
+   - With `KYB_AUTO_APPROVE=true`, a found business is approved straight away when every
+     rule passes (`backend/app/services/kyb_matching.py`):
+     1. CAC has the record and the company status is **active**;
+     2. the registered name matches the business name on the profile;
+     3. the person's identity (NIN) is already verified;
+     4. they are an active director, proprietor, partner or shareholder on the CAC record
+        (name from their verified NIN, and date of birth where CAC has one; company
+        secretaries, auditors and corporate shareholders don't count);
+     5. they have a profile photo;
+     6. no other account has the same registration number waiting or verified (two
+        submissions of one number at the same moment are handled one after the other).
+
+     Anything else goes to `under_review`, and the admin card lists the rules that didn't
+     pass. Nothing is rejected automatically except a number CAC doesn't have. The CAC
+     directors' details are only compared in memory; only the pass/fail of each rule is
+     stored (`kyb_verifications.auto_checks`) and written to the audit log.
 4. Admins review under **Admin → KYC** and **Admin → KYB**, oldest first. Each card
    shows what the registry confirmed, whether the name matches, and the documents
    (opened privately with the admin's session). Rejecting needs a reason. Approving
@@ -41,6 +57,7 @@ returned by any API, including the admin queue.
 NIN_PROVIDER=prembly
 NIN_API_KEY=<Prembly key>
 KYB_PROVIDER=prembly            # or manual
+KYB_AUTO_APPROVE=false          # true: approve when every rule passes (needs KYB_PROVIDER=prembly)
 PREMBLY_API_KEY=                # optional; defaults to NIN_API_KEY
 PREMBLY_CAC_URL=https://api.prembly.com/verification/cac/advance
 IDENTITY_ENCRYPTION_KEY=<Fernet key>

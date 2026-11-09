@@ -288,6 +288,9 @@ class Settings(BaseSettings):
     NIN_AUTO_APPROVE: bool = False
     # Business (CAC) lookups for KYB. "manual" sends every submission to admin review.
     KYB_PROVIDER: str = "manual"  # manual | prembly
+    # Approve a business without an admin when every rule in services/kyb_matching.py passes
+    # (needs KYB_PROVIDER=prembly). Off by default; anything that doesn't pass goes to an admin.
+    KYB_AUTO_APPROVE: bool = False
     # Prembly key for CAC lookups; falls back to NIN_API_KEY (same Prembly account).
     PREMBLY_API_KEY: Optional[str] = Field(None, repr=False)
     PREMBLY_CAC_URL: str = "https://api.prembly.com/verification/cac/advance"

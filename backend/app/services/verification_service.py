@@ -26,6 +26,7 @@ from app.models.professional import Professional
 from app.models.user import User
 from app.models.vendor import Vendor
 from app.models.verification_document import VerificationDocument
+from app.services.kyb_matching import evaluate as evaluate_business
 
 OPEN_STATUSES = {"pending", "under_review"}
 KYB_ROLES = {"vendor", "tailor", "designer"}
@@ -91,7 +92,7 @@ class VerificationService:
             raise ConflictError("Your business is already verified.")
         number = normalize_registration(registration_number, company_type)
 
-        verified_name, name_match, status = None, None, "pending"
+        verified_name, name_match, status, result = None, None, "pending", None
         try:
             result = self._cac_lookup(number, company_type)
             verified_name = result.company_name
@@ -102,19 +103,61 @@ class VerificationService:
         except ExternalProviderError:
             status = "under_review"  # registry unavailable: an admin checks the certificate by hand
 
+        # One submission per registration number at a time: two accounts sending the same number
+        # together are handled one after the other, so the second sees the first (and goes to an admin).
+        from sqlalchemy import text
+        self.db.execute(text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
+                        {"key": f"kyb-cac:{company_type}{number}"})
+        duplicate = (self.db.query(KYBVerification.id)
+                     .filter(KYBVerification.business_registration_number == number,
+                             KYBVerification.company_type == company_type,
+                             KYBVerification.business_owner_user_id != user.id,
+                             KYBVerification.status.in_(("pending", "under_review", "verified"))).first() is not None)
+        kyc = self.latest_kyc(user.id)
+        identity_verified = kyc is not None and kyc.status == "verified"
+        from app.core.profile_photo import has_photo
+        decision = evaluate_business(
+            record_found=result is not None, company_status=result.registration_status if result else None,
+            business_name_matches=name_match, identity_verified=identity_verified,
+            people=result.people if result else [], verified_name=kyc.nin_verified_full_name if kyc else None,
+            verified_dob=kyc.nin_verified_date_of_birth if kyc else None,
+            has_photo=has_photo(user), duplicate=duplicate)
+        from app.core.config import settings
+        auto_approve = settings.KYB_AUTO_APPROVE and result is not None and decision["passed"]
+        if auto_approve:
+            status = "verified"
+        elif result is not None and settings.KYB_AUTO_APPROVE:
+            status = "under_review"  # an admin looks at the rules that didn't pass
+
         vendor = self.db.query(Vendor).filter(Vendor.user_id == user.id).first() if user.role == "vendor" else None
         record = KYBVerification(business_owner_user_id=user.id, vendor_id=vendor.id if vendor else None,
                                  business_registration_number=number,
                                  company_type=company_type, provider="prembly" if verified_name else "manual",
-                                 verified_company_name=verified_name, name_match=name_match, status=status)
+                                 verified_company_name=verified_name, name_match=name_match, status=status,
+                                 auto_checks=decision, reviewed_at=utcnow() if auto_approve else None)
         self.db.add(record)
         self.db.flush()
         for key in document_storage_keys:
             self.db.add(VerificationDocument(kyb_verification_id=record.id,
                                              document_type="business_registration", storage_key=key))
+        if auto_approve:
+            self._record_business_auto_approval(user, record)
         self.db.commit()
         self.db.refresh(record)
         return record
+
+    def _record_business_auto_approval(self, user: User, record: KYBVerification) -> None:
+        """Same effects as an admin approval: profile badge, notification, audit entry (no personal data)."""
+        from app.models.audit_log import AuditLog
+        self.apply_profile_verification(user)
+        self.db.add(Notification(
+            recipient_user_id=user.id, channel="in_app", event_type="verification.kyb.verified",
+            title="Business verification approved",
+            body="Your CAC record matched your business and lists you as an owner, so your business was "
+                 "verified automatically."))
+        self.db.add(AuditLog(actor_user_id=None, action="kyb.auto_approved", resource_type="verification",
+                             resource_id=record.id, metadata_json={"provider": "prembly",
+                                                                   "checks": record.auto_checks["checks"]}))
 
     # ---- admin decisions ----------------------------------------------------
     def decide(self, *, kind: str, verification_id, admin: User, approve: bool, reason: str | None):
@@ -230,6 +273,7 @@ class VerificationService:
                 item.update(official_name=record.verified_company_name, name_match=record.name_match,
                             registry_checked=record.verified_company_name is not None,
                             business_name=self._business_name(owner),
+                            auto_checks=(record.auto_checks or {}).get("checks"),
                             registration=f"{record.company_type or ''} {record.business_registration_number or ''}".strip())
             items.append(item)
         return items
