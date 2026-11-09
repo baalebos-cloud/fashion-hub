@@ -39,7 +39,8 @@ from app.models.user import User
 logger = logging.getLogger(__name__)
 
 RECEIVED = {"received", "completed"}
-OPEN_REFUND = {"requested", "approved", "processing", "processed", "pending"}
+# Every refund state that holds money back or may already have returned it (shared with refund_service).
+from app.services.refund_service import RESERVED as OPEN_REFUND  # noqa: E402
 
 
 def payouts_on() -> bool:
@@ -129,8 +130,14 @@ class PayoutReleaseService:
             result = paystack.initiate_transfer(amount_kobo=amount_kobo, recipient_code=account.recipient_code,
                                                 reference=payout.transfer_reference,
                                                 reason=f"Tailora order {order.order_number}")
+        except paystack.TransferOutcomeUnknown as exc:
+            # It may have gone through: stay "processing" under this reference until Paystack's webhook
+            # or reconcile_processing() says what happened. Never retried with a new reference first.
+            self._audit(payout, "payout.outcome_unknown", {"reason": str(exc)[:255], "reference": payout.transfer_reference})
+            self.db.commit()
+            return "sent"
         except ExternalProviderError as exc:
-            return self._fail(payout, str(exc))
+            return self._fail(payout, str(exc))  # Paystack clearly refused it
         payout.transfer_code = result.transfer_code
         if result.status == "otp":
             return self._fail(payout, "Paystack asked for an OTP. Turn off OTP for transfers in the Paystack "
@@ -160,18 +167,40 @@ class PayoutReleaseService:
         return "failed"
 
     # ---- Paystack's answer ------------------------------------------------------------------------
+    def _by_reference(self, reference: str) -> Payout | None:
+        """References look like payout-<payout id hex>-<attempt>; older attempts still find their payout."""
+        import re
+        import uuid as _uuid
+        found = re.fullmatch(r"payout-([0-9a-f]{32})-\d+", reference or "")
+        if not found:
+            return None
+        return self.db.query(Payout).filter(Payout.id == _uuid.UUID(found.group(1))).with_for_update().first()
+
     def record_transfer_event(self, *, event: str, data: dict) -> bool:
         reference = str(data.get("reference") or "")
-        payout = (self.db.query(Payout).filter(Payout.transfer_reference == reference).with_for_update().first()
-                  if reference.startswith("payout-") else None)
+        payout = self._by_reference(reference)
         if payout is None:
             return False
-        if payout.status == "paid":
-            return True  # repeated webhook
+        current = reference == payout.transfer_reference
         if event == "transfer.success":
+            if payout.status == "paid":
+                if not current:  # a second attempt also paid: money went out twice
+                    logger.error("payout_paid_twice payout=%s", payout.id)
+                    self._audit(payout, "payout.duplicate_success", {"reference": reference})
+                    self.db.commit()
+                return True  # otherwise a repeated webhook
+            payout.transfer_reference = reference  # a late success for an earlier attempt still counts
             self._paid(payout)
         elif event in {"transfer.failed", "transfer.reversed"}:
-            self._fail(payout, f"Paystack: transfer {event.split('.')[1]}.")
+            if not current:
+                return True  # an old attempt; the current one decides
+            was_paid = payout.status == "paid"
+            self._fail(payout, f"Paystack: transfer {event.split('.')[1]}" + (" after it was paid." if was_paid else "."))
+            if was_paid:
+                payout.released_at = None
+                self._notify(payout, "Payout returned", f"The transfer of {_naira(payout.net_amount)} was returned by "
+                             "the bank. Check your payout account; Tailora will retry.")
+                self.db.commit()
         return True
 
     def reconcile_processing(self) -> int:
@@ -184,6 +213,10 @@ class PayoutReleaseService:
                        .limit(50).all()):
             try:
                 result = paystack.verify_transfer(payout.transfer_reference)
+            except paystack.TransferNotFound:
+                self._fail(payout, "Paystack has no record of this transfer; it can be retried.")
+                checked += 1
+                continue
             except ExternalProviderError:
                 continue
             checked += 1
@@ -215,6 +248,21 @@ class PayoutReleaseService:
         payout = self._get(payout_id)
         if payout.status not in {"held", "failed"}:
             raise ConflictError("Only a held or failed payout can be released.")
+        if payout.transfer_reference:
+            # Before any new attempt, make sure the last one really didn't go through.
+            try:
+                last = paystack.verify_transfer(payout.transfer_reference)
+            except paystack.TransferNotFound:
+                last = None
+            except ExternalProviderError:
+                raise ConflictError("Paystack couldn't confirm what happened to the last attempt. Try again shortly.") from None
+            if last is not None and last.status == "success":
+                self._paid(payout)
+                return payout
+            if last is not None and last.status not in {"failed", "reversed"}:
+                payout.status, payout.hold_reason = "processing", None  # still on its way
+                self.db.commit()
+                return payout
         override_name = payout.hold_reason and "bank account name" in payout.hold_reason
         payout.status, payout.hold_reason = "pending", None
         if override_name:

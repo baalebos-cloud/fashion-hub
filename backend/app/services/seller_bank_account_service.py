@@ -75,9 +75,14 @@ class SellerBankAccountService:
         kyc = (self.db.query(KYCVerification).filter(KYCVerification.user_id == user.id,
                                                      KYCVerification.status == "verified")
                .order_by(KYCVerification.created_at.desc()).first())
-        from app.services.verification_service import VerificationService
+        # Only verified records count: the NIN name, or the CAC company name from an approved business
+        # check. The self-typed business name on the profile does not.
+        from app.models.kyb_verification import KYBVerification
+        kyb = (self.db.query(KYBVerification).filter(KYBVerification.business_owner_user_id == user.id,
+                                                     KYBVerification.status == "verified")
+               .order_by(KYBVerification.created_at.desc()).first())
         matches = account_name_matches(account_name, verified_name=kyc.nin_verified_full_name if kyc else None,
-                                       business_name=VerificationService(self.db)._business_name(user))
+                                       business_name=kyb.verified_company_name if kyb else None)
         account = self.get(user) or SellerBankAccount(user_id=user.id)
         changed = account.id is not None
         account.bank_code, account.bank_name = bank_code, bank["name"][:128]

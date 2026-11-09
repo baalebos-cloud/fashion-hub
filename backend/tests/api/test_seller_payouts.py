@@ -157,7 +157,7 @@ def test_blocked_payouts_are_held_with_the_reason(ctx, setup, words):
     assert ctx["calls"]["transfers"] == []
 
 
-def test_failures_are_recorded_and_an_admin_can_retry(ctx):
+def test_failures_are_recorded_and_an_admin_can_retry(ctx, monkeypatch):
     _add_account(ctx)
     _, payout = _paid_order(ctx)
     ctx["calls"]["transfer_status"] = "otp"
@@ -166,6 +166,8 @@ def test_failures_are_recorded_and_an_admin_can_retry(ctx):
     ctx["db"].refresh(payout)
     assert payout.status == "failed" and "OTP" in payout.failure_reason
     admin = ctx["make_user"](role="admin")
+    # Before retrying, Paystack confirms the last attempt really failed.
+    monkeypatch.setattr(paystack, "verify_transfer", lambda ref: TransferResult(status="failed", transfer_code=None))
     service.release(payout.id, admin=admin)
     ctx["calls"]["transfer_status"] = "pending"
     assert service.release_ready()["sent"] == 1
@@ -232,3 +234,112 @@ def test_paystack_transfer_webhook_marks_the_payout_paid(ctx):
     assert res.status_code == 200 and res.json()["reconciled"] is True
     ctx["db"].refresh(payout)
     assert payout.status == "paid"
+
+
+
+# ---- review fixes ------------------------------------------------------------------------------------
+def test_no_answer_from_paystack_is_never_treated_as_failed(ctx, monkeypatch):
+    _add_account(ctx)
+    _, payout = _paid_order(ctx)
+
+    def timeout(**kw):
+        ctx["calls"]["transfers"].append(kw)
+        raise paystack.TransferOutcomeUnknown("Paystack didn't answer in time.")
+
+    monkeypatch.setattr(paystack, "initiate_transfer", timeout)
+    service = PayoutReleaseService(ctx["db"])
+    service.release_ready()
+    ctx["db"].refresh(payout)
+    assert payout.status == "processing"  # may have gone through: wait for Paystack
+    admin = ctx["make_user"](role="admin")
+    with pytest.raises(Exception):
+        service.release(payout.id, admin=admin)  # can't start a new attempt while one may be in flight
+    first = payout.transfer_reference
+    # A late success for that attempt still marks it paid.
+    assert service.record_transfer_event(event="transfer.success", data={"reference": first})
+    ctx["db"].refresh(payout)
+    assert payout.status == "paid" and len(ctx["calls"]["transfers"]) == 1
+
+
+def test_a_retry_that_already_went_through_is_not_sent_again(ctx, monkeypatch):
+    _add_account(ctx)
+    _, payout = _paid_order(ctx)
+    ctx["calls"]["transfer_status"] = "failed"
+    service = PayoutReleaseService(ctx["db"])
+    service.release_ready()
+    monkeypatch.setattr(paystack, "verify_transfer", lambda ref: TransferResult(status="success", transfer_code="T"))
+    service.release(payout.id, admin=ctx["make_user"](role="admin"))
+    ctx["db"].refresh(payout)
+    assert payout.status == "paid" and len(ctx["calls"]["transfers"]) == 1
+
+
+@pytest.mark.parametrize("state", ["manual_review", "needs_attention"])
+def test_unresolved_refund_states_hold_the_payout(ctx, state):
+    _add_account(ctx)
+    order, payout = _paid_order(ctx)
+    ctx["db"].add(Refund(payment_id=uuid.uuid4(), order_id=order.id, requested_by_user_id=ctx["buyer"].id,
+                         amount=Decimal(100), status=state))
+    ctx["db"].commit()
+    assert PayoutReleaseService(ctx["db"]).release_ready()["held"] == 1
+
+
+def test_only_a_verified_business_name_counts(ctx):
+    from app.models.kyb_verification import KYBVerification
+    from app.models.professional import Professional
+    ctx["calls"]["resolve"] = "LACE WORLD LIMITED"
+    ctx["db"].add(Professional(user_id=ctx["tailor"].id, professional_type="tailor", business_name="Lace World Limited"))
+    ctx["db"].commit()
+    assert _add_account(ctx).json()["name_matches"] is False  # self-typed business name isn't proof
+    ctx["db"].add(KYBVerification(business_owner_user_id=ctx["tailor"].id, business_registration_number="1234567",
+                                  company_type="RC", provider="prembly", verified_company_name="LACE WORLD LIMITED",
+                                  name_match=True, status="verified"))
+    ctx["db"].commit()
+    from app.core.rate_limit import limiter
+    limiter.reset()
+    assert _add_account(ctx).json()["name_matches"] is True
+
+
+def test_a_reversal_after_payment_makes_it_owed_again(ctx):
+    _add_account(ctx)
+    _, payout = _paid_order(ctx)
+    service = PayoutReleaseService(ctx["db"])
+    service.release_ready()
+    ref = payout.transfer_reference
+    service.record_transfer_event(event="transfer.success", data={"reference": ref})
+    service.record_transfer_event(event="transfer.reversed", data={"reference": ref})
+    ctx["db"].refresh(payout)
+    assert payout.status == "failed" and payout.released_at is None and "after it was paid" in payout.failure_reason
+    assert ctx["db"].query(Notification).filter_by(recipient_user_id=ctx["tailor"].id, title="Payout returned").count() == 1
+
+
+def test_paystack_answers_are_sorted_into_refused_unknown_or_not_found(monkeypatch):
+    import httpx
+    from app.core.exceptions import ExternalProviderError
+    monkeypatch.setattr(settings, "PAYMENT_SECRET_KEY", "sk_test_x")
+
+    class Reply:
+        def __init__(self, status, body):
+            self.status_code, self._body = status, body
+
+        def json(self):
+            return self._body
+
+    def client(reply=None, error=None):
+        class C:
+            def post(self, *a, **k):
+                if error:
+                    raise error
+                return reply
+            get = post
+        return C()
+
+    args = dict(amount_kobo=100, recipient_code="R", reference="payout-x-1", reason="r")
+    with pytest.raises(paystack.TransferOutcomeUnknown):
+        paystack.initiate_transfer(**args, client=client(error=httpx.ReadTimeout("slow")))
+    with pytest.raises(paystack.TransferOutcomeUnknown):
+        paystack.initiate_transfer(**args, client=client(Reply(502, {})))
+    with pytest.raises(paystack.TransferNotFound):
+        paystack.verify_transfer("payout-x-1", client=client(Reply(404, {"status": False})))
+    with pytest.raises(ExternalProviderError) as refused:
+        paystack.initiate_transfer(**args, client=client(Reply(400, {"status": False, "message": "Insufficient balance"})))
+    assert not isinstance(refused.value, paystack.TransferOutcomeUnknown) and "Insufficient balance" in str(refused.value)

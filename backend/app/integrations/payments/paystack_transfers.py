@@ -18,6 +18,15 @@ logger = logging.getLogger(__name__)
 BASE = "https://api.paystack.co"
 
 
+class TransferOutcomeUnknown(ExternalProviderError):
+    """No clear answer (connection dropped, timeout, Paystack error 5xx): the transfer may or may not
+    have gone through. Never treat this as failed; check the reference with Paystack first."""
+
+
+class TransferNotFound(ExternalProviderError):
+    """Paystack has no transfer with this reference: it was never created."""
+
+
 @dataclass
 class TransferResult:
     status: str  # pending | success | failed | reversed | otp (Paystack's words)
@@ -37,11 +46,16 @@ def _call(method: str, path: str, *, client=None, **kwargs) -> dict:
         response = getattr(http, method)(f"{BASE}{path}", headers=_headers(), timeout=20.0, **kwargs)
     except httpx.HTTPError:
         logger.warning("paystack_transfer_request_failed path=%s", path.split("?")[0])
-        raise ExternalProviderError("Paystack couldn't be reached. Try again shortly.") from None
+        raise TransferOutcomeUnknown("Paystack didn't answer in time.") from None
     try:
         body = response.json()
     except ValueError:
         body = {}
+    if response.status_code >= 500:
+        logger.warning("paystack_transfer_error path=%s status=%d", path.split("?")[0], response.status_code)
+        raise TransferOutcomeUnknown(f"Paystack error (HTTP {response.status_code}).")
+    if response.status_code == 404:
+        raise TransferNotFound("Paystack has no record of it.")
     if response.status_code >= 400 or body.get("status") is False:
         message = str(body.get("message") or f"HTTP {response.status_code}")[:200]
         logger.warning("paystack_transfer_error path=%s status=%d", path.split("?")[0], response.status_code)
