@@ -14,6 +14,8 @@ import { professionalRouteObjects } from "./professional.routes";
 import { vendorRouteObjects } from "./vendor.routes";
 import { deliveryRouteObjects } from "./delivery.routes";
 import { adminRouteObjects } from "./admin.routes";
+import { AppHome } from "./app-entry";
+import { appPrefixLoader } from "./app-prefix";
 
 /**
  * React Router renders its own fallback for route errors unless a route has
@@ -36,8 +38,10 @@ export const routeObjects: RouteObject[] = [
           { element: <VendorGuard />, children: [{ path: "/app/vendor", children: vendorRouteObjects }] },
           { element: <DeliveryGuard />, children: [{ path: "/app/delivery", children: deliveryRouteObjects }] },
           { element: <AdminGuard />, children: [{ path: "/app/admin", children: adminRouteObjects }] },
+          { path: "/app", element: <AppHome /> },
         ],
       },
+      { path: "/app/*", loader: appPrefixLoader(() => [...publicRouteObjects, ...authRouteObjects]), element: null },
     ],
   },
 ];
