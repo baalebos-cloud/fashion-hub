@@ -35,7 +35,7 @@ httpx==0.28.1
 h2==4.4.1
 # Reading NIN slips sent as PDFs: first page rendered to an image for the document check.
 pypdfium2==5.14.0
-pillow==12.3.0
+pillow==13.0.0
 
 # AI provider SDK
 anthropic==2.5.0
