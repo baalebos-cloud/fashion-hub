@@ -17,6 +17,7 @@ import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { professionalRoutes } from "@/config/routes.config";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
+import { paymentCallbackUrl } from "@/lib/payments/return-url";
 
 export default function VendorOrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -84,7 +85,7 @@ export default function VendorOrderDetails() {
           {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED === "true" ? (
             <InterswitchLiveButton orderId={order.id} disabled={!hasConsented || isCancelling} />
           ) : (
-            <PaymentButton key={order.id} orderId={order.id} callbackUrl={`${window.location.origin}${professionalRoutes.vendorPaymentSuccess}`} disabled={!hasConsented || isCancelling} />
+            <PaymentButton key={order.id} orderId={order.id} callbackUrl={paymentCallbackUrl("vendor")} disabled={!hasConsented || isCancelling} />
           )}
           {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED !== "true" && import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
             <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented || isCancelling} />

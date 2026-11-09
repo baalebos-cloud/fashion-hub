@@ -6,9 +6,9 @@ import { InterswitchSandboxButton } from "@/components/payments/InterswitchSandb
 import { PaymentSummary } from "@/components/payments/PaymentSummary";
 import { PaymentConsent } from "@/components/payments/PaymentConsent";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
-import { customerRoutes } from "@/config/routes.config";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { useState } from "react";
+import { paymentCallbackUrl } from "@/lib/payments/return-url";
 
 export default function Payment() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -18,7 +18,7 @@ export default function Payment() {
   if (error) return <p role="alert" className="text-thread">{error}</p>;
   if (isLoading || !order) return <LoadingScreen label="Loading order…" />;
 
-  const callbackUrl = `${window.location.origin}${customerRoutes.paymentSuccess}`;
+  const callbackUrl = paymentCallbackUrl("customer");
 
   return (
     <div className="mx-auto flex max-w-sm flex-col gap-4">
