@@ -18,6 +18,7 @@ import Terms from "@/pages/public/Terms";
 import Privacy from "@/pages/public/Privacy";
 import Help from "@/pages/public/Help";
 import { publicRoutes } from "@/config/routes.config";
+import PaymentAppReturn from "@/pages/public/PaymentAppReturn";
 
 const withLayout = (Page: ComponentType) => (
   <AppLayout>
@@ -42,4 +43,5 @@ export const publicRouteObjects: RouteObject[] = [
   { path: publicRoutes.terms, element: withLayout(Terms) },
   { path: publicRoutes.privacy, element: withLayout(Privacy) },
   { path: publicRoutes.help, element: withLayout(Help) },
+  { path: "/payment/app-return", element: <PaymentAppReturn /> },
 ];
