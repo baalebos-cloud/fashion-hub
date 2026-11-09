@@ -39,6 +39,6 @@ export const verificationApi = {
   },
   /** Run Tailora's document check on a waiting identity submission (adds a note; never decides). */
   async checkDocument(id: string): Promise<{ checks: Record<string, boolean>; document_note: string; passed: boolean }> {
-    return (await apiClient.post(`/admin/kyc/${id}/document-check`)).data;
+    return (await apiClient.post(`/admin/kyc/${id}/document-check`, null, { timeout: 60_000 })).data;
   },
 };

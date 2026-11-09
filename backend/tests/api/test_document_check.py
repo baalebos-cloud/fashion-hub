@@ -55,6 +55,30 @@ def test_each_problem_fails_and_is_explained(change, rule, words):
     assert NIN not in result.note
 
 
+@pytest.mark.parametrize("number", [None, "7012345678", "7012345678X"])
+def test_a_nin_slip_must_show_the_whole_nin(number):
+    for kind in ("NIN slip", "National ID card"):
+        result = compare(reading(document_type=kind, id_number=number), account_name="Kemi Adeyemi",
+                         reference_dob=DOB, entered_nin=NIN)
+        assert result.checks["document_nin_matches"] is False and not result.passed
+
+
+def test_a_slow_reader_gives_up_in_time(monkeypatch):
+    import time
+    monkeypatch.setattr(settings, "VERTEX_AI_ENABLED", True)
+    monkeypatch.setattr(settings, "GROQ_API_KEY", None)
+    monkeypatch.setattr(dcs, "READ_TIMEOUT_SECONDS", 0.2)
+
+    class SlowVertex:
+        def _structured(self, schema, parts):
+            time.sleep(2)
+
+    started = time.monotonic()
+    result = DocumentCheckService(vertex=SlowVertex()).check([(JPEG, "image/jpeg")], account_name="Kemi Adeyemi",
+                                                            reference_dob=DOB, entered_nin=NIN)
+    assert time.monotonic() - started < 1.5 and not result.passed
+
+
 def test_unreadable_or_not_an_id_asks_for_a_clear_photo():
     for change in (dict(legible=False), dict(is_identity_document=False)):
         result = compare(reading(**change), account_name="Kemi Adeyemi", reference_dob=DOB, entered_nin=NIN)
@@ -167,7 +191,9 @@ def test_a_document_problem_goes_to_an_admin_with_the_note(ctx):
 
 def test_admin_can_run_the_check_on_an_older_submission(ctx):
     db = ctx["db"]
-    record = KYCVerification(user_id=ctx["tailor"].id, id_type="nin", status="under_review", provider="manual")
+    from app.core.identity_encryption import encrypt_identity
+    record = KYCVerification(user_id=ctx["tailor"].id, id_type="nin", status="under_review", provider="manual",
+                             id_number_encrypted=encrypt_identity(NIN))
     db.add(record)
     db.flush()
     from app.models.verification_document import VerificationDocument

@@ -26,6 +26,9 @@ from app.services.nin_matching import name_matches
 logger = logging.getLogger(__name__)
 
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
+# The app waits up to 60 s for a submission or a re-check (frontend kyc.api / verification.api);
+# each reading attempt stays well inside that.
+READ_TIMEOUT_SECONDS = 25.0
 IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 
 PROMPT = """You are checking an identity document uploaded to a Nigerian marketplace.
@@ -75,6 +78,19 @@ def _digits(value: str | None) -> str:
     return "".join(ch for ch in (value or "") if ch.isdigit())
 
 
+NIN_DOCUMENT_WORDS = ("nin", "national id", "national identity")
+OTHER_ID_WORDS = ("passport", "driver", "licence", "license", "voter")
+
+
+def carries_nin(document_type: str | None, doc_number: str) -> bool:
+    kind = (document_type or "").strip().lower()
+    if any(word in kind for word in NIN_DOCUMENT_WORDS):
+        return True
+    if any(word in kind for word in OTHER_ID_WORDS):
+        return False
+    return len(doc_number) == 11  # unknown type: compare when it shows an 11-digit number
+
+
 def compare(reading: DocumentReading, *, account_name: str, reference_dob: date | None,
             entered_nin: str | None, today: date | None = None) -> DocumentCheck:
     """Apply Tailora's rules to what the model read. Pure: no network, easy to test."""
@@ -89,9 +105,11 @@ def compare(reading: DocumentReading, *, account_name: str, reference_dob: date 
         "document_name_matches": readable and name_ok,
         "document_date_of_birth_matches": (None if reference_dob is None
                                            else readable and doc_dob == reference_dob),
-        # Only NIN documents carry the 11-digit NIN; a passport or licence number is a different number.
-        "document_nin_matches": (None if len(doc_number) != 11 or not entered_nin
-                                 else readable and doc_number == entered_nin),
+        # A NIN slip or national ID card must show the entered NIN, readable in full (missing or
+        # partly read counts as not matching). Passports, licences and voter's cards carry a
+        # different number, so the comparison doesn't apply to them.
+        "document_nin_matches": (readable and len(doc_number) == 11 and doc_number == (entered_nin or "")
+                                 if carries_nin(reading.document_type, doc_number) else None),
         "document_not_expired": None if expiry is None else expiry >= today,
         "document_not_edited": not reading.signs_of_editing,
     }
@@ -169,7 +187,14 @@ class DocumentCheckService:
                 vertex = self._vertex or get_vertex_service()
                 parts = [types.Part.from_text(text=PROMPT)] + [
                     types.Part.from_bytes(data=data, mime_type=ctype) for data, ctype in documents]
-                return vertex._structured(DocumentReading, parts), "vertex_ai"
+                # Bounded wait, so a slow provider can't outlast the app's request (Groq is tried next).
+                from concurrent.futures import ThreadPoolExecutor
+                pool = ThreadPoolExecutor(max_workers=1)
+                try:
+                    reading = pool.submit(vertex._structured, DocumentReading, parts).result(timeout=READ_TIMEOUT_SECONDS)
+                finally:
+                    pool.shutdown(wait=False)
+                return reading, "vertex_ai"
             except Exception as exc:  # noqa: BLE001 - provider errors must not leak; fall back.
                 logger.warning("document_check_vertex_failed", extra={"error_type": type(exc).__name__})
         images = [(data, ctype) for data, ctype in documents if ctype in IMAGE_TYPES]
@@ -184,7 +209,7 @@ class DocumentCheckService:
                     json={"model": settings.GROQ_VISION_MODEL, "temperature": 0, "max_tokens": 600,
                           "response_format": {"type": "json_object"},
                           "messages": [{"role": "user", "content": content}]},
-                    timeout=40.0)
+                    timeout=READ_TIMEOUT_SECONDS)
             except httpx.HTTPError as exc:
                 raise DocumentCheckUnavailable("network") from exc
             if response.status_code != 200:
