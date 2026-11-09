@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 MAX_DOCUMENT_BYTES = 5 * 1024 * 1024
 # The app waits up to 60 s for a submission or a re-check (frontend kyc.api / verification.api);
 # each reading attempt stays well inside that.
-READ_TIMEOUT_SECONDS = 25.0
+READ_TIMEOUT_SECONDS = 20.0
 # PDFs: refuse pages wider or taller than this (points; A0 is about 3370) and render at most this many
 # pixels on the long side, so a small file with a huge page can't exhaust memory.
 MAX_PDF_PAGE_POINTS = 4000

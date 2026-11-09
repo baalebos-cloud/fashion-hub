@@ -2,6 +2,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { useKYC } from "@/hooks/use-kyc";
 import { DocumentUpload } from "./DocumentUpload";
+import { SelfieCapture } from "./SelfieCapture";
 import { VerificationStatus } from "./VerificationStatus";
 import { AddressMapPicker } from "@/components/common/AddressMapPicker";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const [ninNumber, setNinNumber] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [documentUrl, setDocumentUrl] = useState<string | null>(null);
+  const [selfieKey, setSelfieKey] = useState<string | null>(null);
   const [homeLocation, setHomeLocation] = useState<{ latitude: number; longitude: number; formatted_address?: string } | null>(null);
   const [useManualAddress, setUseManualAddress] = useState(true);
   const [manualAddress, setManualAddress] = useState({ street: "", city: "", state: "", landmark: "" });
@@ -38,7 +40,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
   const validNin = /^\d{11}$/.test(ninNumber);
   const today = new Date().toISOString().slice(0, 10);
   const validDob = /^\d{4}-\d{2}-\d{2}$/.test(dateOfBirth) && dateOfBirth >= "1900-01-01" && dateOfBirth <= today;
-  const canSubmit = Boolean(documentUrl) && validNin && validDob && validManual && (useManualAddress || homeLocation !== null);
+  const canSubmit = Boolean(documentUrl) && Boolean(selfieKey) && validNin && validDob && validManual && (useManualAddress || homeLocation !== null);
   const address = [manualAddress.street, manualAddress.landmark, manualAddress.city, manualAddress.state, "Nigeria"].filter(Boolean).join(", ");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +59,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         home_longitude: useManualAddress ? null : homeLocation?.longitude ?? null,
         home_formatted_address: address ?? undefined,
         date_of_birth: dateOfBirth,
+        selfie_storage_key: selfieKey ?? undefined,
       });
       onSubmitted?.();
     } catch (err) {
@@ -76,7 +79,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         <VerificationStatus status={status.status} />
         {status.auto_approved && (
           <p role="status" className="rounded-control bg-success-wash px-3 py-2 text-sm text-success">
-            Your NIN details matched your account, so you were verified straight away.
+            Your NIN details, ID and face matched, so you were verified straight away.
           </p>
         )}
         {status.status === "under_review" && (
@@ -131,6 +134,8 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
 
       <DocumentUpload label="Upload a photo of your ID" onUploaded={setDocumentUrl} />
       {documentUrl && <p role="status" className="text-sm text-ink-soft">ID document uploaded successfully.</p>}
+
+      <SelfieCapture onUploaded={setSelfieKey} />
 
       <div>
         <div className="mb-1.5 text-sm font-medium text-ink">Home address</div>
@@ -190,7 +195,7 @@ export function KYCForm({ onSubmitted }: { onSubmitted?: () => void } = {}) {
         </div>
       )}
 
-      {!canSubmit && !error && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN and your date of birth, upload your ID, and complete your home address using the address fields below the map or manually.</p>}
+      {!canSubmit && !error && <p className="text-xs text-ink-soft" role="status">To submit, enter an 11-digit NIN and your date of birth, upload your ID, take a selfie, and complete your home address using the address fields below the map or manually.</p>}
       <Button onClick={handleSubmit} isLoading={isSubmitting} disabled={!canSubmit || isSubmitting || isProviderError}>
         Submit for verification
       </Button>

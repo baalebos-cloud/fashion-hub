@@ -42,6 +42,8 @@ const RULE_LABEL: Record<"kyc" | "kyb", Record<string, string>> = {
     document_nin_matches: "NIN on the document matches",
     document_not_expired: "Document hasn't expired",
     document_not_edited: "Document shows no signs of editing",
+    selfie_matches_nin: "Live selfie matches the NIN record photo",
+    profile_photo_matches_nin: "Profile photo matches the NIN record photo",
   },
   kyb: {
     record_found: "CAC record found",
@@ -169,6 +171,16 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
       </div>
       <RegistryCheck item={item} kind={kind} />
       {checks && <AutoChecks checks={checks} kind={kind} />}
+      {kind === "kyc" && item.face && (
+        <p className="text-[13px] text-ink-soft">
+          Face match with the NIN photo:{" "}
+          {[["Selfie", "selfie"], ["Profile photo", "profile_photo"]].map(([label, key]) => {
+            const confidence = item.face?.[`${key}_confidence`];
+            const problem = item.face?.[`${key}_problem`];
+            return <span key={key} className="mr-3">{label} {confidence != null ? `${confidence}%` : `not checked (${problem ?? "no result"})`}</span>;
+          })}
+        </p>
+      )}
       {kind === "kyc" && (note ? (
         <div className={noteChecked
           ? "rounded-control border border-indigo/30 bg-indigo-wash px-3 py-2 text-[13px] text-ink"
@@ -189,7 +201,9 @@ function QueueCard({ item, kind, onDone }: { item: VerificationQueueItem; kind: 
       <div className="flex flex-wrap gap-2">
         {item.documents.length === 0 && <span className="text-xs text-thread">No documents attached.</span>}
         {item.documents.map((doc, i) => (
-          <Button key={doc.id} size="sm" variant="secondary" onClick={() => void open(doc.id, `Document ${i + 1}`)}>View document {i + 1}</Button>
+          <Button key={doc.id} size="sm" variant="secondary" onClick={() => void open(doc.id, doc.type === "selfie" ? "Selfie" : `Document ${i + 1}`)}>
+            {doc.type === "selfie" ? "View selfie" : `View document ${i + 1}`}
+          </Button>
         ))}
       </div>
       <label className="flex flex-col gap-1.5 text-sm font-semibold text-ink">

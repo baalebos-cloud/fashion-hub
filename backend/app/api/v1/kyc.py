@@ -34,6 +34,7 @@ def submit_kyc(payload: SubmitKYCRequest, current_user: User = Depends(get_curre
         home_longitude=payload.home_longitude,
         home_formatted_address=payload.home_formatted_address,
         date_of_birth=payload.date_of_birth,
+        selfie_storage_key=payload.selfie_storage_key,
     )
 
 

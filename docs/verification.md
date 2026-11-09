@@ -19,6 +19,13 @@ silently un-verified, and admins still unverify explicitly if needed.
 1. The user opens **Verification** and sees a checklist with progress and the next step.
 2. **Identity:** NIN plus an ID photo. Prembly checks the NIN (`NIN_PROVIDER=prembly`).
    If Prembly is unreachable, the submission is held as `under_review` for manual review.
+   **Face check** (`NIN_FACE_CHECK=true`): the person takes a live selfie with the front camera while
+   submitting. Prembly's "NIN with face" compares it with the photo on the NIN record, and does the
+   same for the profile photo customers will see (`NIN_FACE_THRESHOLD`, default 80%). Both must
+   match for automatic approval, so a stolen NIN or someone else's profile photo goes to an admin.
+   The admin card shows each match score and a **View selfie** button. If Prembly can't compare
+   (product not enabled, outage), the reason is shown and an admin decides. Two face checks are
+   billed per submission.
    **Tailora's document check:** the uploaded ID is read by the configured vision AI (Vertex AI,
    or Groq as fallback; `DOCUMENT_AI_CHECK=true`). Tailora compares, in code, the document type,
    name, date of birth, NIN (NIN slips and ID cards only), expiry and signs of editing with the
@@ -68,6 +75,8 @@ NIN_PROVIDER=prembly
 NIN_API_KEY=<Prembly key>
 KYB_PROVIDER=prembly            # or manual
 KYB_AUTO_APPROVE=false          # true: approve when every rule passes (needs KYB_PROVIDER=prembly)
+NIN_FACE_CHECK=false            # true: live selfie + profile photo must match the NIN record photo
+NIN_FACE_THRESHOLD=80           # minimum match confidence (70–100)
 PREMBLY_API_KEY=                # optional; defaults to NIN_API_KEY
 PREMBLY_CAC_URL=https://api.prembly.com/verification/cac/advance
 IDENTITY_ENCRYPTION_KEY=<Fernet key>

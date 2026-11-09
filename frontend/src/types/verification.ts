@@ -34,6 +34,8 @@ export interface VerificationQueueItem {
   document_note?: string | null;
   /** False when Tailora couldn't read the document; its note then only explains why. */
   document_checked?: boolean;
+  /** Identity checks with face matching: confidence per photo (0–100), or why it couldn't run. */
+  face?: Record<string, number | string | null> | null;
   business_name?: string | null;
   registration?: string;
 }
