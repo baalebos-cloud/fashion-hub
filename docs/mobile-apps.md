@@ -15,6 +15,7 @@ native features. Everything lives in `frontend/`: `capacitor.config.ts`, `ios/` 
 | Incoming-call alerts that ring when the app is closed, replaced by "Missed call" if unanswered | `backend/app/services/call_push.py`, `backend/app/integrations/notifications/mobile_push.py`, `src/lib/native/push.ts` |
 | Permission texts: microphone for calls, camera for photos you take, location while the app is open | `Info.plist` (iOS), `AndroidManifest.xml` (Android) |
 | Store readiness: version numbers, privacy manifest, release signing, listing and privacy answers | [app-store-release.md](app-store-release.md) |
+| Security (OWASP MASVS): what is protected on the phone, and decisions left to the owner | [mobile-security.md](mobile-security.md) |
 | Paying: Paystack opens in the phone's browser and returns to the app through `/payment/app-return` | `src/lib/payments/return-url.ts`, [payments-go-live.md](payments-go-live.md) |
 
 The website itself is unchanged: none of this runs outside the apps.
