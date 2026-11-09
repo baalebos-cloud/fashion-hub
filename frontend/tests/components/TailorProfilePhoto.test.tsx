@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-const prepareImage = vi.fn();
-const uploadFile = vi.fn();
-const patch = vi.fn();
+const { prepareImage, uploadFile, patch } = vi.hoisted(() => ({
+  prepareImage: vi.fn(), uploadFile: vi.fn(), patch: vi.fn(),
+}));
 vi.mock("@/lib/media/prepare-image", () => ({ prepareImage }));
 vi.mock("@/lib/storage/file-storage", () => ({ uploadFile }));
 vi.mock("@/lib/api/client", () => ({ apiClient: { patch } }));
