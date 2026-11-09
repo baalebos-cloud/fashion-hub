@@ -23,14 +23,20 @@ def reconcile_pending_payments_task():
     logger = get_logger(__name__)
     with SessionLocal() as db:
         missing_work = ~exists().where(PaymentOutbox.payment_id == Payment.id)
-        references = [row[0] for row in db.query(Payment.provider_reference).filter(or_(
+        references = [tuple(row) for row in db.query(Payment.provider_reference, Payment.provider).filter(or_(
             Payment.status.in_(["initialized", "pending"]),
             (Payment.status == "successful") & missing_work,
         )).order_by(Payment.last_reconciled_at.asc().nulls_first(), Payment.created_at, Payment.id).limit(200)]
-    for reference in references:
+    for reference, provider in references:
         with SessionLocal() as db:
             try:
-                PaymentService(db).verify_and_confirm(reference)
+                if provider == "interswitch":
+                    # Interswitch payments are checked with Interswitch (the default provider would
+                    # refuse them), so a customer who closed the page after paying still gets a paid order.
+                    from app.services.interswitch_sandbox_service import InterswitchSandboxService
+                    InterswitchSandboxService(db).verify_and_confirm(reference, system=True)
+                else:
+                    PaymentService(db).verify_and_confirm(reference)
             except Exception as exc:
                 db.rollback()
                 logger.warning("payment_reconciliation_failed", extra={

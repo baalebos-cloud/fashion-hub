@@ -168,8 +168,16 @@ export default function DeliveryRequests() {
       <ReservedJobs onAccepted={(delivery) => navigate(deliveryRoutes.details(delivery.id))} onChanged={refresh} />
       {loading && <p role="status">Checking for delivery jobs…</p>}
       {error && <p role="alert" className="text-thread">{error}</p>}
+      {/* Riders only see jobs while verified and online: point to the one step that's missing. */}
+      {error && /offline/i.test(error) && (
+        <Button className="self-start" onClick={() => navigate(deliveryRoutes.dashboard)}>Go online</Button>
+      )}
+      {error && /verification/i.test(error) && (
+        <Button className="self-start" onClick={() => navigate(deliveryRoutes.verification)}>Finish verification</Button>
+      )}
       {!loading && !error && items.length === 0 && (
-        <EmptyState title="No delivery jobs right now" description="This page refreshes on its own every 20 seconds." />
+        <EmptyState title="No delivery jobs right now"
+          description="A job appears here when a tailor or vendor marks an order ready and asks for a rider. This page refreshes on its own every 20 seconds." />
       )}
       <div className="grid gap-4 md:grid-cols-2">
         {items.map((job) => (
