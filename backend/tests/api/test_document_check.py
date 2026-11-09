@@ -272,7 +272,16 @@ def test_vertex_failure_is_named_before_falling_back(monkeypatch):
 
     result = DocumentCheckService(vertex=Broken()).check([(JPEG, "image/jpeg")], account_name="Kemi Adeyemi",
                                                         reference_dob=DOB, entered_nin=NIN)
-    assert "Vertex AI: PermissionError" in result.note and not result.checked
+    assert "Vertex AI (" in result.note and "PermissionError" in result.note and not result.checked
+
+
+def test_google_errors_show_their_code():
+    from app.services.document_check_service import describe_vertex_error
+
+    class ClientError(Exception):
+        code, status = 404, "NOT_FOUND"
+
+    assert describe_vertex_error(ClientError()) == "ClientError 404 NOT_FOUND, the model wasn't found"
 
 
 def _pdf_with_a_page(width=300, height=200) -> bytes:

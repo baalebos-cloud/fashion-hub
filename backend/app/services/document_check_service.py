@@ -150,6 +150,18 @@ def compare(reading: DocumentReading, *, account_name: str, reference_dob: date 
     return DocumentCheck(checks=checks, passed=passed, note=note[:900], provider=None)
 
 
+def describe_vertex_error(exc: Exception) -> str:
+    """'took too long', or the error type with Google's HTTP code and status (e.g. ClientError 404
+    NOT_FOUND, which usually means the model name is retired). No request or document content."""
+    if isinstance(exc, TimeoutError):
+        return "took too long"
+    code, status = getattr(exc, "code", None), getattr(exc, "status", None)
+    detail = " ".join(str(part) for part in (code, status) if part)
+    hint = {404: ", the model wasn't found", 403: ", access was refused", 401: ", the key was refused",
+            429: ", too many requests right now"}.get(code if isinstance(code, int) else -1, "")
+    return f"{type(exc).__name__}{' ' + detail if detail else ''}{hint}"
+
+
 def unavailable_check(reason: str) -> DocumentCheck:
     return DocumentCheck(checks={"document_readable": None}, passed=False,
                          note=f"Tailora couldn't check the document automatically ({reason}). Compare it by hand.",
@@ -236,7 +248,7 @@ class DocumentCheckService:
                 return reading, "vertex_ai"
             except Exception as exc:  # noqa: BLE001 - provider errors must not leak; fall back.
                 logger.warning("document_check_vertex_failed", extra={"error_type": type(exc).__name__})
-                problems.append(f"Vertex AI: {'took too long' if isinstance(exc, TimeoutError) else type(exc).__name__}")
+                problems.append(f"Vertex AI ({settings.VERTEX_AI_MODEL_NAME}): {describe_vertex_error(exc)}")
         groq_ready = settings.AI_FALLBACK_PROVIDER.lower() == "groq" and bool(settings.GROQ_API_KEY)
         if groq_ready:
             images = []
