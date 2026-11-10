@@ -19,7 +19,8 @@ def test_photo_update_calls_face_check_only_for_non_tailors(role):
     service = UserService(db)
     service.users = repository
 
-    with patch("app.services.kyc_service.KYCService.check_new_profile_photo") as check:
+    with (patch("app.services.kyc_service.KYCService.check_new_profile_photo") as check,
+          patch("app.services.verification_documents.read_profile_photo", return_value=b"valid-photo")):
         result = service.update_profile(user.id, profile_photo_url="/media/new.jpg")
 
     assert result.profile_photo_url == "/media/new.jpg"
@@ -39,7 +40,8 @@ def test_tailor_photo_update_does_not_need_face_provider():
     service = UserService(db)
     service.users = MagicMock()
     service.users.get_by_id.return_value = user
-    with patch("app.services.kyc_service.KYCService.check_new_profile_photo",
-               side_effect=AssertionError("Face provider must not be invoked")):
+    with (patch("app.services.kyc_service.KYCService.check_new_profile_photo",
+                side_effect=AssertionError("Face provider must not be invoked")),
+          patch("app.services.verification_documents.read_profile_photo", return_value=b"valid-photo")):
         service.update_profile(user.id, profile_photo_url="/media/avatar.jpg")
     assert user.profile_photo_url == "/media/avatar.jpg"
