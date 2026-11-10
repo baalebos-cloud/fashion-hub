@@ -23,7 +23,10 @@ class UserService:
             fields.pop("profile_photo_url")
         self._apply_name(user, fields)
         new_photo = (fields.get("profile_photo_url") or "").strip()
-        if new_photo and new_photo != (user.profile_photo_url or ""):
+        if new_photo and new_photo != (user.profile_photo_url or "") and user.role != "tailor":
+            # Tailor profile-photo changes are ordinary media updates, not
+            # identity verification. KYC submission still performs its own
+            # NIN and face checks; other roles retain existing behavior.
             from app.services.kyc_service import KYCService
             KYCService(self.db).check_new_profile_photo(user, new_photo)
         for key, value in fields.items():
