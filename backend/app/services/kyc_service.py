@@ -227,21 +227,10 @@ class KYCService:
         image = read_profile_photo(self.db, user, new_url)
         if image is None:
             raise ValidationAppError("Upload your new photo through Tailora so it can be checked against your verified identity.")
-        # Tailor-only: retry a transient provider failure once. Never treat an
-        # unavailable provider as a successful identity match.
-        nin_number = decrypt_identity(kyc.id_number_encrypted)
         try:
-            match = compare_face_with_nin(nin_number, image)
+            match = compare_face_with_nin(decrypt_identity(kyc.id_number_encrypted), image)
         except ExternalProviderError:
-            if user.role != "tailor":
-                raise ValidationAppError("We couldn't check your new photo right now. Try again in a few minutes.") from None
-            try:
-                match = compare_face_with_nin(nin_number, image)
-            except ExternalProviderError:
-                raise ValidationAppError(
-                    "Your photo was uploaded, but identity verification is temporarily unavailable. "
-                    "Your verified profile photo has not been changed. Please try again later or contact support."
-                ) from None
+            raise ValidationAppError("We couldn't check your new photo right now. Try again in a few minutes.") from None
         if not match.matched:
             raise ValidationAppError("This photo doesn't match your verified identity. Use a clear, recent photo of yourself.")
 
