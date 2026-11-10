@@ -31,9 +31,10 @@ def test_photo_update_skips_face_check_for_tailors_and_designers(role):
         check.assert_called_once()
 
 
-@pytest.mark.parametrize("role", ["tailor", "designer"])def test_professional_photo_update_does_not_need_face_provider(role):
+@pytest.mark.parametrize("role", ["tailor", "designer"])
+def test_professional_photo_update_does_not_need_face_provider(role):
     user = SimpleNamespace(
-        id="tailor-1", role="tailor", full_name="Test Tailor",
+        id="professional-1", role=role, full_name="Test Professional",
         profile_photo_url=None,
     )
     db = MagicMock()
