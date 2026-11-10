@@ -23,6 +23,13 @@ class UserService:
             fields.pop("profile_photo_url")
         self._apply_name(user, fields)
         new_photo = (fields.get("profile_photo_url") or "").strip()
+        if new_photo and new_photo != (user.profile_photo_url or "") and user.role == "tailor":
+            # Photo changes are not identity checks, but the URL must still
+            # resolve to an avatar uploaded by this account.
+            from app.core.exceptions import ValidationAppError
+            from app.services.verification_documents import read_profile_photo
+            if read_profile_photo(self.db, user, new_photo) is None:
+                raise ValidationAppError("Upload a profile photo through the app before saving it.")
         if new_photo and new_photo != (user.profile_photo_url or "") and user.role != "tailor":
             # Tailor profile-photo changes are ordinary media updates, not
             # identity verification. KYC submission still performs its own
