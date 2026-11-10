@@ -189,20 +189,25 @@ def test_a_tricked_profile_link_fails_the_face_check(ctx, monkeypatch):
     assert "Tailora upload" in record.auto_checks["face"]["profile_photo_problem"]
 
 
-def test_verified_people_cant_swap_in_someone_elses_photo(ctx, monkeypatch):
+def test_verified_tailor_can_update_profile_photo_without_face_authentication(ctx, monkeypatch):
+    """Profile avatar changes are not KYC; media ownership checks still apply."""
     monkeypatch.setattr(settings, "APP_URL", "https://api.example")
     assert _submit(ctx).json()["status"] == "verified"
     new_id = uuid.uuid4()
-    ctx["db"].add(StoredMedia(id=new_id, owner_user_id=ctx["tailor"].id, storage_key=f"avatar/{ctx['tailor'].id}/n.jpg",
-                              content_type="image/jpeg", is_public=True, content=b"\xff\xd8other-face"))
+    ctx["db"].add(StoredMedia(id=new_id, owner_user_id=ctx["tailor"].id,
+                              storage_key=f"avatar/{ctx['tailor'].id}/n.jpg",
+                              content_type="image/jpeg", is_public=True, content=b"\\xff\\xd8other-face"))
     ctx["db"].commit()
-    ctx["results"][b"\xff\xd8other-face"] = FaceMatch(False, 22.0)
+    # The face would fail a NIN comparison; ordinary avatar updates must not
+    # invoke that comparison, even for previously verified tailors.
+    ctx["results"][b"\\xff\\xd8other-face"] = FaceMatch(False, 22.0)
     new_url = f"https://api.example/api/v1/media/files/{new_id}"
     res = ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": new_url})
-    assert res.status_code == 422 and "doesn't match your verified identity" in res.text
-    ctx["results"][b"\xff\xd8other-face"] = FaceMatch(True, 93.0)
-    assert ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": new_url}).status_code == 200
-    outside = ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": "https://elsewhere.example/p.jpg"})
+    assert res.status_code == 200
+    assert res.json()["profile_photo_url"] == new_url
+    # External/unowned URLs are still rejected by the existing validation.
+    outside = ctx["http"].patch("/api/v1/users/me",
+                                json={"profile_photo_url": "https://elsewhere.example/p.jpg"})
     assert outside.status_code == 422
 
 
