@@ -1,60 +1,45 @@
-"""Regression coverage for tailor-only retry of temporary face-check outages."""
+"""Tailor avatar updates are not NIN verification operations."""
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from app.core.exceptions import ExternalProviderError, ValidationAppError
-from app.services.kyc_service import KYCService
+from app.services.user_service import UserService
 
 
-@pytest.fixture
-def verified_kyc():
-    return SimpleNamespace(id_number_encrypted="encrypted-nin", status="verified")
-
-
-def _check(role, results, verified_kyc):
+@pytest.mark.parametrize("role", ["tailor", "designer", "vendor", "delivery_partner", "customer"])
+def test_photo_update_calls_face_check_only_for_non_tailors(role):
+    user = SimpleNamespace(
+        id="user-1", role=role, full_name="Test Person",
+        profile_photo_url="/media/old.jpg",
+    )
     db = MagicMock()
-    db.query.return_value.filter.return_value.order_by.return_value.first.return_value = verified_kyc
-    user = SimpleNamespace(id="tailor-id", role=role)
-    with (
-        patch("app.services.kyc_service.settings.NIN_FACE_CHECK", True),
-        patch("app.core.identity_encryption.decrypt_identity", return_value="test-nin"),
-        patch("app.services.verification_documents.read_profile_photo", return_value=b"face-image"),
-        patch("app.integrations.kyc.prembly_face.compare_face_with_nin", side_effect=results) as compare,
-    ):
-        try:
-            KYCService(db).check_new_profile_photo(user, "/media/files/photo")
-            return compare.call_count, None
-        except ValidationAppError as exc:
-            return compare.call_count, str(exc)
+    repository = MagicMock()
+    repository.get_by_id.return_value = user
+    service = UserService(db)
+    service.users = repository
+
+    with patch("app.services.kyc_service.KYCService.check_new_profile_photo") as check:
+        result = service.update_profile(user.id, profile_photo_url="/media/new.jpg")
+
+    assert result.profile_photo_url == "/media/new.jpg"
+    assert db.commit.call_count == 1
+    if role == "tailor":
+        check.assert_not_called()
+    else:
+        check.assert_called_once()
 
 
-def test_tailor_retries_transient_provider_error(verified_kyc):
-    count, error = _check("tailor", [
-        ExternalProviderError("Temporary outage"),
-        SimpleNamespace(matched=True),
-    ], verified_kyc)
-    assert count == 2
-    assert error is None
-
-
-def test_tailor_provider_outage_still_blocks_unverified_change(verified_kyc):
-    count, error = _check("tailor", [
-        ExternalProviderError("Temporary outage"),
-        ExternalProviderError("Temporary outage"),
-    ], verified_kyc)
-    assert count == 2
-    assert "has not been changed" in error
-
-
-def test_other_roles_are_not_retried(verified_kyc):
-    count, error = _check("designer", [ExternalProviderError("Temporary outage")], verified_kyc)
-    assert count == 1
-    assert "Try again" in error
-
-
-def test_face_mismatch_is_not_retried_or_accepted(verified_kyc):
-    count, error = _check("tailor", [SimpleNamespace(matched=False)], verified_kyc)
-    assert count == 1
-    assert "doesn't match" in error
+def test_tailor_photo_update_does_not_need_face_provider():
+    user = SimpleNamespace(
+        id="tailor-1", role="tailor", full_name="Test Tailor",
+        profile_photo_url=None,
+    )
+    db = MagicMock()
+    service = UserService(db)
+    service.users = MagicMock()
+    service.users.get_by_id.return_value = user
+    with patch("app.services.kyc_service.KYCService.check_new_profile_photo",
+               side_effect=AssertionError("Face provider must not be invoked")):
+        service.update_profile(user.id, profile_photo_url="/media/avatar.jpg")
+    assert user.profile_photo_url == "/media/avatar.jpg"
