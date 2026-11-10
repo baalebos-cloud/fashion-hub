@@ -1,4 +1,4 @@
-"""Tailor avatar updates are not NIN verification operations."""
+"""Tailor and designer avatar updates are not NIN verification operations."""
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
@@ -8,7 +8,7 @@ from app.services.user_service import UserService
 
 
 @pytest.mark.parametrize("role", ["tailor", "designer", "vendor", "delivery_partner", "customer"])
-def test_photo_update_calls_face_check_only_for_non_tailors(role):
+def test_photo_update_skips_face_check_for_tailors_and_designers(role):
     user = SimpleNamespace(
         id="user-1", role=role, full_name="Test Person",
         profile_photo_url="/media/old.jpg",
@@ -25,13 +25,13 @@ def test_photo_update_calls_face_check_only_for_non_tailors(role):
 
     assert result.profile_photo_url == "/media/new.jpg"
     assert db.commit.call_count == 1
-    if role == "tailor":
+    if role in {"tailor", "designer"}:
         check.assert_not_called()
     else:
         check.assert_called_once()
 
 
-def test_tailor_photo_update_does_not_need_face_provider():
+@pytest.mark.parametrize("role", ["tailor", "designer"])def test_professional_photo_update_does_not_need_face_provider(role):
     user = SimpleNamespace(
         id="tailor-1", role="tailor", full_name="Test Tailor",
         profile_photo_url=None,
