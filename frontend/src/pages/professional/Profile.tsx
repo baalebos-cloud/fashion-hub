@@ -15,7 +15,7 @@ export default function Profile() {
   return (
     <div className="flex max-w-lg flex-col gap-8">
       <ProfileHeader user={user} />
-      {user.role === "tailor" ? (
+      {(user.role === "tailor" || user.role === "designer") ? (
         <TailorProfilePhoto currentUrl={user.profile_photo_url} onUploaded={() => refreshUser()} />
       ) : (
         <ProfilePhoto currentUrl={user.profile_photo_url} onUploaded={() => void refreshUser()} />
