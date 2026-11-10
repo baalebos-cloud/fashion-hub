@@ -196,11 +196,11 @@ def test_verified_tailor_can_update_profile_photo_without_face_authentication(ct
     new_id = uuid.uuid4()
     ctx["db"].add(StoredMedia(id=new_id, owner_user_id=ctx["tailor"].id,
                               storage_key=f"avatar/{ctx['tailor'].id}/n.jpg",
-                              content_type="image/jpeg", is_public=True, content=b"\\xff\\xd8other-face"))
+                              content_type="image/jpeg", is_public=True, content=bytes.fromhex("ffd8") + b"other-face"))
     ctx["db"].commit()
     # The face would fail a NIN comparison; ordinary avatar updates must not
     # invoke that comparison, even for previously verified tailors.
-    ctx["results"][b"\\xff\\xd8other-face"] = FaceMatch(False, 22.0)
+    ctx["results"][bytes.fromhex("ffd8") + b"other-face"] = FaceMatch(False, 22.0)
     new_url = f"https://api.example/api/v1/media/files/{new_id}"
     res = ctx["http"].patch("/api/v1/users/me", json={"profile_photo_url": new_url})
     assert res.status_code == 200
