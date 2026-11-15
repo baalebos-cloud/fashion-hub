@@ -11,6 +11,10 @@ class DashboardService:
         self.db = db
 
     def summary(self, user):
+        if user.role == "delivery_partner":
+            # A rider's dashboard is about their jobs, not orders they've bought.
+            from app.services.rider_work_service import RiderWorkService
+            return RiderWorkService(self.db).dashboard_cards(user)
         seller = user.role in {"tailor", "designer", "vendor"}
         scope = self.db.query(Order)
         if user.role == "admin":

@@ -1,6 +1,6 @@
 import { apiClient } from "@/lib/api/client";
 import { endpoints } from "@/lib/api/endpoints";
-import type { Delivery, DeliveryTrip, HandoverCode, PickupCode, RiderPosition } from "@/types/delivery";
+import type { Delivery, DeliveryTrip, HandoverCode, PickupCode, RiderEarnings, RiderPosition } from "@/types/delivery";
 
 /** One key per user action, so a retry after a dropped connection is applied only once. */
 export function newIdempotencyKey(): string {
@@ -9,6 +9,13 @@ export function newIdempotencyKey(): string {
 }
 
 export const deliveriesApi = {
+  /** The rider's delivered, failed and cancelled jobs, newest first. */
+  async myHistory(page = 1, pageSize = 20): Promise<Delivery[]> {
+    return (await apiClient.get<Delivery[]>("/deliveries/mine/history", { params: { page, page_size: pageSize } })).data;
+  },
+  async myEarnings(): Promise<RiderEarnings> {
+    return (await apiClient.get<RiderEarnings>("/deliveries/mine/earnings")).data;
+  },
   async markPickedUp(id: string, body: { pickup_code?: string; package_count: number }, idempotencyKey?: string): Promise<Delivery> {
     const response = await apiClient.post<Delivery>(endpoints.deliveries.pickedUp(id), body,
       idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : undefined);

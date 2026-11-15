@@ -14,6 +14,8 @@ export interface Delivery {
   order_id: string;
   status: DeliveryStatus;
   delivery_fee: number;
+  picked_up_at?: string | null;
+  delivered_at?: string | null;
   /** Packages the rider confirmed at pickup. */
   package_count?: number | null;
   /** False while the pickup-code rollout flag is off: the rider skips the code. */
@@ -27,6 +29,15 @@ export interface Delivery {
   rider_photo_url?: string | null;
   /** An outside courier company delivering this order, when not a Tailora rider. */
   courier?: string | null;
+}
+
+/** What a rider earned: agreed fares of delivered jobs, in Nigerian time. */
+export interface RiderEarnings {
+  currency: string;
+  today: { amount: number; deliveries: number };
+  week: { amount: number; deliveries: number };
+  month: { amount: number; deliveries: number };
+  all_time: { amount: number; deliveries: number };
 }
 
 export interface HandoverCode {

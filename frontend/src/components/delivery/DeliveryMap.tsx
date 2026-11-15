@@ -40,10 +40,11 @@ export function DeliveryMap({ currentLat, currentLng }: {
         className="h-64 w-full rounded-card border border-line bg-muslin"
         style={{ display: isReady && !error ? "block" : "none" }} />
       {(!isReady || error) && <p className="text-sm text-ink-soft">
-        {error || "Loading location map…"}
+        {/* The shared map error talks about typing an address; here only the map is missing. */}
+        {error ? "The map can't load right now. Open the rider's location in Google Maps instead." : "Loading location map…"}
       </p>}
       <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm text-brass-deep underline">
-        View reported position in Google Maps
+        Open the rider's location in Google Maps
       </a>
     </div>
   );
