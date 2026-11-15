@@ -18,6 +18,7 @@ import { useMaterialRoutes } from "@/lib/routes/material-routes";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { paymentCallbackUrl } from "@/lib/payments/return-url";
+import { OrderDispute } from "@/components/orders/OrderDispute";
 
 export default function VendorOrderDetails() {
   const routes = useMaterialRoutes();
@@ -79,6 +80,7 @@ export default function VendorOrderDetails() {
       <p>Status: {order.status.replaceAll("_", " ")}</p>
       <OrderItems items={order.items} currency={order.currency} />
       <p className="text-lg font-medium">Final total: {formatCurrency(order.total_amount, order.currency)}</p>
+      <OrderDispute orderId={order.id} orderStatus={order.status} isBuyer />
       {unpaid && <>
         {order.reservation_expires_at && <p>Stock hold ends: <DateTimeDisplay value={order.reservation_expires_at} /></p>}
         {expired ? <p role="status">The stock hold has expired. Create a new order from the marketplace; check any payment already made before paying again.</p> : <>

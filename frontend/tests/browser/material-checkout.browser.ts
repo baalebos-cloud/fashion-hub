@@ -24,6 +24,7 @@ test("a material order is reviewed separately and a late payment shows review re
     else if (path === "/checkout") { checkoutBody = route.request().postDataJSON(); body = order; }
     else if (path === "/orders/order") body = order;
     else if (path === "/orders/order/timeline") body = [];
+    else if (path === "/disputes/mine") body = [];  // the order page shows any reported problems
     else if (path === "/payments") { initialized++; body = {}; }
     else if (path === "/payments/late-reference/verify") body = { id: "payment", order_id: "order", status: "successful", requires_review: true, provider_reference: "late-reference" };
     else { unexpected.push(path); body = {}; }

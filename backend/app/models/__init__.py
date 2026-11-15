@@ -58,6 +58,7 @@ from app.models.audit_log import AuditLog
 from app.models.referral import Referral
 from app.models.payout import Payout
 from app.models.seller_bank_account import SellerBankAccount
+from app.models.dispute import Dispute
 from app.models.storefront_handle import StorefrontHandle
 from app.models.call_session import CallSession
 from app.models.delivery_offer import DeliveryOffer
@@ -82,7 +83,7 @@ __all__ = [
     "Location", "Address", "Measurement", "MeasurementProfile", "Category", "Design",
     "DesignImage", "Review", "Rating", "Notification", "Conversation", "Message",
     "AIConversation", "AIMessage", "AIAction", "KYCVerification", "KYBVerification",
-    "VerificationDocument", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord", "InteractionEvent", "ItemSimilarity", "RecommendationImpression",
+    "VerificationDocument", "Dispute", "Favorite", "AuditLog", "Referral", "Payout", "StorefrontHandle", "CallSession", "DeliveryOffer", "DispatchJobOffer", "DeliveryShareLink", "DeliveryCode", "DeliveryEvent", "ActivityLog", "AdminCredential", "DeliveryBatch", "CourierEventRecord", "InteractionEvent", "ItemSimilarity", "RecommendationImpression",
 ]
 
 from app.models.saga import SagaStepLog, LedgerEntry
