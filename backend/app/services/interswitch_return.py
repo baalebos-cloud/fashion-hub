@@ -21,4 +21,8 @@ def redirect_for_interswitch_return(*, txnref: str = "",
     # Never trust conflicting references from an untrusted provider/browser callback.
     if len(set(candidates)) == 1 and REFERENCE_PATTERN.fullmatch(candidates[0]):
         params["reference"] = candidates[0]
-    return f"{settings.FRONTEND_URL.rstrip('/')}/app/customer/payment/success?{urlencode(params)}"
+    # Material (vendor) orders are bought by customers, tailors and designers, so they go to a
+    # neutral page that forwards to the signed-in buyer's own payment result. Garment orders are
+    # always the customer's.
+    path = "/app/payment/materials" if params.get("reference", "").startswith("FH-MAT-") else "/app/customer/payment/success"
+    return f"{settings.FRONTEND_URL.rstrip('/')}{path}?{urlencode(params)}"

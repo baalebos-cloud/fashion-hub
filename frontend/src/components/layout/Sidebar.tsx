@@ -69,6 +69,14 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
       ],
     },
     {
+      heading: "Fabrics",
+      items: [
+        { label: "Marketplace", path: customerRoutes.materials, icon: <Icon d={ICONS.cart} /> },
+        { label: "Cart", path: customerRoutes.cart, icon: <Icon d={ICONS.cart} /> },
+        { label: "Fabric orders", path: customerRoutes.materialOrders, icon: <Icon d={ICONS.orders} /> },
+      ],
+    },
+    {
       heading: "Finance",
       items: [
         { label: "Invoices", path: customerRoutes.invoices, icon: <Icon d={ICONS.invoice} /> },

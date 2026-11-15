@@ -131,7 +131,8 @@ def test_materials_leg_from_vendor_to_tailor(materials):
 
     # Tailor confirms receipt; the linked customer garment order is untouched.
     current[0] = materials["customer"]
-    assert http.post(f"/api/v1/orders/{material.id}/materials-received", json={}).status_code == 403
+    # Customers may confirm their own fabric orders, but this one isn't theirs: refused as not found.
+    assert http.post(f"/api/v1/orders/{material.id}/materials-received", json={}).status_code == 404
     current[0] = materials["tailor"]
     received = http.post(f"/api/v1/orders/{material.id}/materials-received", json={"note": "All 6 yards received"})
     assert received.status_code == 200 and received.json()["status"] == "completed"

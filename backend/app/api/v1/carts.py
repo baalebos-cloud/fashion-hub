@@ -1,4 +1,4 @@
-"""Owned professional carts; availability here is advisory until checkout."""
+"""Material carts for tailors, designers and customers; availability here is advisory until checkout."""
 import uuid
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
@@ -9,7 +9,8 @@ from app.schemas.cart import AddCartItemRequest, UpdateCartItemRequest, CartSumm
 from app.services.cart_service import CartService
 
 router = APIRouter(prefix='/carts', tags=['Carts'])
-buyer = require_roles(Role.TAILOR, Role.DESIGNER)
+# Customers buy fabrics and accessories too (delivered to their own saved address).
+buyer = require_roles(Role.CUSTOMER, Role.TAILOR, Role.DESIGNER)
 
 
 @router.get('/summary', response_model=CartSummaryResponse)

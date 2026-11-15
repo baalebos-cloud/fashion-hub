@@ -11,12 +11,20 @@ import { trackView, viewSource } from "@/lib/tracking/interactions";
 import { RelatedProducts } from "@/components/recommendations/RelatedProducts";
 import { recommendationsApi } from "@/api/recommendations.api";
 import { publicRoutes } from "@/config/routes.config";
+import { useAuthStore } from "@/store/auth.store";
+import { useCartStore } from "@/store/cart.store";
+import { useToast } from "@/components/ui/toast";
+import { materialRoutesFor } from "@/lib/routes/material-routes";
 
 export default function ProductDetails() {
   const { productId } = useParams<{ productId: string }>();
   const [search] = useSearchParams();
   const from = search.get("from");
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
+  const addItem = useCartStore((state) => state.addItem);
+  const { showToast } = useToast();
+  const buyerRoutes = materialRoutesFor(user?.role);
   const [product, setProduct] = useState<VendorProduct | null>(null);
 
   const [error, setError] = useState<string | null>(null);
@@ -39,10 +47,16 @@ export default function ProductDetails() {
         product={product}
         variants={product.variants ?? []}
         inventory={null}
-        onAddToCart={async () => {
-          // Public visitors aren't authenticated as a professional yet —
-          // send them to sign in/up before they can actually add to cart.
-          navigate(authRoutes.login);
+        onAddToCart={async (variantId, quantity) => {
+          if (!user) {
+            // Sign in first, then come straight back to this product in the buyer's own app area.
+            navigate(authRoutes.login, { state: { from: { pathname: `/app/materials/products/${product.id}` } } });
+            return;
+          }
+          if (!buyerRoutes) throw new Error("Materials are bought by customers, tailors and designers. Sign in with one of those accounts to order.");
+          await addItem(variantId, quantity);
+          showToast("Added to cart.", "success");
+          navigate(buyerRoutes.cart);
         }}
       />
       <div className="mt-10">

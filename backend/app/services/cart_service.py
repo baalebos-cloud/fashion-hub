@@ -17,8 +17,8 @@ class CartService:
 
     def lock_buyer(self, owner_user_id):
         user = self.db.query(User).filter(User.id == owner_user_id).with_for_update().populate_existing().first()
-        if not user or not user.is_active or user.role not in {'tailor', 'designer'}:
-            raise ForbiddenError('Material carts are available to active tailors and designers.')
+        if not user or not user.is_active or user.role not in {'customer', 'tailor', 'designer'}:
+            raise ForbiddenError('Material carts are available to active customers, tailors and designers.')
         return user
 
     def _active(self, owner_user_id):

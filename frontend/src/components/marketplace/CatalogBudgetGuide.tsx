@@ -3,11 +3,12 @@ import { Link } from "react-router-dom";
 import { commerceApi, type CatalogRecommendation } from "@/api/commerce.api";
 import { Button } from "@/components/ui/button";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
-import { professionalRoutes } from "@/config/routes.config";
+import { useMaterialRoutes } from "@/lib/routes/material-routes";
 
 /** Catalog guidance within a budget (ordered by fixed rules or personal ranking, per the
  * ranking test); does not promise inventory or a purchase. */
 export function CatalogBudgetGuide() {
+  const routes = useMaterialRoutes();
   const [budget, setBudget] = useState("");
   const [items, setItems] = useState<CatalogRecommendation[]>([]);
   const [requested, setRequested] = useState(false);
@@ -70,7 +71,7 @@ export function CatalogBudgetGuide() {
         <ul className="mt-4 space-y-2">
           {items.map((item) => (
             <li key={item.product_id} className="flex flex-wrap items-center justify-between gap-2">
-              <Link className="underline" to={`${professionalRoutes.vendorProductDetails(item.product_id)}?from=budget_guide`}>
+              <Link className="underline" to={`${routes.productDetails(item.product_id)}?from=budget_guide`}>
                 {item.title}
               </Link>
               <span className="text-sm">₦{Number(item.price_ngn).toLocaleString("en-NG")}</span>

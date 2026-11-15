@@ -336,10 +336,11 @@ def vendor_fulfillment(
 def confirm_materials_received(
     order_id: uuid.UUID,
     payload: OrderTransitionRequest,
-    current_user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    current_user: User = Depends(require_roles(Role.CUSTOMER, Role.TAILOR, Role.DESIGNER)),
     db: Session = Depends(get_db),
 ):
-    """The tailor/designer who bought the materials confirms they arrived."""
+    """The customer, tailor or designer who bought the materials confirms they arrived (the service
+    checks they are the buyer)."""
     return VendorFulfillmentService(db).confirm_received(order_id=order_id, actor=current_user, note=payload.note)
 
 

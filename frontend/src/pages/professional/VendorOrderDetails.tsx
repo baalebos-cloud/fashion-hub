@@ -14,12 +14,13 @@ import { PaymentConsent } from "@/components/payments/PaymentConsent";
 import { Button } from "@/components/ui/button";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
-import { professionalRoutes } from "@/config/routes.config";
+import { useMaterialRoutes } from "@/lib/routes/material-routes";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { paymentCallbackUrl } from "@/lib/payments/return-url";
 
 export default function VendorOrderDetails() {
+  const routes = useMaterialRoutes();
   const { orderId } = useParams<{ orderId: string }>();
   const { order, timeline, isLoading, error, cancel } = useOrder(orderId);
   const [hasConsented, setHasConsented] = useState(false);
@@ -67,10 +68,10 @@ export default function VendorOrderDetails() {
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-5">
       <h1 className="font-display text-xl text-ink">{order.order_number}</h1>
-      {order.parent_customer_order_id && (
+      {order.parent_customer_order_id && routes.linkedCustomerOrder && (
         <p className="text-sm text-ink-soft">
           For order{" "}
-          <Link to={professionalRoutes.orderDetails(order.parent_customer_order_id)} className="font-mono font-semibold text-indigo">
+          <Link to={routes.linkedCustomerOrder(order.parent_customer_order_id)} className="font-mono font-semibold text-indigo">
             {parentNumber ?? "your customer's order"}
           </Link>
         </p>
@@ -85,7 +86,7 @@ export default function VendorOrderDetails() {
           {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED === "true" ? (
             <InterswitchLiveButton orderId={order.id} disabled={!hasConsented || isCancelling} />
           ) : (
-            <PaymentButton key={order.id} orderId={order.id} callbackUrl={paymentCallbackUrl("vendor")} disabled={!hasConsented || isCancelling} />
+            <PaymentButton key={order.id} orderId={order.id} callbackUrl={paymentCallbackUrl(routes.paymentReturn)} disabled={!hasConsented || isCancelling} />
           )}
           {import.meta.env.VITE_INTERSWITCH_LIVE_UI_ENABLED !== "true" && import.meta.env.VITE_INTERSWITCH_SANDBOX_UI_ENABLED === "true" && (
             <InterswitchSandboxButton orderId={order.id} disabled={!hasConsented || isCancelling} />
@@ -113,8 +114,8 @@ export default function VendorOrderDetails() {
       {error && <p role="alert">{error}</p>}
       {actionError && <p role="alert">{actionError}</p>}
       <OrderTimeline entries={timeline} />
-      <Link to={professionalRoutes.vendorOrders} className="underline">View material orders</Link>
-      <Link to={professionalRoutes.vendorMarketplace} className="underline">Continue shopping</Link>
+      <Link to={routes.orders} className="underline">View material orders</Link>
+      <Link to={routes.marketplace} className="underline">Continue shopping</Link>
     </div>
   );
 }

@@ -11,8 +11,14 @@ import ProfessionalDetails from "@/pages/customer/ProfessionalDetails";
 import CreateOrder from "@/pages/customer/CreateOrder";
 import Measurements from "@/pages/customer/Measurements";
 import Designs from "@/pages/customer/Designs";
-import Cart from "@/pages/customer/Cart";
-import Checkout from "@/pages/customer/Checkout";
+// Fabrics and accessories: the same shopping pages tailors use (links follow the signed-in role).
+import MaterialsMarketplace from "@/pages/professional/VendorMarketplace";
+import MaterialDetails from "@/pages/professional/VendorProductDetails";
+import Cart from "@/pages/professional/Cart";
+import Checkout from "@/pages/professional/Checkout";
+import MaterialPaymentSuccess from "@/pages/professional/VendorPaymentSuccess";
+import MaterialOrders from "@/pages/professional/VendorOrders";
+import MaterialOrderDetails from "@/pages/professional/VendorOrderDetails";
 import Payment from "@/pages/customer/Payment";
 import PaymentSuccess from "@/pages/customer/PaymentSuccess";
 import PaymentFailed from "@/pages/customer/PaymentFailed";
@@ -44,8 +50,13 @@ export const customerRouteObjects: RouteObject[] = [
   { path: "professionals/:professionalId/order", element: withLayout(CreateOrder) },
   { path: "measurements", element: withLayout(Measurements) },
   { path: "designs", element: withLayout(Designs) },
+  { path: "materials", element: withLayout(MaterialsMarketplace) },
+  { path: "materials/products/:productId", element: withLayout(MaterialDetails) },
   { path: "cart", element: withLayout(Cart) },
   { path: "checkout", element: withLayout(Checkout) },
+  { path: "material-payment/success", element: withLayout(MaterialPaymentSuccess) },
+  { path: "material-orders", element: withLayout(MaterialOrders) },
+  { path: "material-orders/:orderId", element: withLayout(MaterialOrderDetails) },
   { path: "orders/:orderId/payment", element: withLayout(Payment) },
   { path: "payment/success", element: withLayout(PaymentSuccess) },
   { path: "payment/failed", element: withLayout(PaymentFailed) },
