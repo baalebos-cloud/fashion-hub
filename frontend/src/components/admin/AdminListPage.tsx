@@ -47,7 +47,7 @@ export function AdminListPage<T extends { id: string }>({ title, intro, load, co
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter">
             {filters.map((f, i) => (
               <button key={f.label} type="button" aria-pressed={filter === i}
-                onClick={() => { setFilter(i); setPage(1); setData(null); }}
+                onClick={() => { if (i === filter) return; setFilter(i); setPage(1); setData(null); }}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                   filter === i ? "border-ink bg-ink text-paper" : "border-line text-ink-soft hover:border-ink hover:text-ink"}`}>
                 {f.label}

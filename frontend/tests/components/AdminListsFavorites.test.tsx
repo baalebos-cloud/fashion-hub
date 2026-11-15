@@ -20,6 +20,10 @@ it("admin vendors list loads real rows and filters", async () => {
   expect(screen.getAllByText("Awaiting verification").length).toBeGreaterThan(0);
   fireEvent.click(screen.getByRole("button", { name: "Verified" }));
   await waitFor(() => expect(adminListsApi.vendors).toHaveBeenLastCalledWith(expect.objectContaining({ verified: true, page: 1 })));
+  // Clicking the filter that's already selected keeps the list (no stuck spinner).
+  await screen.findByText("Balogun Fabrics");
+  fireEvent.click(screen.getByRole("button", { name: "Verified" }));
+  expect(screen.getByText("Balogun Fabrics")).toBeTruthy();
 });
 
 it("favorites shows saved items with links and can remove one", async () => {

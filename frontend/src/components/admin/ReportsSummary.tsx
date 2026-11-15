@@ -76,7 +76,7 @@ export function ReportsSummary() {
         <h2 id="sales-heading" className="font-display text-lg text-ink">Sales and orders</h2>
         <div className="flex gap-1.5" role="group" aria-label="Period">
           {PERIODS.map((p) => (
-            <button key={p} type="button" aria-pressed={days === p} onClick={() => { setDays(p); setData(null); }}
+            <button key={p} type="button" aria-pressed={days === p} onClick={() => { if (p === days) return; setDays(p); setData(null); }}
               className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${days === p ? "border-ink bg-ink text-paper" : "border-line text-ink-soft hover:border-ink"}`}>
               Last {p} days
             </button>

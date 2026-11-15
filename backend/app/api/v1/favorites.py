@@ -92,7 +92,13 @@ def list_favorites(user: User = Depends(get_current_user), db: Session = Depends
 @router.post("")
 def toggle_favorite(payload: FavoriteRequest, user: User = Depends(get_current_user),
                     db: Session = Depends(get_db)):
-    _check_visible(db, payload.favorite_type, payload.favorite_ref_id)
+    # Removing your own saved item always works, even once the listing is no longer shown;
+    # only adding a new favorite needs the listing to be visible.
+    already_saved = db.query(Favorite.id).filter(
+        Favorite.user_id == user.id, Favorite.favorite_type == payload.favorite_type,
+        Favorite.favorite_ref_id == payload.favorite_ref_id).first() is not None
+    if not already_saved:
+        _check_visible(db, payload.favorite_type, payload.favorite_ref_id)
     return {"favorited": FavoriteService(db).toggle_favorite(
         user_id=user.id, favorite_type=payload.favorite_type, favorite_ref_id=payload.favorite_ref_id,
     )}

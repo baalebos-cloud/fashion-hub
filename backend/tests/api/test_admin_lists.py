@@ -114,3 +114,8 @@ def test_favorites_list_shows_names_and_photos(client, db, world, make_user):
     db.commit()
     again = {i["favorite_type"]: i for i in client.get("/api/v1/favorites", headers=auth(customer)).json()}
     assert again["professional"]["available"] is False
+    # An item that's no longer listed can still be removed (but not added again).
+    removed = client.post("/api/v1/favorites", json={"favorite_type": "professional", "favorite_ref_id": str(pro.id)}, headers=auth(customer))
+    assert removed.status_code == 200 and removed.json() == {"favorited": False}
+    readd = client.post("/api/v1/favorites", json={"favorite_type": "professional", "favorite_ref_id": str(pro.id)}, headers=auth(customer))
+    assert readd.status_code == 404
