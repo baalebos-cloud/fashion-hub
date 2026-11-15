@@ -3,7 +3,9 @@ import { Card } from "@/components/ui/card";
 import { DeliveryStatusBadge } from "./DeliveryStatusBadge";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
-import type { Delivery } from "@/types/delivery";
+import type { Delivery, DeliveryStatus } from "@/types/delivery";
+
+const UNPAID: ReadonlySet<DeliveryStatus> = new Set(["cancelled", "failed"]);
 
 export function DeliveryCard({ delivery, detailsPath }: { delivery: Delivery; detailsPath: string }) {
   return (
@@ -16,8 +18,8 @@ export function DeliveryCard({ delivery, detailsPath }: { delivery: Delivery; de
           )}
         </div>
         <div className="flex items-center gap-3">
-          {/* Only delivered jobs are paid (see Earnings), so a cancelled or failed job shows no fare. */}
-          <span className="text-sm text-ink-soft">{delivery.status === "delivered" ? formatCurrency(delivery.delivery_fee) : "No fare"}</span>
+          {/* A cancelled or failed job isn't paid (see Earnings); active and delivered jobs keep their fare. */}
+          <span className="text-sm text-ink-soft">{UNPAID.has(delivery.status) ? "No fare" : formatCurrency(delivery.delivery_fee)}</span>
           <DeliveryStatusBadge status={delivery.status} />
         </div>
       </Card>
