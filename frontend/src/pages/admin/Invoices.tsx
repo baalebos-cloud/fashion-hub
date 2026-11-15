@@ -1,25 +1,25 @@
-import { useState } from "react";
-import { Table, type Column } from "@/components/ui/table";
+import { AdminListPage } from "@/components/admin/AdminListPage";
 import { InvoiceStatus } from "@/components/invoices/InvoiceStatus";
-import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/lib/formatters/currency";
-import type { Invoice } from "@/types/invoice";
+import { adminListsApi, type AdminInvoice } from "@/api/admin-lists.api";
 
-/** Requires `GET /admin/invoices`. See Users.tsx. */
+const date = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-NG") : "—");
+
 export default function Invoices() {
-  const [invoices] = useState<Invoice[]>([]);
-  if (invoices.length === 0) return <EmptyState title="No invoices to show" />;
-
-  const columns: Column<Invoice>[] = [
-    { header: "Invoice", render: (i) => i.invoice_number },
-    { header: "Total", render: (i) => formatCurrency(i.total_amount, i.currency) },
-    { header: "Status", render: (i) => <InvoiceStatus status={i.payment_status} /> },
-  ];
-
   return (
-    <div>
-      <h1 className="mb-6 font-display text-xl text-ink">Invoices</h1>
-      <Table columns={columns} rows={invoices} />
-    </div>
+    <AdminListPage<AdminInvoice>
+      title="Invoices"
+      load={adminListsApi.invoices}
+      emptyTitle="No invoices to show"
+      intro="An invoice is issued for every order once its payment is confirmed."
+      columns={[
+        { header: "Invoice", render: (i) => <span className="font-mono">{i.invoice_number}</span> },
+        { header: "Customer", render: (i) => i.issued_to ?? "—" },
+        { header: "Seller", render: (i) => i.issued_by ?? "—" },
+        { header: "Total", render: (i) => formatCurrency(i.total_amount, i.currency) },
+        { header: "Status", render: (i) => <InvoiceStatus status={i.payment_status} /> },
+        { header: "Ordered", render: (i) => date(i.order_date) },
+      ]}
+    />
   );
 }
