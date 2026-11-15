@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { dashboardApi } from "@/api/dashboard.api";
 import { deliveryPartnersApi } from "@/api/delivery-partners.api";
+import { deliveriesApi } from "@/api/deliveries.api";
+import { DeliveryCard } from "@/components/delivery/DeliveryCard";
 import { Card } from "@/components/ui/card";
 import { Greeting } from "@/components/common/Greeting";
 import { Button } from "@/components/ui/button";
@@ -13,13 +15,20 @@ import { formatNaira } from "@/lib/formatters/currency";
 import type { DashboardSummaryCard } from "@/types/dashboard";
 import type { Delivery } from "@/types/delivery";
 
+const RECENT_COUNT = 5;
+
 export default function Dashboard() {
   const [summary, setSummary] = useState<DashboardSummaryCard[]>([]);
   const [active, setActive] = useState<Delivery[]>([]);
+  // null while loading or if it failed: the section stays hidden rather than claiming "none yet".
+  const [recent, setRecent] = useState<Delivery[] | null>(null);
 
   useEffect(() => {
     dashboardApi.getSummary().then(setSummary).catch(() => setSummary([]));
     deliveryPartnersApi.activeDeliveries().then(setActive).catch(() => setActive([]));
+    deliveriesApi.myHistory(1, RECENT_COUNT)
+      .then((rows) => setRecent(Array.isArray(rows) ? rows : null))
+      .catch(() => setRecent(null));
   }, []);
 
   return (
@@ -51,6 +60,20 @@ export default function Dashboard() {
       </section>
 
       <RiderRoute />
+
+      {recent && (
+        <section aria-labelledby="recent-heading" className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h2 id="recent-heading" className="text-[13px] font-semibold uppercase tracking-wide text-ink-soft">Recently completed</h2>
+            {recent.length > 0 && <Link to={deliveryRoutes.history} className="text-sm font-semibold text-indigo">See all</Link>}
+          </div>
+          {recent.length === 0
+            ? <p className="text-sm text-ink-soft">Jobs you finish show up here, with the fare for each.</p>
+            : recent.map((delivery) => (
+              <DeliveryCard key={delivery.id} delivery={delivery} detailsPath={deliveryRoutes.details(delivery.id)} />
+            ))}
+        </section>
+      )}
 
       {summary.length > 0 && (
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

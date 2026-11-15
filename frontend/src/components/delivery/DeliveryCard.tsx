@@ -16,7 +16,8 @@ export function DeliveryCard({ delivery, detailsPath }: { delivery: Delivery; de
           )}
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-ink-soft">{formatCurrency(delivery.delivery_fee)}</span>
+          {/* Only delivered jobs are paid (see Earnings), so a cancelled or failed job shows no fare. */}
+          <span className="text-sm text-ink-soft">{delivery.status === "delivered" ? formatCurrency(delivery.delivery_fee) : "No fare"}</span>
           <DeliveryStatusBadge status={delivery.status} />
         </div>
       </Card>
