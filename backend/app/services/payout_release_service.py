@@ -6,7 +6,8 @@ when ALL of these hold:
 
 - payouts are switched on (PAYOUTS_ENABLED) and Paystack is the payment provider;
 - the customer has confirmed receipt (order "received" or "completed");
-- no refund on the order is requested, approved or done, and no delivery problem is still open;
+- no refund on the order is requested, approved or done, no delivery problem is still open, and the buyer
+  has no open dispute;
 - the seller is active and has a bank account checked with Paystack whose name matches their verified
   NIN name or business name;
 - an admin hasn't held it.
@@ -66,6 +67,9 @@ class PayoutReleaseService:
             return "A refund on this order is open or done."
         if self._open_delivery_problem(order):
             return "A delivery problem on this order is still open."
+        from app.models.dispute import Dispute
+        if self.db.query(Dispute.id).filter(Dispute.order_id == order.id, Dispute.status == "open").first():
+            return "The buyer opened a dispute on this order. Resolve it first."
         seller = self.db.get(User, payout.seller_user_id)
         if seller is None or not seller.is_active:
             return "The seller's account is closed."
