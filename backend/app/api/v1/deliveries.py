@@ -2,7 +2,7 @@
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, Body, Depends, Header
+from fastapi import APIRouter, Body, Depends, Header, Query
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -29,6 +29,26 @@ def my_route(user: User = Depends(require_roles(Role.DELIVERY_PARTNER)), db: Ses
     if partner is None:
         return None
     return batch_view(db.query(DeliveryBatch).filter_by(delivery_partner_id=partner.id, status="active").first())
+
+
+@router.get("/mine/history", response_model=list[DeliveryResponse])
+def my_finished_deliveries(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    user: User = Depends(require_roles(Role.DELIVERY_PARTNER)),
+    db: Session = Depends(get_db),
+):
+    """The rider's own delivered, failed and cancelled jobs, newest first."""
+    from app.services.rider_work_service import RiderWorkService
+    return RiderWorkService(db).history(user, offset=(page - 1) * page_size, limit=page_size)
+
+
+@router.get("/mine/earnings")
+def my_earnings(user: User = Depends(require_roles(Role.DELIVERY_PARTNER)), db: Session = Depends(get_db)):
+    """Agreed fares of the rider's delivered jobs: today, this week (from Monday), this month and
+    all time, in Nigerian time."""
+    from app.services.rider_work_service import RiderWorkService
+    return RiderWorkService(db).earnings(user)
 
 
 @router.get("/mine/active", response_model=list[DeliveryResponse])
