@@ -43,7 +43,7 @@ class VendorFulfillmentService:
         return order
 
     def confirm_received(self, *, order_id, actor, note: str | None = None):
-        """The buying tailor/designer confirms the materials arrived (delivered -> received -> completed).
+        """The buyer (customer, tailor or designer) confirms the materials arrived (delivered -> received -> completed).
 
         Only the materials order changes; the linked customer garment order is untouched.
         """

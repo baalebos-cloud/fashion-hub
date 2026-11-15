@@ -42,6 +42,15 @@ def test_buyers_can_add_materials_and_check_out(client, db, make_user, role):
     assert order.order_type == "vendor_order" and str(order.buyer_user_id) == str(buyer.id)
     assert order.delivery_address_snapshot["city"]  # delivered to the buyer's own address
 
+    # Once the rider delivers, the buyer confirms receipt and the order completes.
+    order.status = "delivered"
+    db.commit()
+    stranger = make_user(role=role)
+    assert client.post(f"/api/v1/orders/{order.id}/materials-received", json={}, headers=auth(stranger)).status_code == 404
+    done = client.post(f"/api/v1/orders/{order.id}/materials-received", json={}, headers=auth(buyer))
+    assert done.status_code == 200, done.text
+    assert done.json()["status"] == "completed"
+
 
 @pytest.mark.parametrize("role", ["vendor", "delivery_partner"])
 def test_sellers_and_riders_have_no_material_cart(client, db, make_user, role):
