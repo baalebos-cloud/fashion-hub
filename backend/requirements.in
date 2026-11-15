@@ -1,16 +1,16 @@
-fastapi==0.162.0
+fastapi==0.162.5
 uvicorn[standard]==0.54.0
 gunicorn==26.2.0
 
 # Database
 sqlalchemy==2.1.8
 alembic==1.20.1
-psycopg[binary]==3.3.8
+psycopg[binary]==3.3.9
 geoalchemy2==0.21.0
 
 # Caching / background jobs
 redis==8.1.0
-celery==5.6.3
+celery==5.7.0
 
 # Auth / security
 # Passlib/bcrypt verify existing hashes only; new passwords use Argon2id.
@@ -22,7 +22,7 @@ argon2-cffi==25.1.0
 python-multipart==0.0.33
 
 # Validation / settings
-pydantic==2.14.2
+pydantic==2.14.3
 pydantic-settings==2.16.2
 email-validator==2.3.0
 
@@ -34,24 +34,24 @@ httpx==0.28.1
 # HTTP/2 for httpx: Apple's push notification service (APNs) only speaks HTTP/2
 h2==4.4.1
 # Reading NIN slips sent as PDFs: first page rendered to an image for the document check.
-pypdfium2==5.14.0
+pypdfium2==5.15.2
 pillow==13.0.0
 
 # AI provider SDK
-anthropic==2.5.0
+anthropic==2.8.0
 google-genai==1.75.0
-google-cloud-aiplatform==2.7.0
+google-cloud-aiplatform==2.8.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
-boto3==1.43.124
+boto3==1.44.1
 
 # Testing
 pytest==9.2.0
 pytest-asyncio==1.4.1.post1
 pytest-cov==7.1.0
 httpx==0.28.1
-faker==40.44.0
+faker==40.54.0
 
 # Dev tooling
-ruff==0.17.3
+ruff==0.17.4
 mypy==2.4.1
