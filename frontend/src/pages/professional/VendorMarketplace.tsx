@@ -4,13 +4,14 @@ import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { Button } from "@/components/ui/button";
 import { ProductGrid } from "@/components/marketplace/ProductGrid";
 import { CatalogBudgetGuide } from "@/components/marketplace/CatalogBudgetGuide";
-import { professionalRoutes } from "@/config/routes.config";
+import { useMaterialRoutes } from "@/lib/routes/material-routes";
 import { RelatedProducts } from "@/components/recommendations/RelatedProducts";
 import { recommendationsApi } from "@/api/recommendations.api";
 import { rankingBrowserId } from "@/lib/tracking/interactions";
 import type { VendorProduct } from "@/types/product";
 
 export default function VendorMarketplace() {
+  const routes = useMaterialRoutes();
   const [products, setProducts] = useState<VendorProduct[]>([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -30,10 +31,10 @@ export default function VendorMarketplace() {
     <div className="flex flex-col gap-6">
       <h1 className="font-display text-xl text-ink">Materials Marketplace</h1>
       <RelatedProducts title="Picked for you" loadKey="picked-for-you" source="picked_for_you"
-        load={() => recommendationsApi.pickedForYou(rankingBrowserId())} detailsPathFor={professionalRoutes.vendorProductDetails} />
+        load={() => recommendationsApi.pickedForYou(rankingBrowserId())} detailsPathFor={routes.productDetails} />
       <CatalogBudgetGuide />
       {error && <p role="alert">{error}</p>}
-      <ProductGrid products={products} isLoading={isLoading} detailsPathFor={professionalRoutes.vendorProductDetails} />
+      <ProductGrid products={products} isLoading={isLoading} detailsPathFor={routes.productDetails} />
       <div className="flex gap-4"><Button disabled={isLoading || page === 1} onClick={() => setPage((value) => value - 1)}>Previous</Button><span>Page {page}</span><Button disabled={isLoading || page >= totalPages} onClick={() => setPage((value) => value + 1)}>Next</Button></div>
     </div>
   );

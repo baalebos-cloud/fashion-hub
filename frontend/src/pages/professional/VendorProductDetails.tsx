@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { trackView, viewSource } from "@/lib/tracking/interactions";
 import { RelatedProducts } from "@/components/recommendations/RelatedProducts";
 import { recommendationsApi } from "@/api/recommendations.api";
-import { professionalRoutes } from "@/config/routes.config";
+import { useMaterialRoutes } from "@/lib/routes/material-routes";
 import { productsApi } from "@/api/products.api";
 import { useCartStore } from "@/store/cart.store";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
@@ -13,6 +13,7 @@ import { LoadingScreen } from "@/components/common/LoadingScreen";
 import type { VendorProduct } from "@/types/product";
 
 export default function VendorProductDetails() {
+  const routes = useMaterialRoutes();
   const { productId } = useParams<{ productId: string }>();
   const [search] = useSearchParams();
   const from = search.get("from");
@@ -46,7 +47,7 @@ export default function VendorProductDetails() {
       }}
     />
     <RelatedProducts title="You might also like" loadKey={product.id} source="similar_items"
-      load={() => recommendationsApi.similarProducts(product.id)} detailsPathFor={professionalRoutes.vendorProductDetails} />
+      load={() => recommendationsApi.similarProducts(product.id)} detailsPathFor={routes.productDetails} />
     </div>
   );
 }

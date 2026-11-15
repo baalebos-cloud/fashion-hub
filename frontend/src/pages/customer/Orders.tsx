@@ -12,7 +12,9 @@ export default function Orders() {
     <div>
       <h1 className="mb-6 font-display text-xl text-ink">Your orders</h1>
       {error && <p className="mb-4 text-sm text-thread">{error}</p>}
-      <OrderList orders={orders} detailsPathFor={customerRoutes.orderDetails} />
+      {/* Fabric orders open their own page (payment, vendor, delivery). */}
+      <OrderList orders={orders} detailsPathFor={(id) =>
+        orders.find((o) => o.id === id)?.order_type === "vendor_order" ? customerRoutes.materialOrderDetails(id) : customerRoutes.orderDetails(id)} />
     </div>
   );
 }
