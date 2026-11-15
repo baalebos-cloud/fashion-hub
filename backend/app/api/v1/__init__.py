@@ -9,6 +9,7 @@ from app.api.v1 import (
     courier_webhooks,
     admin,
     disputes,
+    admin_lists,
     ai_commerce,
     addresses,
     ai,
@@ -130,6 +131,7 @@ api_router.include_router(recommendations.router)
 api_router.include_router(dashboard.router)
 api_router.include_router(admin.router)
 api_router.include_router(disputes.router)
+api_router.include_router(admin_lists.router)
 api_router.include_router(weather.router)
 api_router.include_router(referrals.router)
 api_router.include_router(devices.router)
