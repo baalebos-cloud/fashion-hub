@@ -53,3 +53,11 @@ it("admin refunds after entering the authenticator code", async () => {
   await waitFor(() => expect(disputesApi.resolve).toHaveBeenCalledWith("d1", { outcome: "refund", note: "Not delivered; full refund.", refund_amount: "50000" }));
   expect(verificationApi.openReviewWindow).toHaveBeenCalledWith("123456");
 });
+
+it("admin list pages through more than 50 disputes", async () => {
+  vi.mocked(disputesApi.adminList).mockResolvedValue({ total: 120, page: 1, page_size: 50, items: [dispute] });
+  render(<MemoryRouter><AdminDisputes /></MemoryRouter>);
+  expect(await screen.findByText("(120)")).toBeTruthy();
+  fireEvent.click(screen.getByRole("button", { name: /next/i }));
+  await waitFor(() => expect(disputesApi.adminList).toHaveBeenLastCalledWith(expect.objectContaining({ page: 2, page_size: 50 })));
+});

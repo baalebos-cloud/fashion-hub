@@ -21,7 +21,8 @@ class Dispute(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     __tablename__ = "disputes"
     __table_args__ = (
         # One open dispute per order at a time.
-        Index("uq_disputes_one_open_per_order", "order_id", unique=True, postgresql_where=text("status = 'open'")),
+        Index("uq_disputes_one_open_per_order", "order_id", unique=True,
+              postgresql_where=text("status IN ('open', 'resolving')")),
     )
 
     order_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"),
@@ -29,7 +30,7 @@ class Dispute(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     opened_by_user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     reason: Mapped[str] = mapped_column(String(32), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)  # open | resolved
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="open", index=True)  # open | resolving | resolved
     outcome: Mapped[str | None] = mapped_column(String(16), nullable=True)  # refund | remake | no_action
     resolution_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     refund_amount: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)

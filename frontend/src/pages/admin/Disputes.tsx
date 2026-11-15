@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Pagination } from "@/components/ui/pagination";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
@@ -12,6 +13,7 @@ import { isApiError } from "@/lib/api/errors";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 
+const PAGE_SIZE = 50;
 const FILTERS = [["open", "Open"], ["resolved", "Resolved"], ["", "All"]] as const;
 const OUTCOMES: { value: DisputeOutcome; label: string; hint: string }[] = [
   { value: "remake", label: "Remake or alteration", hint: "The seller fixes or remakes it. No money moves." },
@@ -87,23 +89,25 @@ export default function Disputes() {
   const [error, setError] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
   const [opened, setOpened] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     let active = true;
     setError(null);
-    disputesApi.adminList({ status: status || undefined })
-      .then((res) => { if (active) setItems(res.items); })
+    disputesApi.adminList({ status: status || undefined, page, page_size: PAGE_SIZE })
+      .then((res) => { if (active) { setItems(res.items); setTotal(res.total); } })
       .catch((err) => { if (active) setError(getDisplayErrorMessage(err, "Couldn't load disputes.")); });
     return () => { active = false; };
-  }, [status, refresh]);
+  }, [status, page, refresh]);
 
   return (
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-display text-xl text-ink">Disputes</h1>
+        <h1 className="font-display text-xl text-ink">Disputes {items && <span className="ml-2 text-sm font-normal text-ink-soft">({total})</span>}</h1>
         <div className="flex gap-1.5" role="group" aria-label="Filter">
           {FILTERS.map(([value, label]) => (
-            <button key={value} type="button" aria-pressed={status === value} onClick={() => { setStatus(value); setItems(null); }}
+            <button key={value} type="button" aria-pressed={status === value} onClick={() => { if (value === status) return; setStatus(value); setPage(1); setItems(null); }}
               className={`rounded-lg border px-3 py-1.5 text-xs font-medium ${status === value ? "border-ink bg-ink text-paper" : "border-line text-ink-soft hover:border-ink"}`}>
               {label}
             </button>
@@ -118,7 +122,7 @@ export default function Disputes() {
         <Card key={d.id} className="flex flex-col gap-2 p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className="font-semibold text-ink">{d.reason_label} · <span className="font-mono">{d.order_number}</span></span>
-            {d.status === "open" ? <Badge tone="warning">Open</Badge> : <Badge tone="success">Resolved: {d.outcome_label}</Badge>}
+            {d.status === "resolving" ? <Badge tone="warning">Refund in progress</Badge> : d.status === "open" ? <Badge tone="warning">Open</Badge> : <Badge tone="success">Resolved: {d.outcome_label}</Badge>}
           </div>
           <p className="text-sm text-ink-soft">
             From {d.buyer_name ?? "the buyer"} about {d.seller_name ?? "the seller"} ·{" "}
@@ -128,11 +132,14 @@ export default function Disputes() {
           <p className="text-sm text-ink">{d.description}</p>
           {d.resolution_note && <p className="text-sm text-ink"><span className="font-medium">Decision:</span> {d.resolution_note}</p>}
           {d.refund_amount != null && <p className="text-sm text-ink">Refunded {formatCurrency(d.refund_amount, d.currency ?? "NGN")}</p>}
-          {d.status === "open" && (opened === d.id
+          {d.status !== "resolved" && (opened === d.id
             ? <Resolve dispute={d} onDone={() => { setOpened(null); setRefresh((n) => n + 1); }} />
             : <Button size="sm" variant="secondary" className="self-start" onClick={() => setOpened(d.id)}>Decide</Button>)}
         </Card>
       ))}
+      {total > PAGE_SIZE && (
+        <Pagination page={page} pageSize={PAGE_SIZE} total={total} onPageChange={(p) => { setPage(p); setItems(null); }} />
+      )}
     </div>
   );
 }

@@ -148,3 +148,42 @@ def test_customers_cannot_resolve(client, world):
     dispute_id = open_(client, order).json()["id"]
     assert client.post(f"/api/v1/admin/disputes/{dispute_id}/resolve",
                        json={"outcome": "no_action", "note": "I decide myself"}).status_code == 403
+
+
+def test_a_refund_in_progress_blocks_other_decisions(client, db, world, make_user):
+    customer, tailor, admin, order = world
+    as_(customer)
+    dispute_id = open_(client, order).json()["id"]
+    d = db.get(Dispute, uuid.UUID(dispute_id))
+    d.status, d.resolved_by_user_id = "resolving", admin.id  # admin 1 is part-way through a refund
+    db.commit()
+    as_(make_user(role="admin"))
+    other = client.post(f"/api/v1/admin/disputes/{dispute_id}/resolve", json={"outcome": "no_action", "note": "Not upheld, sorry"})
+    assert other.status_code == 409 and "Another admin" in other.text
+    as_(admin)
+    switch = client.post(f"/api/v1/admin/disputes/{dispute_id}/resolve", json={"outcome": "remake", "note": "Remake instead"})
+    assert switch.status_code == 409
+    # Still counts as open: no second dispute, and the payout stays held.
+    as_(customer)
+    assert open_(client, order).status_code == 409
+    payout = Payout(order_id=order.id, seller_user_id=tailor.id, gross_amount=Decimal("50000"), commission_rate=Decimal("0.10"),
+                    commission_amount=Decimal("5000"), net_amount=Decimal("45000"), currency="NGN", status="pending")
+    db.add(payout); db.commit()
+    assert "dispute" in PayoutReleaseService(db).blocker(payout, order)
+
+
+def test_a_failed_refund_reopens_the_dispute(client, db, world):
+    from app.core.exceptions import ConflictError
+    customer, _, admin, order = world
+    as_(customer)
+    dispute_id = open_(client, order).json()["id"]
+    as_(admin)
+    with patch("app.services.admin_auth_service.AdminStepUpService.require"), \
+         patch("app.services.refund_service.RefundService.request_refund",
+               side_effect=ConflictError("Only settled payments are refundable.")):
+        r = client.post(f"/api/v1/admin/disputes/{dispute_id}/resolve",
+                        json={"outcome": "refund", "note": "Refunding in full.", "refund_amount": "50000"})
+    assert r.status_code == 409 and "settled" in r.text
+    db.expire_all()
+    d = db.get(Dispute, uuid.UUID(dispute_id))
+    assert d.status == "open" and d.resolved_by_user_id is None

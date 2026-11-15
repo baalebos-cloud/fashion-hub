@@ -35,7 +35,7 @@ def upgrade():
     op.create_index("ix_disputes_opened_by_user_id", "disputes", ["opened_by_user_id"])
     op.create_index("ix_disputes_status", "disputes", ["status"])
     op.create_index("uq_disputes_one_open_per_order", "disputes", ["order_id"], unique=True,
-                    postgresql_where=sa.text("status = 'open'"))
+                    postgresql_where=sa.text("status IN ('open', 'resolving')"))
 
 
 def downgrade():

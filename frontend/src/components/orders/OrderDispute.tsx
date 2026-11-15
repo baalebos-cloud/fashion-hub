@@ -21,7 +21,7 @@ export function OrderDispute({ orderId, orderStatus, isBuyer }: { orderId: strin
 
   useEffect(() => {
     let active = true;
-    disputesApi.forOrder(orderId).then((rows) => { if (active) setDisputes(rows); }).catch(() => { if (active) setDisputes([]); });
+    disputesApi.forOrder(orderId).then((rows) => { if (active) setDisputes(Array.isArray(rows) ? rows : []); }).catch(() => { if (active) setDisputes([]); });
     return () => { active = false; };
   }, [orderId]);
 
@@ -40,7 +40,8 @@ export function OrderDispute({ orderId, orderStatus, isBuyer }: { orderId: strin
   }
 
   if (!disputes) return null;
-  const open = disputes.find((d) => d.status === "open");
+  const isOpen = (d: Dispute) => d.status !== "resolved";
+  const open = disputes.find(isOpen);
   const canReport = isBuyer && !open && PAID.includes(orderStatus);
   if (disputes.length === 0 && !canReport) return null;
 
@@ -48,10 +49,10 @@ export function OrderDispute({ orderId, orderStatus, isBuyer }: { orderId: strin
     <section aria-label="Problems with this order" className="flex flex-col gap-3 rounded-card border border-line bg-surface p-5">
       <h2 className="font-semibold text-ink">{isBuyer ? "Problem with this order?" : "Reported problems"}</h2>
       {disputes.map((d) => (
-        <div key={d.id} className={`rounded-control border p-3 text-sm ${d.status === "open" ? "border-warning/40 bg-warning-wash" : "border-line"}`}>
-          <p className="font-medium text-ink">{d.reason_label} · {d.status === "open" ? "Being reviewed by Tailora" : `Resolved: ${d.outcome_label}`}</p>
+        <div key={d.id} className={`rounded-control border p-3 text-sm ${isOpen(d) ? "border-warning/40 bg-warning-wash" : "border-line"}`}>
+          <p className="font-medium text-ink">{d.reason_label} · {isOpen(d) ? "Being reviewed by Tailora" : `Resolved: ${d.outcome_label}`}</p>
           <p className="mt-1 text-ink-soft">{d.description}</p>
-          {d.status === "open" && (
+          {isOpen(d) && (
             <p className="mt-1 text-xs text-ink-soft">
               {isBuyer ? "Tailora will look into it and get back to you. The seller hasn't been paid for this order yet."
                 : "Tailora will review it. Your payout for this order is on hold until then."}

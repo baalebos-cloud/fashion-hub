@@ -27,6 +27,8 @@ REASON_LABELS = {
     "not_delivered": "Not delivered", "wrong_item": "Wrong item", "wrong_size": "Wrong size or fit",
     "damaged": "Damaged", "poor_quality": "Poor quality", "other": "Something else",
 }
+# Not yet decided: "resolving" is an admin part-way through a refund (see resolve()).
+ACTIVE = ("open", "resolving")
 OUTCOME_LABELS = {"refund": "Refund", "remake": "Remake or alteration", "no_action": "No action"}
 
 
@@ -49,7 +51,7 @@ class DisputeService:
             raise NotFoundError("Order not found.")
         if order.status not in DISPUTABLE:
             raise ConflictError("You can report a problem once the order is paid (and not cancelled or refunded).")
-        if self.db.query(Dispute.id).filter(Dispute.order_id == order.id, Dispute.status == "open").first():
+        if self.db.query(Dispute.id).filter(Dispute.order_id == order.id, Dispute.status.in_(ACTIVE)).first():
             raise ConflictError("There's already an open dispute on this order. Tailora will get back to you.")
         dispute = Dispute(order_id=order.id, opened_by_user_id=actor.id, reason=reason, description=text, status="open")
         self.db.add(dispute)
@@ -77,7 +79,9 @@ class DisputeService:
 
     def admin_list(self, *, status: str | None, offset: int, limit: int):
         q = self.db.query(Dispute)
-        if status:
+        if status == "open":
+            q = q.filter(Dispute.status.in_(ACTIVE))
+        elif status:
             q = q.filter(Dispute.status == status)
         total = q.count()
         return total, q.order_by(Dispute.created_at.desc()).offset(offset).limit(limit).all()
@@ -93,7 +97,11 @@ class DisputeService:
         dispute = self.db.query(Dispute).filter(Dispute.id == dispute_id).with_for_update().first()
         if not dispute:
             raise NotFoundError("Dispute not found.")
-        if dispute.status != "open":
+        if dispute.status == "resolving" and str(dispute.resolved_by_user_id) != str(admin.id):
+            raise ConflictError("Another admin is resolving this dispute right now. Refresh in a moment.")
+        if dispute.status == "resolving" and outcome != "refund":
+            raise ConflictError("A refund for this dispute is in progress. Finish it as a refund.")
+        if dispute.status not in ACTIVE:
             raise ConflictError("This dispute has already been resolved.")
         order = self.db.get(Order, dispute.order_id)
         if outcome == "refund":
@@ -103,14 +111,28 @@ class DisputeService:
                 raise ValidationAppError("Enter the refund amount.") from None
             if amount <= 0 or amount > Decimal(str(order.total_amount)):
                 raise ValidationAppError("The refund must be more than ₦0 and no more than the order total.")
+            # The refund service commits along the way, which would release this lock while the dispute
+            # still says "open". Claim it first, so no other decision can be made meanwhile.
+            dispute.status, dispute.resolved_by_user_id = "resolving", admin.id
+            self.db.commit()
             from app.services.refund_service import RefundService
             refunds = RefundService(self.db)
-            refund = refunds.request_refund(order_id=order.id, requested_by=admin, amount=amount,
-                                            reason=f"Dispute: {REASON_LABELS[dispute.reason]}. {note}"[:2000],
-                                            idempotency_key=f"dispute-{dispute.id}")
-            if refund.status == "requested":  # a retry after a failure finds it already approved
-                refund = refunds.approve_refund(refund.id, approved_by=admin)
+            try:
+                refund = refunds.request_refund(order_id=order.id, requested_by=admin, amount=amount,
+                                                reason=f"Dispute: {REASON_LABELS[dispute.reason]}. {note}"[:2000],
+                                                idempotency_key=f"dispute-{dispute.id}")
+                if refund.status == "requested":  # a retry after a failure finds it already approved
+                    refund = refunds.approve_refund(refund.id, approved_by=admin)
+            except Exception:
+                self.db.rollback()
+                claimed = self.db.query(Dispute).filter(Dispute.id == dispute_id).with_for_update().first()
+                if claimed is not None and claimed.status == "resolving" and claimed.refund_id is None:
+                    claimed.status, claimed.resolved_by_user_id = "open", None  # nothing was refunded: reopen
+                    self.db.commit()
+                raise
             dispute = self.db.query(Dispute).filter(Dispute.id == dispute_id).with_for_update().first()
+            if dispute.status != "resolving" or str(dispute.resolved_by_user_id) != str(admin.id):
+                raise ConflictError("This dispute was changed while the refund was being made. Check it before going on.")
             dispute.refund_amount, dispute.refund_id = amount, refund.id
         dispute.status, dispute.outcome, dispute.resolution_note = "resolved", outcome, note
         dispute.resolved_by_user_id, dispute.resolved_at = admin.id, utcnow()

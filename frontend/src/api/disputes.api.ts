@@ -16,7 +16,8 @@ export const DISPUTE_REASONS: { value: DisputeReason; label: string }[] = [
 export interface Dispute {
   id: string;
   order_id: string;
-  status: "open" | "resolved";
+  /** "resolving": an admin is part-way through a refund; still counts as open. */
+  status: "open" | "resolving" | "resolved";
   reason: DisputeReason;
   reason_label: string;
   description: string;
