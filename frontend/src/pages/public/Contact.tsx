@@ -6,7 +6,8 @@ export default function Contact() {
   return (
     <LegalPage title="Contact us" intro="We're here to help.">
       <Section title="About an order">
-        <p>The quickest way is from the order itself: open it in the app and use <span className="font-medium text-ink">Problem with this order?</span> to report what went wrong. Our team reviews it, and the seller isn't paid until we have.</p>
+        <p>Once an order is paid, the quickest way is from the order itself: open it in the app and, under <span className="font-medium text-ink">Problem with this order?</span>, tap <span className="font-medium text-ink">Report a problem</span>. Our team reviews it, and the seller isn't paid until we have.</p>
+        <p>For an order that isn't paid yet, or if you can't see that option, email <SupportEmail /> with the order number.</p>
       </Section>
       <Section title="Anything else">
         <p>Email <SupportEmail /> with your question and, if it's about an order, the order number. [Phone or WhatsApp line and support hours.]</p>
