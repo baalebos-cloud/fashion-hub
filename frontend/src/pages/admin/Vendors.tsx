@@ -1,24 +1,24 @@
-import { useState } from "react";
-import { Table, type Column } from "@/components/ui/table";
-import { VerificationBadge } from "@/components/profile/VerificationBadge";
-import { EmptyState } from "@/components/ui/empty-state";
-import type { Vendor } from "@/types/vendor";
+import { AdminListPage } from "@/components/admin/AdminListPage";
+import { Badge } from "@/components/ui/badge";
+import { adminListsApi, type AdminVendor } from "@/api/admin-lists.api";
 
-/** Requires `GET /admin/vendors`. See Users.tsx. */
+const date = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-NG") : "—");
+
 export default function Vendors() {
-  const [vendors] = useState<Vendor[]>([]);
-  if (vendors.length === 0) return <EmptyState title="No vendors to show" />;
-
-  const columns: Column<Vendor>[] = [
-    { header: "Business", render: (v) => v.business_name },
-    { header: "Verified", render: (v) => (v.is_verified ? <VerificationBadge /> : "—") },
-    { header: "Rating", render: (v) => `★ ${v.average_rating.toFixed(1)}` },
-  ];
-
   return (
-    <div>
-      <h1 className="mb-6 font-display text-xl text-ink">Vendors</h1>
-      <Table columns={columns} rows={vendors} />
-    </div>
+    <AdminListPage<AdminVendor>
+      title="Vendors"
+      load={adminListsApi.vendors}
+      emptyTitle="No vendors to show"
+      filters={[{ label: "All", params: {} }, { label: "Verified", params: { verified: true } }, { label: "Awaiting verification", params: { verified: false } }]}
+      columns={[
+        { header: "Business", render: (v) => v.business_name },
+        { header: "Owner", render: (v) => <span className="flex flex-col"><span>{v.owner_name ?? "—"}</span><span className="text-xs text-ink-soft">{v.owner_email}</span></span> },
+        { header: "Status", render: (v) => v.is_verified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Awaiting verification</Badge> },
+        { header: "Products on sale", render: (v) => v.active_products },
+        { header: "Rating", render: (v) => (v.average_rating ? `★ ${v.average_rating.toFixed(1)}` : "New") },
+        { header: "Joined", render: (v) => date(v.created_at) },
+      ]}
+    />
   );
 }
