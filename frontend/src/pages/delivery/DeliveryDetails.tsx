@@ -10,6 +10,7 @@ import { useDelivery } from "@/hooks/use-delivery";
 import { DeliveryStatusBadge } from "@/components/delivery/DeliveryStatusBadge";
 import { LoadingScreen } from "@/components/common/LoadingScreen";
 import { formatCurrency } from "@/lib/formatters/currency";
+import { RiderGpsSharing } from "@/components/delivery/RiderGpsSharing";
 
 export default function DeliveryDetails() {
   const { deliveryId } = useParams<{ deliveryId: string }>();
@@ -39,6 +40,8 @@ export default function DeliveryDetails() {
         <h1 className="font-display text-3xl text-ink">{delivery.status === "assigned" ? "Go to pickup" : toDropoff ? "Deliver to customer" : "Delivery"}</h1>
         <p className="text-sm text-ink-soft">Fare <span className="font-mono font-semibold text-ink">{formatCurrency(delivery.delivery_fee)}</span></p>
       </header>
+      {/* Once the package is picked up, the customer can follow the rider: sharing starts here. */}
+      {delivery.status === "in_transit" && <RiderGpsSharing deliveryId={delivery.id} />}
       {trip && <DispatchTripCard trip={trip} />}
       {active && (
         <Button variant="danger" className="self-start" onClick={() => setShowIssue(true)}>Report a problem</Button>

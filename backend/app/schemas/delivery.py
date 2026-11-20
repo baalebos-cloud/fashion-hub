@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 from pydantic import BaseModel, Field, computed_field
 
@@ -22,6 +23,8 @@ class DeliveryResponse(BaseModel):
     status: str
     delivery_fee: float
     package_count: Optional[int] = None
+    picked_up_at: Optional[datetime] = None
+    delivered_at: Optional[datetime] = None
 
     @computed_field  # type: ignore[prop-decorator]
     @property

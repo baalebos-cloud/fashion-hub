@@ -9,6 +9,7 @@ import { RouteErrorPage } from "@/components/common/RouteErrorPage";
 
 import { publicRouteObjects } from "./public.routes";
 import { authRouteObjects } from "./auth.routes";
+import { MaterialPaymentReturn, MaterialProductReturn } from "./material-payment-return";
 import { customerRouteObjects } from "./customer.routes";
 import { professionalRouteObjects } from "./professional.routes";
 import { vendorRouteObjects } from "./vendor.routes";
@@ -22,6 +23,7 @@ import { appPrefixLoader } from "./app-prefix";
  * an errorElement. The regular React ErrorBoundary in App is not enough.
  * All routes inherit this shared error element, including guarded branches.
  */
+
 export const routeObjects: RouteObject[] = [
   {
     path: "/",
@@ -39,6 +41,10 @@ export const routeObjects: RouteObject[] = [
           { element: <DeliveryGuard />, children: [{ path: "/app/delivery", children: deliveryRouteObjects }] },
           { element: <AdminGuard />, children: [{ path: "/app/admin", children: adminRouteObjects }] },
           { path: "/app", element: <AppHome /> },
+          // Interswitch returns material payments here; it forwards to the buyer's own result page.
+          { path: "/app/payment/materials", element: <MaterialPaymentReturn /> },
+          // After signing in from a public product page: open that product in the buyer's own area.
+          { path: "/app/materials/products/:productId", element: <MaterialProductReturn /> },
         ],
       },
       { path: "/app/*", loader: appPrefixLoader(() => [...publicRouteObjects, ...authRouteObjects]), element: null },

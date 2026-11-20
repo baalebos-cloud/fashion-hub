@@ -15,7 +15,7 @@ def test_add_item_respects_available_stock(db, make_user):
         service.add_item(owner_user_id=tailor.id, product_variant_id=variant.id, quantity=1)
 
 
-def test_cart_mutations_require_owner_and_professional_role(db, make_user):
+def test_cart_mutations_require_owner_and_buyer_role(db, make_user):
     owner, other = make_user(role='designer'), make_user(role='tailor')
     _, _, _, variant, _ = catalog(db)
     service = CartService(db)
@@ -25,5 +25,6 @@ def test_cart_mutations_require_owner_and_professional_role(db, make_user):
     with pytest.raises(NotFoundError):
         service.remove_item(item.id, owner_user_id=other.id)
     with pytest.raises(ForbiddenError):
-        service.get_cart_summary(make_user().id)
+        service.get_cart_summary(make_user(role='vendor').id)  # sellers and riders have no material cart
+    assert service.get_cart_summary(make_user(role='customer').id)['items'] == []  # customers do
     assert service.get_cart_summary(owner.id)['items'][0]['quantity'] == 1

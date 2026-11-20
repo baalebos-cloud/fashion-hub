@@ -19,6 +19,7 @@ import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { CustomerOrderStatus } from "@/types/order";
 import { PROFESSIONAL_ORDER_NEXT_STEP } from "@/constants/order-status";
+import { OrderDispute } from "@/components/orders/OrderDispute";
 
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -81,6 +82,7 @@ export default function OrderDetails() {
       </section>
 
       {order.order_type === "customer_order" && <OrderMeasurementsCard orderId={order.id} status={order.status} />}
+      <OrderDispute orderId={order.id} orderStatus={order.status} isBuyer={false} />
 
       {order.order_type === "customer_order" && <OrderMaterials order={order} />}
       {order.order_type === "customer_order" && ["ready_for_delivery", "shipped"].includes(order.status) && (

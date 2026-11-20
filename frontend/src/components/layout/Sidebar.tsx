@@ -69,6 +69,14 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
       ],
     },
     {
+      heading: "Fabrics",
+      items: [
+        { label: "Marketplace", path: customerRoutes.materials, icon: <Icon d={ICONS.cart} /> },
+        { label: "Cart", path: customerRoutes.cart, icon: <Icon d={ICONS.cart} /> },
+        { label: "Fabric orders", path: customerRoutes.materialOrders, icon: <Icon d={ICONS.orders} /> },
+      ],
+    },
+    {
       heading: "Finance",
       items: [
         { label: "Invoices", path: customerRoutes.invoices, icon: <Icon d={ICONS.invoice} /> },
@@ -184,6 +192,7 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
         { label: "Dispatch", path: adminRoutes.deliveries, icon: <Icon d={ICONS.delivery} /> },
         { label: "Payments", path: adminRoutes.payments, icon: <Icon d={ICONS.payment} /> },
         { label: "Payouts", path: adminRoutes.payouts, icon: <Icon d={ICONS.earnings} /> },
+        { label: "Invoices", path: adminRoutes.invoices, icon: <Icon d={ICONS.invoice} /> },
       ],
     },
     {
@@ -192,6 +201,7 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
         { label: "Identity checks", path: adminRoutes.kyc, icon: <Icon d={ICONS.kyc} /> },
         { label: "Business checks", path: adminRoutes.kyb, icon: <Icon d={ICONS.kyc} /> },
         { label: "Disputes", path: adminRoutes.disputes, icon: <Icon d={ICONS.dispute} /> },
+        { label: "Reviews", path: adminRoutes.reviews, icon: <Icon d={ICONS.report} /> },
         { label: "Security", path: adminRoutes.security, icon: <Icon d={ICONS.lock} /> },
         { label: "Audit log", path: adminRoutes.auditLogs, icon: <Icon d={ICONS.audit} /> },
       ],
@@ -200,6 +210,8 @@ const GROUPS_BY_ROLE: Record<UserRole, NavGroup[]> = {
       heading: "People and reports",
       items: [
         { label: "Users", path: adminRoutes.users, icon: <Icon d={ICONS.users} /> },
+        { label: "Vendors", path: adminRoutes.vendors, icon: <Icon d={ICONS.cart} /> },
+        { label: "Delivery partners", path: adminRoutes.deliveryPartners, icon: <Icon d={ICONS.delivery} /> },
         { label: "Reports", path: adminRoutes.reports, icon: <Icon d={ICONS.report} /> },
         { label: "Notifications", path: adminRoutes.notifications, icon: <Icon d={ICONS.notification} /> },
         { label: "Settings", path: adminRoutes.settings, icon: <Icon d={ICONS.settings} /> },

@@ -15,7 +15,7 @@ router = APIRouter(prefix='/checkout', tags=['Checkout'])
 def checkout(
     payload: CheckoutRequest,
     idempotency_key: str = Header(alias="Idempotency-Key", min_length=16, max_length=128),
-    user: User = Depends(require_roles(Role.TAILOR, Role.DESIGNER)),
+    user: User = Depends(require_roles(Role.CUSTOMER, Role.TAILOR, Role.DESIGNER)),
     db: Session = Depends(get_db),
 ):
     if idempotency_key != payload.idempotency_key:

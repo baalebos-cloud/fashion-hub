@@ -5,12 +5,13 @@ import { useCart } from "@/hooks/use-cart";
 import { useCheckout } from "@/hooks/use-checkout";
 import { DeliveryAddressForm } from "./DeliveryAddressForm";
 import { Button } from "@/components/ui/button";
-import { professionalRoutes } from "@/config/routes.config";
+import { useMaterialRoutes } from "@/lib/routes/material-routes";
 import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import type { SavedAddress } from "@/types/address";
 
 export function CheckoutPage() {
+  const routes = useMaterialRoutes();
   const navigate = useNavigate();
   const { summary, isLoading, error: cartError } = useCart();
   const { submit, isSubmitting, error } = useCheckout();
@@ -37,7 +38,7 @@ export function CheckoutPage() {
     try {
       const order = await submit({ cart_id: summary.cart_id, cart_revision: summary.revision, vendor_id: vendorId,
         delivery_address_id: addressId, idempotency_key: keys.current.get(intent)! });
-      navigate(professionalRoutes.vendorOrderDetails(order.id));
+      navigate(routes.orderDetails(order.id));
     } catch { /* useCheckout displays the error; preserve intent/key for retry. */ }
   }
   return (
@@ -46,7 +47,7 @@ export function CheckoutPage() {
       <p className="text-sm text-ink-soft">Each vendor has a separate order and payment. Review the final price before paying. Stock is held for a limited time after creating an order.</p>
       {(cartError || addressError) && <p role="alert">{cartError || addressError}</p>}
       {isLoading && <p role="status">Loading cart…</p>}
-      {!isLoading && summary?.items.length === 0 && <p>Your cart is empty. <Link to={professionalRoutes.vendorOrders} className="underline">View material orders</Link></p>}
+      {!isLoading && summary?.items.length === 0 && <p>Your cart is empty. <Link to={routes.orders} className="underline">View material orders</Link></p>}
       <label htmlFor="checkout-vendor">Vendor</label>
       <select id="checkout-vendor" value={vendorId} onChange={(event) => setSelectedVendorId(event.target.value)} disabled={isSubmitting}>
         {vendors.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
@@ -62,7 +63,7 @@ export function CheckoutPage() {
       <details><summary className="cursor-pointer underline">Add delivery address</summary><DeliveryAddressForm onSaved={(value) => { setAddresses((previous) => [...previous, value]); setSelectedAddressId(value.id); setAddressError(null); }} /></details>
       {error && <p role="alert" className="text-thread">{error}</p>}
       <Button onClick={() => { void placeOrder(); }} isLoading={isSubmitting} disabled={!addressId || items.length === 0 || items.some((item) => !item.is_available) || isLoading}>Create order and review total</Button>
-      <Link to={professionalRoutes.cart} className="underline">Back to cart</Link>
+      <Link to={routes.cart} className="underline">Back to cart</Link>
     </div>
   );
 }

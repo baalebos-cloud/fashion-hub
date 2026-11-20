@@ -209,8 +209,12 @@ describe("Sidebar", () => {
   it("renders customer nav items", () => {
     wrap(<Sidebar role="customer" />);
     expect(screen.getByRole("link", { name: /overview/i })).toBeTruthy();
-    expect(screen.getByRole("link", { name: /orders/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /^orders$/i })).toBeTruthy();
     expect(screen.getByRole("link", { name: /measurements/i })).toBeTruthy();
+    // Customers buy fabrics too.
+    expect(screen.getByText("Fabrics")).toBeTruthy();
+    expect(screen.getByRole("link", { name: /marketplace/i })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /fabric orders/i })).toBeTruthy();
   });
 
   it("renders tailor nav with Materials group heading", () => {

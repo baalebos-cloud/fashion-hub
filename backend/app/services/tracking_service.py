@@ -54,6 +54,22 @@ class TrackingService:
                     .order_by(Delivery.created_at.desc()).first())
         if not delivery:
             return {"order_id": str(order.id), "status": order.status, "tracking": None}
+        # The rider's own live sharing (delivery_position) is the current source; older courier
+        # pings (DeliveryTracking) are the fallback. Without this the Track pages never showed a
+        # rider who was sharing live.
+        if delivery.status in {"picked_up", "in_transit", "out_for_delivery"}:
+            from app.services.delivery_position import read_position
+            point = read_position(delivery.id)
+            if point and point.get("freshness") in {"live", "delayed"}:
+                return {"order_id": str(order.id), "status": order.status, "tracking": {
+                    "delivery_id": str(delivery.id),
+                    "current_latitude": float(point["latitude"]),
+                    "current_longitude": float(point["longitude"]),
+                    "current_status": delivery.status,
+                    "eta_minutes": None,
+                    "last_ping_at": point["recorded_at"],
+                    "is_stale": point["freshness"] != "live",
+                }}
         latest = (self.db.query(DeliveryTracking)
                   .filter(DeliveryTracking.delivery_id == delivery.id).first())
         if not latest:

@@ -6,7 +6,8 @@ export const appConfig = {
   defaultLocale: "en-US",
   defaultCurrency: "NGN",
   defaultTimezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC",
-  supportEmail: "support@tailora.example",
+  /** Empty until VITE_SUPPORT_EMAIL is set: pages then hide the email link rather than show a fake one. */
+  supportEmail: env.supportEmail,
   pagination: {
     defaultPageSize: 20,
     maxPageSize: 100,

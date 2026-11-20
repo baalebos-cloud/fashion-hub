@@ -34,3 +34,10 @@ def test_direct_route_invocation_with_fastapi_form_defaults():
     redirect = browser_return(txnref="seam_test")
     assert redirect.status_code == 303
     assert "reference=seam_test" in redirect.headers["location"]
+
+
+def test_material_payments_return_to_the_buyers_own_page():
+    link = redirect_for_interswitch_return(txnref="FH-MAT-0123abcd")
+    assert "/app/payment/materials?" in link and "reference=FH-MAT-0123abcd" in link
+    garment = redirect_for_interswitch_return(txnref="FH-FAS-0123abcd")
+    assert "/app/customer/payment/success?" in garment

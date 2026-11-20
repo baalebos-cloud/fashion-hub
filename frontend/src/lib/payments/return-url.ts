@@ -14,6 +14,7 @@ import { isNativeApp } from "@/lib/native/platform";
 export const PAYMENT_RETURN_PATHS = {
   customer: customerRoutes.paymentSuccess,
   vendor: professionalRoutes.vendorPaymentSuccess,
+  materials: customerRoutes.materialPaymentSuccess,
 } as const;
 export type PaymentReturn = keyof typeof PAYMENT_RETURN_PATHS;
 
@@ -31,7 +32,7 @@ export function paymentCallbackUrl(kind: PaymentReturn): string {
 
 /** tailora:// link back into the app's payment result, carrying only the payment reference. */
 export function appReturnLink(kind: string | null, search: URLSearchParams): string | null {
-  if (kind !== "customer" && kind !== "vendor") return null;
+  if (kind !== "customer" && kind !== "vendor" && kind !== "materials") return null;
   const reference = search.get("reference") || search.get("trxref") || search.get("tx_ref") || "";
   const query = /^[A-Za-z0-9_.-]{1,100}$/.test(reference) ? `?reference=${encodeURIComponent(reference)}` : "";
   return `tailora://app${PAYMENT_RETURN_PATHS[kind].replace(/^\/app/, "")}${query}`;

@@ -18,6 +18,7 @@ import { formatCurrency } from "@/lib/formatters/currency";
 import { getDisplayErrorMessage } from "@/lib/utils/errors";
 import { cn } from "@/lib/utils/cn";
 import type { VendorOrderStatus } from "@/types/order";
+import { OrderDispute } from "@/components/orders/OrderDispute";
 
 const ACTION: Partial<Record<VendorOrderStatus, { status: "confirmed" | "processing" | "ready_for_pickup"; label: string; help: string }>> = {
   paid: { status: "confirmed", label: "Confirm and start preparing", help: "Check you have everything in this order before confirming." },
@@ -111,6 +112,7 @@ export default function OrderDetails() {
         <h2 className="mb-3 font-semibold text-ink">Items</h2>
         <OrderItems items={order.items} currency={order.currency} />
       </section>
+      <OrderDispute orderId={order.id} orderStatus={order.status} isBuyer={false} />
 
       <OrderContacts orderId={order.id} />
 
