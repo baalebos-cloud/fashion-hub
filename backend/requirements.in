@@ -39,7 +39,7 @@ pillow==13.0.0
 
 # AI provider SDK
 anthropic==2.5.0
-google-genai==1.75.0
+google-genai==2.34.0
 google-cloud-aiplatform==2.7.0
 
 # Object storage (S3-compatible: MinIO, DO Spaces, Hetzner Object Storage, etc.)
