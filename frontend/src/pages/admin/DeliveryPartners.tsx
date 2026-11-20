@@ -1,24 +1,25 @@
-import { useState } from "react";
-import { Table, type Column } from "@/components/ui/table";
-import { VerificationBadge } from "@/components/profile/VerificationBadge";
-import { EmptyState } from "@/components/ui/empty-state";
-import type { DeliveryPartner } from "@/types/delivery";
+import { AdminListPage } from "@/components/admin/AdminListPage";
+import { Badge } from "@/components/ui/badge";
+import { adminListsApi, type AdminRider } from "@/api/admin-lists.api";
 
-/** Requires `GET /admin/delivery-partners`. See Users.tsx. */
+const date = (v: string | null) => (v ? new Date(v).toLocaleDateString("en-NG") : "—");
+
 export default function DeliveryPartners() {
-  const [partners] = useState<DeliveryPartner[]>([]);
-  if (partners.length === 0) return <EmptyState title="No delivery partners to show" />;
-
-  const columns: Column<DeliveryPartner>[] = [
-    { header: "Vehicle", render: (p) => p.vehicle_type ?? "—" },
-    { header: "Verified", render: (p) => (p.is_verified ? <VerificationBadge /> : "—") },
-    { header: "Available", render: (p) => (p.is_available ? "Yes" : "No") },
-  ];
-
   return (
-    <div>
-      <h1 className="mb-6 font-display text-xl text-ink">Delivery partners</h1>
-      <Table columns={columns} rows={partners} />
-    </div>
+    <AdminListPage<AdminRider>
+      title="Delivery partners"
+      load={adminListsApi.riders}
+      emptyTitle="No delivery partners to show"
+      filters={[{ label: "All", params: {} }, { label: "Online now", params: { online: true } }, { label: "Awaiting verification", params: { verified: false } }]}
+      columns={[
+        { header: "Rider", render: (p) => <span className="flex flex-col"><span>{p.name ?? "—"}</span><span className="text-xs text-ink-soft">{p.email}</span></span> },
+        { header: "Vehicle", render: (p) => p.vehicle_type ?? "—" },
+        { header: "Status", render: (p) => p.is_verified ? <Badge tone="success">Verified</Badge> : <Badge tone="warning">Awaiting verification</Badge> },
+        { header: "Online", render: (p) => (p.is_available ? "Yes" : "No") },
+        { header: "Delivered", render: (p) => p.completed_deliveries },
+        { header: "Rating", render: (p) => (p.average_rating ? `★ ${p.average_rating.toFixed(1)}` : "New") },
+        { header: "Joined", render: (p) => date(p.created_at) },
+      ]}
+    />
   );
 }

@@ -87,21 +87,33 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
       setIsSaving(false);
     }
   }
+  function renderField(key: (typeof addressFields)[number][0], hint?: string) {
+    const [, label, type, max] = addressFields.find(([k]) => k === key)!;
+    return (
+      <div>
+        <label htmlFor={`${id}-${key}`} className="mb-1 block text-xs text-ink-soft">{label}</label>
+        <Input id={`${id}-${key}`} type={type} value={values[key]} required maxLength={max}
+          aria-describedby={hint ? `${id}-${key}-hint` : undefined}
+          onChange={(e) => setValues((previous) => ({ ...previous, [key]: e.target.value }))} />
+        {hint && <p id={`${id}-${key}-hint`} className="mt-1 text-xs text-ink-soft">{hint}</p>}
+      </div>
+    );
+  }
   return (
-    <form onSubmit={save} className="flex flex-col gap-3 rounded border border-sand p-4">
+    <form onSubmit={save} className="flex flex-col gap-4 rounded-card border border-line bg-surface p-4 sm:p-5">
       <div><p className="mb-2 text-sm font-medium text-ink">Select your delivery point</p>
         <MapLocationPicker mode="delivery" onChange={applyLocation} onSelect={applyLocation} onResolvingChange={setIsResolving} />
         <p className="mt-2 text-xs text-ink-soft" role="status">{hasPin ? `Pin: ${values.latitude.toFixed(5)}, ${values.longitude.toFixed(5)}` : "A map pin is required to save this address."}</p>
       </div>
-      {addressFields.map(([key, label, type, max]) => (
-        <div key={key}>
-          <label htmlFor={`${id}-${key}`} className="mb-1 block text-xs text-ink-soft">{label}</label>
-          <Input id={`${id}-${key}`} type={type} value={values[key]} required maxLength={max}
-            onChange={(e) => setValues((previous) => ({ ...previous, [key]: e.target.value }))} />
-        </div>
-      ))}
+      <div className="grid gap-3 sm:grid-cols-2">
+        {renderField("label")}
+        {renderField("recipient_name")}
+      </div>
+      {renderField("recipient_phone", "Your rider calls this number when they arrive.")}
+      {renderField("formatted_address")}
+      {renderField("city")}
       {inNigeria ? (
-        <>
+        <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor={`${id}-state`} className="mb-1 block text-xs text-ink-soft">State</label>
             <Select id={`${id}-state`} required value={stateKnown ? values.state_region : ""}
@@ -121,7 +133,7 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
               <p className="mt-1 text-xs text-thread">“{values.lga}” isn't an LGA in {values.state_region}. Choose the right one.</p>
             )}
           </div>
-        </>
+        </div>
       ) : (
         <div>
           <label htmlFor={`${id}-state_region`} className="mb-1 block text-xs text-ink-soft">State or region</label>
@@ -129,7 +141,7 @@ export function DeliveryAddressForm({ onSaved, initial, onSubmitAddress }: { onS
             onChange={(e) => setValues((previous) => ({ ...previous, state_region: e.target.value }))} />
         </div>
       )}
-      <fieldset className="flex flex-col gap-3">
+      <fieldset className="flex flex-col gap-3 border-t border-line pt-4">
         <legend className="mb-1 text-xs font-medium text-ink">Help your rider find you (optional)</legend>
         {localFields.map(([key, label, max, hint]) => (
           <div key={key}>

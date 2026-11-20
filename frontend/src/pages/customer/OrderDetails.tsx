@@ -16,6 +16,7 @@ import { DateTimeDisplay } from "@/components/common/DateTimeDisplay";
 import { formatCurrency } from "@/lib/formatters/currency";
 import type { CustomerOrderStatus } from "@/types/order";
 import { CUSTOMER_ORDER_NEXT_STEP } from "@/constants/order-status";
+import { OrderDispute } from "@/components/orders/OrderDispute";
 
 export default function OrderDetails() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -58,6 +59,7 @@ export default function OrderDetails() {
       {order.order_type === "customer_order" && <CustomerDeliveryTracking orderId={order.id} onRiderChange={setRiderKey} />}
       <SandboxSagaStatus orderId={order.id} />
       <MarkReceivedButton order={order} onConfirm={async () => { await markReceived(); }} />
+      <OrderDispute orderId={order.id} orderStatus={order.status} isBuyer />
       {order.order_type === "customer_order" && order.status === "completed" && (
         <section>
           <h2 className="mb-3 text-sm font-medium text-ink-soft">Review your order</h2>
