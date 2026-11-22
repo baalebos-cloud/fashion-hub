@@ -200,9 +200,9 @@ billiard==4.3.2 \
     --hash=sha256:37735a7b4117aafa73532b3b493db4c02fb85c0e69d5f3447f113fd30ff27872 \
     --hash=sha256:9eb83c99b1cf7acb1fed86c1dfd477157000a1a2c0108005c1e5837b55d2acba
     # via celery
-boto3==1.44.5 \
-    --hash=sha256:667b344e25d2bcbb7c42fcf6b92a07bb1d73ee9d6d12c3a7873ec4c490b6fb64 \
-    --hash=sha256:70c3e0409794b29ec1900bcaff0695b73234a2d32ffaed35045b94caa26212a5
+boto3==1.44.6 \
+    --hash=sha256:7d5f43c824bdfcf203fd7c115cfb7bd4283f63caac01c731d8a667f8da096d52 \
+    --hash=sha256:af75aa81455f1c4dbbdd9bbd14c6ee3e66fb827430d1615014d4c45878e79c49
     # via -r requirements.in
 botocore==1.44.8 \
     --hash=sha256:76342a76c338701db80dcb8afe1c9bd079283d6fffbb9d881442abb02a215043 \
@@ -733,9 +733,9 @@ faker==40.54.0 \
     --hash=sha256:2dd88ee8cb63a9149e19ef48bdd73879bc3854d8ba2d6c1535e902a762e603f7 \
     --hash=sha256:38fba73e32699a9f1071724d67e5a66a84bf057987cffb27c9d0c979fda3f135
     # via -r requirements.in
-fastapi==0.163.2 \
-    --hash=sha256:825a8fdd18d7bfcb1b86735e9805c59b7400d55c4060d3df5331b62ae452f004 \
-    --hash=sha256:e605c4c9b94be78b43aa8239a62ccf7b6684346cdc9e053633feab0ab21b87c7
+fastapi==0.165.0 \
+    --hash=sha256:896f48462042bb4f162147eb8fac7e858753dc1f486765709baf105d70e4fc5b \
+    --hash=sha256:dd94d4128319c1e1d50535ab023ab698f850a4d2822f0e181747b46f4ff3c0ab
     # via -r requirements.in
 geoalchemy2==0.21.0 \
     --hash=sha256:be189cf948a5987fa1d2ac8c8729330194f1c9c92efdbfb07a3df32854841b34 \
@@ -761,9 +761,9 @@ google-auth[pyopenssl,requests]==2.62.0 \
     #   google-cloud-resource-manager
     #   google-cloud-storage
     #   google-genai
-google-cloud-aiplatform==2.9.0 \
-    --hash=sha256:054b6cb76b5e22bad2265e28f15233cec0e153a50c93fb26fe1b28eafc4740b0 \
-    --hash=sha256:2cbe65abbe7c229b6bf8d48ec0c9e449b3f7053e26da2be9d59d6eb5e3bf25c8
+google-cloud-aiplatform==2.10.0 \
+    --hash=sha256:9787cfa3a08b46331a85b867d55d7fb299f56ea50c73af4bfce56f6e37a5ffc7 \
+    --hash=sha256:ccb996749788e0d94d7af1686911dae2c2b927fa14fc9a2e51b7c4703db32761
     # via -r requirements.in
 google-cloud-bigquery==3.46.2 \
     --hash=sha256:5e9a4e15f778cc00ee88167de9934a4c1bbb7fc20058e8f573f2bfdaf0d99052 \
@@ -913,9 +913,9 @@ grpcio-status==1.85.0 \
     --hash=sha256:b7b99c00a7a908e685094f67c241ea4e9126e22a8cb8505b15702726239df2af \
     --hash=sha256:f77368f05d20a0c2d5ac26aff71e688b5888256953add52b2d334a67ecd931ce
     # via google-api-core
-gunicorn==27.0.0 \
-    --hash=sha256:1380f2f520abc3beb9e72cd2e728bd2d08a19b3ff6ac03ebd8da71d1798a4008 \
-    --hash=sha256:88d52e7c60b3af07bc8db431fbb450a94780f2cbe7c420c7cf1891392661c591
+gunicorn==27.0.1 \
+    --hash=sha256:378b26b9a38adcf4592f28828233c1716acc55e833ea06bf48719782efaa0d10 \
+    --hash=sha256:b1514965361c8b7e8107a80aa2a92636878df1ccfac6dd204a676426e04d9e3e
     # via -r requirements.in
 h11==0.16.0 \
     --hash=sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1 \
